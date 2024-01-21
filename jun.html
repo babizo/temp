@@ -1,0 +1,104 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3c.org/TR/xhtml1/DTD/xhtml1-transitional.dtd" >
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja">
+<head>
+<meta charset="UTF-8" />
+
+<!--
+<title>けいこクリニック</title>
+<link rel="stylesheet" href="https://junban.com/css/pc/import.css" type="text/css" />
+//-->
+
+<script src="https://junban.com/js/common/jquery-1.9.1.min.js"></script>
+<!--20190527 jqueryより下 ↓↓↓ -->
+<script src="https://junban.com/js/ssl_redirect_pc.js"></script>
+<!--20190527 jqueryより下 ↑↑↑ -->
+<script src="https://junban.com/js/jcnctl.js"></script>
+<script src="https://junban.com/js/transctl.js"></script>
+<script src="https://junban.com/js/jquery.blockUI.js"></script>
+
+
+<meta name="robots" content="noindex">
+
+</head>
+<body>
+<!--
+<div id="middle">
+<h1>けいこクリニック</h1>
+<strong>■順番取り申込み</strong>
+//-->
+
+<form action="http://sv02.e-junban.com/keiko/keiko1/waiting/complete/" method="POST">
+
+  <!-- 任意項目(人数分) -->
+                                                  1人目<br />        診察券番号        <span style="color:#F00;">&nbsp;※必須</span>        <br />
+        <input type="text" name="freeText1[0]" class="tx_b"   maxlength="13" VALUE="7187"/><br />
+                                                              お名前        <span style="color:#F00;">&nbsp;※必須</span>        <br />
+        <input type="text" name="freeText2[0]" class="tx_b"   maxlength="14" VALUE="大沢隼之介"/><br />
+                                                                                              <br />
+                                                  2人目<br />        診察券番号                <br />
+        <input type="text" name="freeText1[1]" class="tx_b"   maxlength="13"/><br />
+                                                              お名前                <br />
+        <input type="text" name="freeText2[1]" class="tx_b"   maxlength="14"/><br />
+                                                                                              <br />
+                                                  3人目<br />        診察券番号                <br />
+        <input type="text" name="freeText1[2]" class="tx_b"   maxlength="13"/><br />
+                                                              お名前                <br />
+        <input type="text" name="freeText2[2]" class="tx_b"   maxlength="14"/><br />
+                                                                                              <br />
+  
+  <!-- 共通任意項目 -->
+                                                                                                                                                                          <br />
+  
+  <!-- メール通知 -->
+  <!-- add joc 171205 旧タイプは非表示
+    -->
+
+  <div id="bt_area"><input type="submit" value="順番取りをする" name="Submit" class="f_bt"></div>
+</form>
+
+<ul id="footer">
+
+<li><a href="http://sv02.e-junban.com/keiko/keiko1/waiting/">待ち状況へ戻る</a>
+<!--
+<li><a href="./">このページを更新</a>
+//-->
+<li><a href="./ryu.html">龍之介</a>
+<li><a href="./hiromi.html">裕美</a>
+<li><a href="./akibo.html">あきぼ</a>
+</ul>
+
+</div>
+
+
+<script>
+function dummyLink()
+{
+	window.scroll(0, 0);
+	$('a').css('text-decoration', 'underline');
+}
+</script>
+
+<script>
+var reloadLink = [];
+function resetLink()
+{
+    for (var i = 0; i < reloadLink.length; i++) {
+        reloadLink[i].attr('href', './');
+    }
+}
+$(document).ready(function() {
+    $('a').each(function() {
+        if ($(this).attr('href') == './') {
+            $(this).attr('href', 'javascript:dummyLink();');
+            reloadLink.push($(this));
+        }
+    });
+    if (reloadLink.length > 0) {
+        setTimeout('resetLink()', 15000);
+    }
+});
+</script>
+
+</body>
+</html>
