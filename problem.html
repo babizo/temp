@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.5.2</title>
+    <title>最難関突破 AI数学講師 v1.5.3</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; overflow-x: hidden; }
         .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #444; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
-        .settings-toggle { background: #333; color: #888; font-size: 0.7rem; padding: 5px 10px; border-radius: 5px; cursor: pointer; text-align: center; margin-bottom: 10px; }
+        .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; }
+        
+        .settings-toggle { background: #333; color: #888; font-size: 0.7rem; padding: 5px 10px; border-radius: 5px; cursor: pointer; text-align: center; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         #settings-content { display: none; padding: 10px; background: #222; border-radius: 8px; margin-bottom: 10px; }
+
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
         .stat-label { font-size: 0.7rem; color: #aaa; }
@@ -20,14 +23,19 @@
         .unit-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
         .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
-        .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; cursor: grab; }
+
+        .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; cursor: grab; display: flex; align-items: center; justify-content: center; color: #888; flex-direction: column; }
         #svg-content { width: 100%; height: 100%; transform-origin: 0 0; display: flex; align-items: center; justify-content: center; }
         svg { width: 100%; height: 100%; }
+
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
+        
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-camera { background: var(--success); color: white; height: 52px; font-size: 1.1rem; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
         .btn-draw { background: #555; color: white; font-size: 0.8rem; display: none; }
+        .btn-retry { background: var(--error); color: white; padding: 8px 15px; font-size: 0.8rem; width: auto; margin-top: 10px; }
+        
         .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 12px; border-left: 4px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.08); margin: 10px 0; border-radius: 0 8px 8px 0; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
         .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
@@ -35,7 +43,10 @@
 </head>
 <body>
 
-    <div class="settings-toggle" onclick="toggleSettings()">⚙️ API Key設定を表示/非表示</div>
+    <div class="settings-toggle" onclick="toggleSettings()">
+        <span>⚙️ 設定（API Key等）</span>
+        <span class="version-tag">ver 1.5.3</span>
+    </div>
     <div id="settings-content">
         <input type="password" id="apiKey" style="width:100%; padding:10px; background:#111; color:#eee; border:1px solid #444; border-radius:6px; box-sizing:border-box;" placeholder="Gemini API Key を入力">
     </div>
@@ -55,7 +66,7 @@
             <button onclick="skipProblem()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">SKIP ≫</button>
         </div>
         <div class="canvas-container" id="zoom-container">
-            <div id="svg-content"></div>
+            <div id="svg-content">図形データを読み込み中...</div>
         </div>
         <button id="btn-draw" onclick="autoGenerateSVG(3)" style="background:#555; color:white; font-size:0.8rem;">🎨 図を再生成する</button>
         
@@ -127,7 +138,7 @@
             scale = 1; offsetX = 0; offsetY = 0; updateTransform();
             const svgCont = document.getElementById('svg-content');
             if (prob.svg) { svgCont.innerHTML = prob.svg; document.getElementById('btn-draw').style.display = 'none'; }
-            else { svgCont.innerHTML = ""; document.getElementById('btn-draw').style.display = 'block'; }
+            else { svgCont.innerHTML = "図形データを読み込み中..."; document.getElementById('btn-draw').style.display = 'block'; }
         }
 
         function initZoomLogic() {
@@ -159,10 +170,7 @@
             localStorage.setItem('gemini_api_key', key);
             startStatusUI("AIが『解くべき問い』を作成中...");
             try {
-                const prompt = `あなたは最難関高校数学講師。問題『${currentProb.text}』の類題をJSONで作成せよ。
-                【絶対ルール】必ず(1)〜を求めよ、(2)〜を答えよ、等の具体的な問いで完結させること。
-                {"unit":"...","text":"...","sub":["..."],"hint":"..."}`;
-
+                const prompt = `あなたは最難関高校数学講師。問題『${currentProb.text}』の類題をJSONで作成せよ。必ず(1)〜を求めよ、(2)〜を答えよ、等の具体的な問いで完結させること。{"unit":"...","text":"...","sub":["..."],"hint":"..."}`;
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -178,14 +186,13 @@
         async function autoGenerateSVG(retryCount = 3) {
             const key = document.getElementById('apiKey').value;
             const drawBtn = document.getElementById('btn-draw');
-            drawBtn.innerText = `🎨 見取り図を作成中... (${retryCount})`;
+            const svgCont = document.getElementById('svg-content');
+            
+            svgCont.innerHTML = `<div>図を作成中... (試行: ${4-retryCount}/3)</div>`;
+            drawBtn.innerText = `🎨 見取り図を作成中...`;
             drawBtn.disabled = true; drawBtn.style.display = "block";
             
-            const prompt = `数学講師として、以下の問題の見取り図をSVGで描いてください。
-            問題：『${currentProb.text}』
-            奥行きのある立体を描き、ラベル太字、比は緑、補助線は赤。
-            返信はJSON形式で、svgキーの中に純粋な<svg>タグ文字列だけを入れてください。マークダウン等は禁止。`;
-
+            const prompt = `数学講師として、以下の問題の見取り図をSVGで描いてください。問題：『${currentProb.text}』。奥行きのある立体を描き、ラベル太字、比は緑、補助線は赤。返信はJSON形式で、svgキーの中に純粋な<svg>タグ文字列だけを入れ、マークダウン等は禁止。`;
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
@@ -193,17 +200,19 @@
                 });
                 const data = await res.json();
                 const rawResponse = data.candidates[0].content.parts[0].text;
-                
-                // SVG抽出ロジックの強化（サニタイズ）
                 const svgMatch = rawResponse.match(/<svg[\s\S]*?<\/svg>/);
                 if (svgMatch) {
                     const svg = svgMatch[0];
-                    currentProb.svg = svg; document.getElementById('svg-content').innerHTML = svg;
+                    currentProb.svg = svg; svgCont.innerHTML = svg;
                     drawBtn.style.display = 'none';
                 } else { throw new Error("SVG not found"); }
             } catch (e) {
-                if (retryCount > 1) setTimeout(() => autoGenerateSVG(retryCount - 1), 1200);
-                else { drawBtn.innerText = "🎨 図の生成に失敗（再試行）"; drawBtn.disabled = false; }
+                if (retryCount > 1) {
+                    setTimeout(() => autoGenerateSVG(retryCount - 1), 1500);
+                } else {
+                    svgCont.innerHTML = `<div>図の自動生成に失敗しました</div><button class="btn-retry" onclick="autoGenerateSVG(3)">再試行</button>`;
+                    drawBtn.innerText = "🎨 図の再生成（手動）"; drawBtn.disabled = false;
+                }
             }
         }
 
