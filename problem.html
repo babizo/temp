@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.6.0</title>
+    <title>最難関突破 AI数学講師 v1.6.4</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; overflow-x: hidden; }
@@ -14,6 +14,15 @@
         
         .settings-toggle { background: #333; color: #888; font-size: 0.7rem; padding: 5px 10px; border-radius: 5px; cursor: pointer; text-align: center; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         #settings-area { display: none; padding: 10px; background: #222; border-radius: 8px; margin-bottom: 10px; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
+        .stat-label { font-size: 0.7rem; color: #aaa; }
+        .stat-val { font-size: 1.3rem; font-weight: bold; color: var(--primary); }
+        .unit-analysis { font-size: 0.8rem; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
+        .unit-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
+        .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
 
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; }
@@ -34,11 +43,11 @@
 
     <div class="settings-toggle" onclick="toggleSettings()">
         <span>⚙️ 塾生用設定パネル</span>
-        <span class="version-tag">ver 1.6.0 Stable</span>
+        <span class="version-tag">ver 1.6.4 Origin-2.5</span>
     </div>
     <div id="settings-area">
-        <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">System Key:</div>
-        <input type="password" id="x-system-key-storage" style="width:100%; padding:10px; background:#111; color:#eee; border:1px solid #444; border-radius:6px; box-sizing:border-box;" placeholder="キーを入力">
+        <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
+        <input type="password" id="apiKey" style="width:100%; padding:10px; background:#111; color:#eee; border:1px solid #444; border-radius:6px; box-sizing:border-box;" placeholder="キーを入力">
     </div>
 
     <div class="card">
@@ -82,10 +91,11 @@
     </div>
 
     <script>
-        const MODEL = "gemini-1.5-flash";
+        // 【修正】初期の安定していた設定に完全に戻す
+        const MODEL_NAME = "gemini-2.5-flash"; 
+        
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null };
 
-        // 1問目のデータを即座に描画
         const initData = {
             unit: "立体図形",
             text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
@@ -96,72 +106,89 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             const saved = localStorage.getItem('gemini_api_key');
-            if (saved) document.getElementById('x-system-key-storage').value = saved;
+            if (saved) document.getElementById('apiKey').value = saved;
             applyProb(initData);
             refreshStats();
+            initZoom();
         });
 
         function applyProb(p) {
             state.prob = p;
-            document.getElementById('u-title').innerText = p.unit;
-            document.getElementById('p-text').innerText = p.text;
+            document.getElementById('u-title').innerText = p.unit || "演習";
+            document.getElementById('p-text').innerText = p.text || "";
             document.getElementById('q-list').innerHTML = (p.sub || []).map(s => `<li>${s}</li>`).join('');
             document.getElementById('h-box').innerText = p.hint || "";
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             
-            // 図の描画（最も確実な手法）
+            // 図の描画（修復ロジック）
             const layer = document.getElementById('svg-layer');
             if (p.svg) {
-                layer.innerHTML = p.svg;
-                // 万が一描画が崩れた場合用のリセット
-                state.scale = 1; state.x = 0; state.y = 0;
-                updateView();
+                try {
+                    const node = new DOMParser().parseFromString(p.svg, "image/svg+xml").querySelector("svg");
+                    if(node) {
+                        layer.innerHTML = "";
+                        layer.appendChild(node);
+                    } else { throw new Error(); }
+                } catch(e) {
+                    layer.innerHTML = "描画エラー";
+                }
             } else {
-                layer.innerHTML = "図解生成中...";
+                layer.innerHTML = "図解なし";
             }
+            state.scale = 1; state.x = 0; state.y = 0; updateView();
         }
 
         async function generateNext() {
-            const key = document.getElementById('x-system-key-storage').value;
+            const key = document.getElementById('apiKey').value;
             if(!key) return alert("Keyを入力してください");
             localStorage.setItem('gemini_api_key', key);
             
-            showUI("思考中...");
+            showUI("考案中...");
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`, {
+                // 【修正】初期と同じ fetch URL の書き方
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師。問題「${state.prob.text}」の類題をJSONで。必ず「〜を求めよ」という問いで完結させること。{"unit":"...","text":"...","sub":["..."],"hint":"..."}` }] }] })
                 });
                 const data = await res.json();
-                const json = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]);
+                if (data.error) throw new Error(data.error.message);
+                const jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
+                const json = JSON.parse(jsonText);
                 applyProb(json);
                 hideUI();
                 autoDraw(key);
-            } catch (e) { hideUI(); alert("生成失敗"); }
+            } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
         }
 
         async function autoDraw(key) {
+            const layer = document.getElementById('svg-layer');
+            layer.innerHTML = "見取り図を作成中...";
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`, {
+                // 【修正】初期と同じ fetch URL の書き方
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の見取り図をSVGで。奥行きを出すため斜め45度方向の辺を描き、絶対に正方形（平面図）にしないでください。比は緑、切断は赤。{"svg":"<svg>...</svg>"}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の見取り図をSVGで。奥行きを出し、絶対に正方形にしないこと。比は緑、切断は赤。JSONでsvgキーにタグのみ。{"svg":"<svg>...</svg>"}` }] }] })
                 });
                 const data = await res.json();
-                const svg = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]).svg;
-                state.prob.svg = svg;
-                document.getElementById('svg-layer').innerHTML = svg;
-            } catch (e) { document.getElementById('svg-layer').innerHTML = "作図失敗"; }
+                const rawSvg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/)[0];
+                state.prob.svg = rawSvg;
+                
+                const node = new DOMParser().parseFromString(rawSvg, "image/svg+xml").querySelector("svg");
+                if (node) { layer.innerHTML = ""; layer.appendChild(node); }
+            } catch (e) { layer.innerHTML = "作図失敗"; }
         }
 
         async function doGrade(file) {
-            const key = document.getElementById('x-system-key-storage').value;
+            const key = document.getElementById('apiKey').value;
+            if(!key) return alert("Keyを入力してください");
             showUI("採点中...");
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const b64 = e.target.result.split(',')[1];
                 try {
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`, {
+                    // 【修正】初期と同じ fetch URL の書き方
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
                         body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。問題：${state.prob.text}。【Score: X/10】で採点し解説。` }, { inline_data: { mime_type: "image/jpeg", data: b64 } }] }] })
                     });
@@ -170,7 +197,7 @@
                     document.getElementById('res-box').innerText = fb;
                     document.getElementById('res-box').style.display = 'block';
                     const score = (fb.match(/Score:\s*(\d+)/)||[0,0])[1];
-                    saveLog(score >= 8 ? "○" : "×", parseInt(score));
+                    saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), parseInt(score));
                 } catch (e) { alert("採点失敗"); } finally { hideUI(); }
             };
             reader.readAsDataURL(file);
@@ -191,12 +218,43 @@
                 const avg = h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length;
                 document.getElementById('dev-val').innerText = (40 + (avg * 3.5)).toFixed(1);
             }
+            const units = {};
+            h.forEach(x => { if(!units[x.u]) units[x.u]={s:0,c:0}; units[x.u].s+=x.s; units[x.u].c++; });
+            let html = "";
+            for(let u in units) {
+                const a = units[u].s/units[u].c;
+                html += `<div style="margin-bottom:5px;"><span>${u}</span> <span style="float:right;">${a.toFixed(1)}/10</span><div style="background:#444; height:4px; width:100%;"><div style="background:var(--success); height:100%; width:${a*10}%;"></div></div></div>`;
+            }
+            document.getElementById('unit-chart').innerHTML = html;
+        }
+
+        function initZoom() {
+            const c = document.getElementById('zoom-box');
+            let isDrag = false, sx = 0, sy = 0, lDist = 0;
+            c.onwheel = (e) => { e.preventDefault(); state.scale *= (e.deltaY > 0 ? 0.9 : 1.1); state.scale = Math.min(Math.max(0.5, state.scale), 5); updateView(); };
+            c.onmousedown = (e) => { isDrag = true; sx = e.clientX - state.x; sy = e.clientY - state.y; };
+            window.onmousemove = (e) => { if(isDrag) { state.x = e.clientX - sx; state.y = e.clientY - sy; updateView(); } };
+            window.onmouseup = () => isDrag = false;
+            c.ontouchstart = (e) => {
+                if(e.touches.length === 1) { isDrag = true; sx = e.touches[0].clientX - state.x; sy = e.touches[0].clientY - state.y; }
+                else if(e.touches.length === 2) lDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            };
+            c.ontouchmove = (e) => {
+                e.preventDefault();
+                if(e.touches.length === 1 && isDrag) { state.x = e.touches[0].clientX - sx; state.y = e.touches[0].clientY - sy; }
+                else if(e.touches.length === 2) {
+                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    state.scale *= (d / lDist); state.scale = Math.min(Math.max(0.5, state.scale), 5); lDist = d;
+                }
+                updateView();
+            };
+            c.ontouchend = () => isDrag = false;
         }
 
         function loadHist(i) { const h = JSON.parse(localStorage.getItem('m_hist')); applyProb(h[i].p); }
         function doSkip() { saveLog("SKIP", 0); generateNext(); }
-        function toggleSettings() { const s = document.getElementById('settings-area'); s.style.display = s.style.display === 'block' ? 'none' : 'block'; }
-        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = b.style.display === 'block' ? 'none' : 'block'; }
+        function toggleSettings() { const s = document.getElementById('settings-area'); s.style.display = (s.style.display === 'block') ? 'none' : 'block'; }
+        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; }
         function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
