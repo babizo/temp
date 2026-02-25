@@ -74,14 +74,77 @@
         let currentIdx = new Date().getDate();
 
         const problemDatabase = [
-            {
-                unit: "灘高・立体図形",
-                text: "一辺の長さが6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
-                sub: ["3点P, Q, Rを通る平面で切断した切り口の名称を答えよ。", "その切り口の面積を求めよ。"],
-                svg: `<svg width="200" height="200" viewBox="0 0 200 200"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/></svg>`,
-                hint: "切り口は正三角形になります。相似比を利用しましょう。"
-            }
-        ];
+    {
+        unit: "灘高・空間図形（切断）",
+        text: "一辺の長さが6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。この3点を通る平面で立方体を切断する。",
+        sub: ["切り口の図形の名称を答えよ。", "切断によって分けられた2つの立体のうち、点Bを含む方の体積を求めよ。"],
+        svg: `<svg width="200" height="200" viewBox="0 0 200 200"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="10" fill="#e74c3c">P,Q,Rを通る切断</text></svg>`,
+        hint: "切り口は正三角形になります。切断された部分は三角錐（断頭三角柱の特殊ケース）として計算できます。"
+    },
+    {
+        unit: "開成高・平面図形（円）",
+        text: "AB=13, BC=14, CA=15の三角形ABCがある。この三角形の内接円と辺BCの接点をDとする。",
+        sub: ["三角形ABCの面積を求めよ。", "線分BDの長さを求めよ。"],
+        svg: `<svg width="220" height="150" viewBox="0 0 220 150"><path d="M110 20 L40 130 L180 130 Z" fill="none" stroke="#333" stroke-width="2"/><circle cx="110" cy="92" r="38" fill="none" stroke="#e74c3c"/><text x="105" y="15">A</text><text x="30" y="145">B</text><text x="185" y="145">C</text><text x="110" y="145" fill="#e74c3c">D</text></svg>`,
+        hint: "三辺が与えられた三角形の面積はヘロンの公式、または垂線を下ろして三平方の定理で求められます。"
+    },
+    {
+        unit: "筑駒高・数と式（不定方程式）",
+        text: "2つの正の整数x, yが 3x + 7y = 100 を満たしている。",
+        sub: ["この方程式を満たす組(x, y)をすべて求めよ。", "x + y が最大となる組を答えよ。"],
+        svg: `<svg width="200" height="100" viewBox="0 0 200 100"><text x="30" y="60" font-size="20" font-weight="bold">3x + 7y = 100</text></svg>`,
+        hint: "係数の大きい y に具体的な数字（1, 2...）を代入して、3の倍数になる組み合わせを探すと早いです。"
+    },
+    {
+        unit: "灘高・関数（動点）",
+        text: "放物線 y = 1/4 x^2 上に2点A, Bがあり、Aのx座標は-2、Bのx座標は4である。",
+        sub: ["直線ABの式を求めよ。", "△OABの面積を求めよ。"],
+        svg: `<svg width="250" height="180" viewBox="-100 -20 200 160"><g transform="scale(1, -1) translate(0, -130)"><line x1="-90" y1="0" x2="90" y2="0" stroke="#888"/><line x1="0" y1="-10" x2="0" y2="140" stroke="#888"/><path d="M-80 160 Q 0 0 80 160" fill="none" stroke="#2e86c1" stroke-width="2"/><line x1="-40" y1="10" x2="80" y2="40" stroke="#e74c3c" stroke-width="2"/></g><text x="-55" y="115">A(-2,1)</text><text x="85" y="85">B(4,4)</text></svg>`,
+        hint: "y軸との交点（切片）を利用して、三角形を左右に分割すると面積計算が楽になります。"
+    },
+    {
+        unit: "開成高・立体図形（回転体）",
+        text: "直角二等辺三角形ABC（∠B=90°, AB=BC=6）を、辺ACを軸として1回転させてできる立体の体積を求めよ。",
+        sub: ["回転体の形状を答えよ。", "その体積を求めよ。"],
+        svg: `<svg width="200" height="200" viewBox="0 0 200 200"><path d="M50 150 L150 150 L150 50 Z" fill="none" stroke="#333" stroke-width="2"/><path d="M50 150 L150 50" stroke="#e74c3c" stroke-dasharray="4"/><text x="145" y="165">B</text><text x="40" y="165">A</text><text x="155" y="45">C</text></svg>`,
+        hint: "底面を共有する2つの円錐が合体した形になります。"
+    },
+    {
+        unit: "筑駒高・確率（規則性）",
+        text: "1枚の硬貨を5回投げる。表が出る回数をnとする。",
+        sub: ["nが3以上になる確率を求めよ。", "少なくとも1回は連続して表が出る確率を求めよ。"],
+        svg: `<svg width="200" height="80" viewBox="0 0 200 80"><circle cx="40" cy="40" r="20" fill="#f1c40f"/><circle cx="90" cy="40" r="20" fill="#bdc3c7"/><circle cx="140" cy="40" r="20" fill="#f1c40f"/></svg>`,
+        hint: "「少なくとも〜」は余事象（全体から引く）を考えると計算が速くなります。"
+    },
+    {
+        unit: "灘高・平面図形（相似）",
+        text: "平行四辺形ABCDにおいて、辺ABの中点をM、辺BCを2:1に分ける点をNとする。DNとMCの交点をPとするとき、MP:PCを求めよ。",
+        sub: ["補助線を1本引き、相似な三角形の組を作れ。", "線分比を求めよ。"],
+        svg: `<svg width="250" height="150" viewBox="0 0 250 150"><path d="M50 30 L200 30 L230 120 L80 120 Z" fill="none" stroke="#333" stroke-width="2"/><line x1="65" y1="75" x2="230" y2="120" stroke="#e74c3c"/><line x1="80" y1="120" x2="180" y2="120" stroke="#2e86c1" stroke-width="3"/><text x="140" y="100">P</text></svg>`,
+        hint: "延長線を引いて大きな砂時計型の相似を作るのが定石です。"
+    },
+    {
+        unit: "開成高・数と式（展開・因数分解）",
+        text: "x + y = 5, xy = 3 のとき、x^3 + y^3 の値を求めよ。",
+        sub: ["(x+y)^3 の展開公式を利用せよ。", "値を代入して計算せよ。"],
+        svg: `<svg width="200" height="80" viewBox="0 0 200 80"><text x="20" y="50" font-size="20">x³ + y³ = ?</text></svg>`,
+        hint: "x^3 + y^3 = (x+y)^3 - 3xy(x+y) という変形を使います。"
+    },
+    {
+        unit: "筑駒高・平面図形（面積）",
+        text: "一辺が10の正方形ABCDの内部に点Pがあり、PA=PB=10である。",
+        sub: ["∠PABの大きさを求めよ。", "△PCDの面積を求めよ。"],
+        svg: `<svg width="200" height="200" viewBox="0 0 200 200"><rect x="50" y="50" width="100" height="100" fill="none" stroke="#333"/><path d="M50 150 L100 63.4 L150 150" fill="rgba(46,204,113,0.2)" stroke="#27ae60"/><text x="95" y="55">P</text></svg>`,
+        hint: "△PABは正三角形になります。正方形の高さから正三角形の高さを引いて、△PCDの高さを出しましょう。"
+    },
+    {
+        unit: "灘高・整数（商と余り）",
+        text: "nは整数とする。n^3 - n が常に6の倍数であることを証明せよ。",
+        sub: ["n^3 - n を因数分解せよ。", "連続する3つの整数の積の性質を述べよ。"],
+        svg: `<svg width="200" height="80" viewBox="0 0 200 80"><text x="30" y="50" font-size="18">n(n-1)(n+1) mod 6</text></svg>`,
+        hint: "連続する3整数の積には、必ず2の倍数と3の倍数が含まれます。"
+    }
+];
 
         window.onload = () => {
             const savedKey = localStorage.getItem('gemini_api_key');
