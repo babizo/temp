@@ -5,23 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>最難関突破 AI数学講師</title>
     <style>
-        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --skip: #95a5a6; --ai: #a29bfe; --error: #e74c3c; }
+        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; }
         .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #444; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
+        .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; }
+        
+        /* 設定エリア */
+        .api-input { width: 100%; padding: 10px; background: #333; color: #eee; border: 1px solid #555; border-radius: 6px; font-size: 0.8rem; box-sizing: border-box; }
         
         /* ローディング・キャンセルUI */
         .loading-overlay { display: none; text-align: center; padding: 20px; background: rgba(0,0,0,0.8); border-radius: 10px; border: 1px solid var(--ai); margin-bottom: 15px; }
         .timer-text { font-size: 1.5rem; font-weight: bold; color: var(--ai); margin-bottom: 10px; font-family: monospace; }
-        .btn-cancel { background: var(--error); color: white; border: none; padding: 8px 15px; border-radius: 5px; font-size: 0.8rem; cursor: pointer; }
+        .btn-cancel { background: var(--error); color: white; border: none; padding: 8px 15px; border-radius: 5px; font-size: 0.8rem; cursor: pointer; width: auto; }
 
         .btn-skip { background: var(--skip); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; }
-        .canvas-container { background: #ffffff; padding: 10px; border-radius: 6px; display: flex; justify-content: center; min-height: 200px; margin-bottom: 10px; }
+        .canvas-container { background: #ffffff; padding: 10px; border-radius: 6px; display: flex; justify-content: center; min-height: 200px; margin-bottom: 10px; overflow: hidden; }
         svg { width: 100%; height: auto; max-height: 220px; }
-        button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 10px; }
-        .btn-camera { background: var(--success); color: white; height: 52px; }
-        .btn-ai-gen { background: var(--ai); color: white; }
+
+        .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 10px; border-left: 3px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.05); margin: 10px 0; border-radius: 0 5px 5px 0; }
+        
+        button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 10px; transition: 0.2s; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-camera { background: var(--success); color: white; height: 52px; font-size: 1.1rem; }
+        .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
+        
+        .loading-text { display: none; text-align: center; color: var(--success); font-weight: bold; padding: 10px; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #444; font-size: 0.8rem; }
+        .mark-○ { color: var(--success); font-weight: bold; }
+        .mark-× { color: var(--error); font-weight: bold; }
+        .mark-SKIP { color: var(--skip); font-style: italic; }
     </style>
 </head>
 <body>
@@ -29,14 +43,14 @@
     <div class="card">
         <div class="header-flex">
             <h1>1. 初期設定</h1>
-            <span style="font-size:0.6rem; color:#888;">v1.2.6</span>
+            <span class="version-tag">ver 1.2.9</span>
         </div>
-        <input type="password" id="apiKey" style="width:100%; padding:10px; background:#333; color:#eee; border:1px solid #555; border-radius:6px; box-sizing:border-box;" placeholder="Gemini API Key">
+        <input type="password" id="apiKey" class="api-input" placeholder="Gemini API Key を入力">
     </div>
 
     <div id="ai-status" class="loading-overlay">
         <div class="timer-text"><span id="timer-count">0.0</span>s</div>
-        <p style="font-size:0.8rem; margin-bottom:15px;">AIが問題を考えています...</p>
+        <p style="font-size:0.8rem; margin-bottom:15px;">AIが類題を生成中...</p>
         <button class="btn-cancel" onclick="cancelAI()">✕ 中断して戻る</button>
     </div>
 
@@ -48,34 +62,64 @@
         <div class="canvas-container" id="svg-container"></div>
         <p id="problem-text" style="font-weight:bold; margin: 8px 0;"></p>
         <ol id="sub-questions" style="padding-left: 20px; margin: 8px 0;"></ol>
+        
+        <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:5px; width:auto; font-size:0.8rem; margin-top:5px;">💡 ヒントを表示</button>
+        <div id="hint-area" class="hint-box"></div>
         <button class="btn-ai-gen" onclick="generateSimilarProblem()">✨ AIで類題を作成</button>
     </div>
 
     <div class="card">
-        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📸 撮影して添削を受ける</button>
+        <h1>3. 提出・添削</h1>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📸 撮影して添削を受ける</button>
+        <div id="loading-grade" class="loading-text">AIが答案を解析中...</div>
         <div id="result" style="background:#111; padding:15px; border-radius:8px; font-size:0.9rem; display:none; border-left:4px solid var(--primary); white-space:pre-wrap;"></div>
+    </div>
+
+    <div class="card">
+        <div class="header-flex">
+            <h1>4. 復習リスト</h1>
+            <button onclick="clearHistory()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto; padding:0;">履歴を全消去</button>
+        </div>
+        <div id="history-list"></div>
     </div>
 
     <script>
         const MODEL_NAME = "gemini-2.5-flash";
         let currentProb = {};
         let currentIdx = new Date().getDate();
-        let abortController = null; // 通信中断用
+        let abortController = null;
         let timerInterval = null;
 
-        const problemDatabase = [{
-            unit: "灘高・空間図形",
-            text: "一辺6の立方体。辺AB, BC, CGの中点P, Q, Rを通る平面で切断する。",
-            sub: ["切り口の形状を答えよ。", "点Bを含む方の立体の体積を求めよ。"],
-            svg: `<svg viewBox="0 0 200 180"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="12" fill="#e74c3c">P,Q,R</text></svg>`,
-            hint: "切り口は正三角形。"
-        }];
+        const problemDatabase = [
+            {
+                unit: "灘高・立体図形",
+                text: "一辺6の立方体。辺AB, BC, CGの中点P, Q, Rを通る平面で切断する。",
+                sub: ["切り口の形状を答えよ。", "点Bを含む方の立体の体積を求めよ。"],
+                svg: `<svg viewBox="0 0 200 180"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="12" fill="#e74c3c">P,Q,R</text></svg>`,
+                hint: "切り口は正三角形。切断部分は三角錐として計算できます。"
+            },
+            {
+                unit: "開成高・平面図形（円）",
+                text: "AB=13, BC=14, CA=15の三角形ABCがある。この三角形の内接円と辺BCの接点をDとする。",
+                sub: ["三角形ABCの面積を求めよ。", "線分BDの長さを求めよ。"],
+                svg: `<svg width="220" height="150" viewBox="0 0 220 150"><path d="M110 20 L40 130 L180 130 Z" fill="none" stroke="#333" stroke-width="2"/><circle cx="110" cy="92" r="38" fill="none" stroke="#e74c3c"/><text x="105" y="15">A</text><text x="30" y="145">B</text><text x="185" y="145">C</text><text x="110" y="145" fill="#e74c3c">D</text></svg>`,
+                hint: "ヘロンの公式や垂線を用いた三平方の定理で面積を出し、s=(a+b+c)/2を用いて内接円の性質を使いましょう。"
+            },
+            {
+                unit: "筑駒高・数と式（不定方程式）",
+                text: "2つの正の整数x, yが 3x + 7y = 100 を満たしている。",
+                sub: ["この方程式を満たす組(x, y)をすべて求めよ。", "x + y が最大となる組を答えよ。"],
+                svg: `<svg width="200" height="100" viewBox="0 0 200 100"><text x="30" y="60" font-size="20" font-weight="bold">3x + 7y = 100</text></svg>`,
+                hint: "yに1, 2...と代入し、(100-7y)が3の倍数になるものを探します。"
+            }
+        ];
 
         window.onload = () => {
             const savedKey = localStorage.getItem('gemini_api_key');
             if (savedKey) document.getElementById('apiKey').value = savedKey;
-            displayProblem(problemDatabase[0]);
+            displayProblem(problemDatabase[currentIdx % problemDatabase.length]);
+            showHistory();
         };
 
         function displayProblem(prob) {
@@ -84,102 +128,112 @@
             document.getElementById('problem-text').innerText = prob.text;
             document.getElementById('svg-container').innerHTML = prob.svg;
             document.getElementById('sub-questions').innerHTML = prob.sub.map(s => `<li>${s}</li>`).join('');
+            document.getElementById('hint-area').innerText = prob.hint;
+            document.getElementById('hint-area').style.display = 'none';
             document.getElementById('result').style.display = 'none';
+            window.scrollTo(0,0);
         }
 
         async function generateSimilarProblem() {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("APIキーが必要です");
-        
-            // UI状態のロック
+            if(!key) return alert("APIキーを入力してください");
+            localStorage.setItem('gemini_api_key', key);
+
             const genBtn = document.querySelector('.btn-ai-gen');
             genBtn.disabled = true;
             startStatusUI();
-        
-            // 通信中断用のコントローラー
+
             abortController = new AbortController();
-            
-            // 【新規】30秒で強制タイムアウトさせるタイマー
             const timeoutId = setTimeout(() => {
                 if (abortController) {
                     abortController.abort();
-                    alert("30秒経過しても応答がないため、タイムアウトしました。もう一度試してください。");
+                    alert("30秒経過したためタイムアウトしました。");
                 }
-            }, 30000); // 30000ms = 30秒
-        
-            const prompt = `数学講師として問題『${currentProb.text}』の類題を1問作成。中学数学（高校入試）範囲厳守。JSONのみ返して。{"unit":"...","text":"...","sub":["..."],"svg":"...","hint":"..."}`;
-        
+            }, 30000);
+
+            const prompt = `最難関高校数学講師として、問題『${currentProb.text}』の類題を1問作成。高校入試範囲（中学数学）を厳守。三角関数禁止。図(SVG)も必ず生成し座標ラベルを入れること。JSONのみ返して。{"unit":"...","text":"...","sub":["..."],"svg":"...","hint":"..."}`;
+
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
+                    method: "POST", headers: {"Content-Type": "application/json"},
                     signal: abortController.signal,
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
                 
-                clearTimeout(timeoutId); // 正常に応答が来たらタイムアウトを解除
-        
+                clearTimeout(timeoutId);
                 const data = await res.json();
                 const text = data.candidates[0].content.parts[0].text;
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) displayProblem(JSON.parse(jsonMatch[0]));
-        
             } catch (e) {
                 clearTimeout(timeoutId);
-                if(e.name === 'AbortError') {
-                    console.log('通信が中断されました');
-                } else {
-                    alert("生成に失敗しました。");
-                }
+                if(e.name !== 'AbortError') alert("生成に失敗しました。");
             } finally {
                 genBtn.disabled = false;
                 stopStatusUI();
             }
         }
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    signal: abortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                
-                const data = await res.json();
-                const text = data.candidates[0].content.parts[0].text;
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) displayProblem(JSON.parse(jsonMatch[0]));
-            } catch (e) {
-                if(e.name === 'AbortError') console.log('キャンセルされました');
-                else alert("生成に失敗しました。接続を確認してください。");
-            } finally {
-                stopStatusUI();
-            }
-        }
-
-        function startStatusUI() {
-            document.getElementById('ai-status').style.display = 'block';
-            let startTime = Date.now();
-            document.getElementById('timer-count').innerText = "0.0";
-            timerInterval = setInterval(() => {
-                let elapsed = (Date.now() - startTime) / 1000;
-                document.getElementById('timer-count').innerText = elapsed.toFixed(1);
-            }, 100);
-        }
-
-        function stopStatusUI() {
-            document.getElementById('ai-status').style.display = 'none';
-            clearInterval(timerInterval);
-        }
-
-        function cancelAI() {
-            if(abortController) abortController.abort();
-            stopStatusUI();
-        }
 
         function skipProblem() {
+            saveHistory("SKIP");
             currentIdx++;
             displayProblem(problemDatabase[currentIdx % problemDatabase.length]);
         }
+
+        function toggleHint() {
+            const h = document.getElementById('hint-area');
+            h.style.display = (h.style.display === 'block') ? 'none' : 'block';
+        }
+
+        document.getElementById('cameraInput').onchange = (e) => {
+            const reader = new FileReader();
+            reader.onloadend = () => startGrading(reader.result.split(',')[1]);
+            reader.readAsDataURL(e.target.files[0]);
+        };
+
+        async function startGrading(base64) {
+            const key = document.getElementById('apiKey').value;
+            if(!key) return alert("APIキーを入力してください");
+            document.getElementById('loading-grade').style.display = 'block';
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `高校入試講師として添削。問題：${currentProb.text}。判定○△×から始め詳細に解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 } })
+                });
+                const data = await res.json();
+                const feedback = data.candidates[0].content.parts[0].text;
+                document.getElementById('result').innerText = feedback;
+                document.getElementById('result').style.display = 'block';
+                const mark = feedback.includes("○") ? "○" : feedback.includes("△") ? "△" : "×";
+                saveHistory(mark);
+            } catch (e) { alert("エラーが発生しました。"); }
+            finally { document.getElementById('loading-grade').style.display = 'none'; }
+        }
+
+        function saveHistory(mark) {
+            let history = JSON.parse(localStorage.getItem('math_history') || "[]");
+            history.unshift({ date: new Date().toLocaleDateString(), unit: document.getElementById('unit-name').innerText, mark: mark });
+            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 15)));
+            showHistory();
+        }
+
+        function showHistory() {
+            const history = JSON.parse(localStorage.getItem('math_history') || "[]");
+            const list = document.getElementById('history-list');
+            list.innerHTML = history.length ? history.map(h => `<div class="history-item"><span>${h.date} ${h.unit}</span><span class="mark-${h.mark}">${h.mark}</span></div>`).join('') : "<p style='font-size:0.7rem; color:#888;'>履歴なし</p>";
+        }
+
+        function clearHistory() { if(confirm("履歴を削除しますか？")) { localStorage.removeItem('math_history'); showHistory(); } }
+
+        function startStatusUI() {
+            document.getElementById('ai-status').style.display = 'block';
+            let start = Date.now();
+            timerInterval = setInterval(() => {
+                document.getElementById('timer-count').innerText = ((Date.now() - start)/1000).toFixed(1);
+            }, 100);
+        }
+        function stopStatusUI() { document.getElementById('ai-status').style.display = 'none'; clearInterval(timerInterval); }
+        function cancelAI() { if(abortController) abortController.abort(); stopStatusUI(); }
     </script>
 </body>
 </html>
