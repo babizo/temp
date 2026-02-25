@@ -17,10 +17,13 @@
         button { border: none; border-radius: 8px; padding: 15px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; transition: 0.3s; margin-bottom: 10px; }
         .btn-camera { background: var(--success); color: white; }
         .btn-ai-gen { background: var(--ai); color: white; }
-        .btn-skip { background: var(--skip); color: white; width: auto; padding: 5px 15px; font-size: 0.8rem; }
+        .btn-skip { background: var(--skip); color: white; width: auto; padding: 4px 12px; font-size: 0.75rem; }
         input[type="password"] { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; background: #333; color: white; border: 1px solid #444; box-sizing: border-box; }
         #result { background: #111; padding: 20px; border-radius: 8px; border-left: 5px solid var(--primary); white-space: pre-wrap; display: none; margin-top: 20px; }
         .loading { display: none; text-align: center; color: var(--ai); font-weight: bold; padding: 20px; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #444; font-size: 0.8rem; }
+        .mark-○ { color: var(--success); font-weight: bold; }
+        .mark-SKIP { color: var(--skip); font-style: italic; }
     </style>
 </head>
 <body>
@@ -37,6 +40,7 @@
         <div class="header-flex">
             <h1>2. 演習 [<span id="unit-name"></span>]</h1>
             <div class="header-right">
+                <span class="version-tag">System: 2.5-Flash</span>
                 <button class="btn-skip" onclick="skipProblem()">SKIP ≫</button>
             </div>
         </div>
@@ -45,32 +49,38 @@
         <div class="problem-info">
             <p id="problem-text" style="font-weight:bold;"></p>
             <ol id="sub-questions"></ol>
-            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:5px; width:auto; font-size:0.8rem;">💡 ヒント</button>
+            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:5px; width:auto; font-size:0.8rem; margin-top:10px;">💡 ヒントを表示</button>
             <div id="hint-area" class="hint-box"></div>
-            <button class="btn-ai-gen" onclick="generateSimilarProblem()" style="margin-top:15px;">✨ この単元の類題をAIで作る</button>
+            <button class="btn-ai-gen" onclick="generateSimilarProblem()" style="margin-top:20px;">✨ このパターンの類題をAIで作成</button>
         </div>
     </div>
 
     <div class="card">
         <h1>3. 提出・添削</h1>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
-        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">撮影して提出</button>
-        <div id="loading-grade" class="loading">解析中...</div>
+        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">カメラを起動して提出</button>
+        <div id="loading-grade" class="loading">AI講師が添削中...</div>
         <div id="result"></div>
+    </div>
+
+    <div class="card">
+        <h1>4. 復習リスト (Best 50 Challenge)</h1>
+        <div id="history-list">履歴はありません</div>
+        <button onclick="clearHistory()" style="margin-top:15px; background:#444; font-size:0.8rem; padding:8px; width:auto; color:white;">履歴をリセット</button>
     </div>
 
     <script>
         const MODEL_NAME = "gemini-2.5-flash";
         let currentProb = {};
+        let currentProbIndex = new Date().getDate();
 
-        // 厳選50問のサンプル
         const problemDatabase = [
             {
-                unit: "灘高・平面図形（面積比）",
-                text: "三角形ABCにおいて、辺ABを2:1に内分する点をD、辺ACを1:2に内分する点をEとする。BEとCDの交点をPとするとき、三角形PBCの面積は三角形ABCの面積の何倍か。",
-                sub: ["メネラウスの定理またはチェバの定理を用いて、BP:PEを求めよ。", "面積比を計算せよ。"],
-                svg: `<svg width="250" height="180" viewBox="0 0 200 150"><path d="M100 20 L30 130 L170 130 Z" fill="none" stroke="#333" stroke-width="2"/><line x1="123" y1="93" x2="30" y2="130" stroke="#e74c3c"/><line x1="77" y1="57" x2="170" y2="130" stroke="#e74c3c"/><text x="95" y="15">A</text><text x="15" y="145">B</text><text x="175" y="145">C</text><text x="45" y="55" fill="#e74c3c">D</text><text x="145" y="95" fill="#e74c3c">E</text><text x="100" y="110" font-weight="bold">P</text></svg>`,
-                hint: "ヒント: 三角形の内部の1点で交わる3本の線がある場合、チェバの定理が強力です。"
+                unit: "灘高・立体図形（切断）",
+                text: "一辺の長さが6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。この3点を通る平面で立方体を切断する。",
+                sub: ["切り口の図形の名称を答えよ。", "切断によって分けられた2つの立体のうち、点Bを含む方の体積を求めよ。"],
+                svg: `<svg width="250" height="180" viewBox="0 0 200 200"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="10" fill="#e74c3c">P,Q,Rを通る切断</text></svg>`,
+                hint: "ヒント: 切り口は正三角形になります。切断された部分は三角錐（断頭三角柱の特殊ケース）として計算できます。"
             }
         ];
 
@@ -78,6 +88,7 @@
             const savedKey = localStorage.getItem('gemini_api_key');
             if (savedKey) document.getElementById('apiKey').value = savedKey;
             displayProblem(problemDatabase[0]);
+            showHistory();
         };
 
         function displayProblem(prob) {
@@ -87,17 +98,18 @@
             document.getElementById('svg-container').innerHTML = prob.svg;
             document.getElementById('sub-questions').innerHTML = prob.sub.map(s => `<li>${s}</li>`).join('');
             document.getElementById('hint-area').innerText = prob.hint;
+            document.getElementById('hint-area').style.display = 'none';
             document.getElementById('result').style.display = 'none';
+            window.scrollTo(0,0);
         }
 
         async function generateSimilarProblem() {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("APIキーが必要です");
+            if(!key) return alert("APIキーを入力してください");
             document.getElementById('loading-ai').style.display = 'block';
             
-            const prompt = `あなたは灘・開成・筑駒の数学講師です。
-            現在の問題：『${currentProb.text}』
-            この問題と同じ単元・難易度で、数値や設定を変えた「類題」を1問作成し、以下のJSON形式のみで出力してください。
+            const prompt = `あなたは灘・開成・筑駒の数学講師です。現在出題中の『${currentProb.text}』の類題を1問作成してください。
+            設定や数値を変更し、同等の難易度にしてください。出力は以下のJSON形式のみで行ってください。
             {"unit": "単元名", "text": "問題文", "sub": ["小問1", "小問2"], "svg": "SVGコード(width250,height180)", "hint": "ヒント"}`;
 
             try {
@@ -108,7 +120,7 @@
                 const data = await res.json();
                 const aiProb = JSON.parse(data.candidates[0].content.parts[0].text);
                 displayProblem(aiProb);
-            } catch (e) { alert("類題生成に失敗しました。形式エラーの可能性があります。"); }
+            } catch (e) { alert("AI生成に失敗しました。もう一度試してください。"); }
             finally { document.getElementById('loading-ai').style.display = 'none'; }
         }
 
@@ -117,7 +129,57 @@
             h.style.display = (h.style.display === 'block') ? 'none' : 'block';
         }
 
-        function skipProblem() { /* 次の問題を表示するロジック */ }
+        function loadNextProblem() { currentProbIndex++; displayProblem(problemDatabase[currentProbIndex % problemDatabase.length]); }
+        function skipProblem() { saveHistory("SKIP"); loadNextProblem(); }
+
+        const cameraInput = document.getElementById('cameraInput');
+        const sendBtn = document.getElementById('sendBtn');
+        let base64Image = "";
+
+        cameraInput.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                base64Image = reader.result.split(',')[1];
+                sendBtn.click(); // 撮影後即座に送信（あるいは確認ボタンを出す）
+            };
+            reader.readAsDataURL(file);
+        };
+
+        async function startGrading() {
+            const key = document.getElementById('apiKey').value;
+            document.getElementById('loading-grade').style.display = 'block';
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校（灘・開成・筑駒）講師として添削。問題：${currentProb.text}。判定○△×から始め解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64Image } }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 } })
+                });
+                const data = await res.json();
+                const feedback = data.candidates[0].content.parts[0].text;
+                document.getElementById('result').innerText = feedback;
+                document.getElementById('result').style.display = 'block';
+                const mark = feedback.includes("○") ? "○" : feedback.includes("△") ? "△" : "×";
+                saveHistory(mark);
+            } catch (e) { alert("エラー: " + e.message); }
+            finally { document.getElementById('loading-grade').style.display = 'none'; }
+        }
+
+        function saveHistory(mark) {
+            let history = JSON.parse(localStorage.getItem('math_history') || "[]");
+            history.unshift({ date: new Date().toLocaleDateString(), unit: document.getElementById('unit-name').innerText, mark: mark });
+            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 50)));
+            showHistory();
+        }
+
+        function showHistory() {
+            const history = JSON.parse(localStorage.getItem('math_history') || "[]");
+            const list = document.getElementById('history-list');
+            if (history.length === 0) { list.innerHTML = "履歴なし"; return; }
+            list.innerHTML = history.map(h => `<div class="history-item"><span>${h.date} - ${h.unit}</span><span class="mark-${h.mark}">${h.mark}</span></div>`).join('');
+        }
+
+        function clearHistory() { if(confirm("削除？")) { localStorage.removeItem('math_history'); location.reload(); } }
     </script>
+    <button id="sendBtn" style="display:none" onclick="startGrading()"></button>
 </body>
 </html>
