@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.7.1</title>
+    <title>最難関突破 AI数学講師 v1.7.5</title>
+    
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
-        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; overflow-x: hidden; }
+        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.5; font-size: 14px; overflow-x: hidden; }
         .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #444; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
@@ -45,7 +49,7 @@
 
     <div class="settings-toggle" onclick="toggleSettings()">
         <span>⚙️ 塾生用設定パネル</span>
-        <span class="version-tag">ver 1.7.1 School-Target</span>
+        <span class="version-tag">ver 1.7.5 Smart-Draw</span>
     </div>
     <div id="settings-area">
         <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
@@ -57,9 +61,9 @@
         <div style="display:flex; justify-content:space-around; text-align:center;">
             <div>
                 <div style="font-size:0.7rem; color:#aaa;">想定偏差値</div>
-                <div style="display:flex; align-items:baseline; justify-content:center; gap:5px;">
+                <div style="display:flex; align-items:baseline; justify-content:center; gap:5px; flex-wrap:wrap;">
                     <span id="dev-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">50.0</span>
-                    <span id="target-school" style="font-size:0.75rem; color:var(--hint); font-weight:bold;">[都立上位]</span>
+                    <span id="target-school" style="font-size:0.75rem; color:var(--hint); font-weight:bold;">[都立中堅]</span>
                 </div>
             </div>
             <div>
@@ -75,13 +79,18 @@
             <h1>演習 [<span id="u-title"></span>]<span id="adaptive-label" class="adaptive-badge" style="display:none;">レベル調整済</span></h1>
             <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">他の単元へ ≫</button>
         </div>
+        
         <div class="canvas-container" id="zoom-box">
             <div id="svg-layer"></div>
         </div>
-        <p id="p-text" style="font-weight:bold; margin: 8px 0;"></p>
-        <ul id="q-list" style="padding-left: 20px; margin: 8px 0;"></ul>
+        
+        <div id="math-content-area">
+            <p id="p-text" style="font-weight:bold; margin: 8px 0;"></p>
+            <ul id="q-list" style="padding-left: 20px; margin: 8px 0;"></ul>
+            <div id="h-box" class="hint-box"></div>
+        </div>
+        
         <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem;">💡 ヒント</button>
-        <div id="h-box" class="hint-box"></div>
         <button class="btn-ai-gen" onclick="generateNext(false)">✨ 現在の偏差値で類題を作成</button>
     </div>
 
@@ -105,48 +114,45 @@
         const MODEL_NAME = "gemini-2.5-flash"; 
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
 
+        // 【修正】has_diagram フラグを追加し、図が必要な問題と不要な問題を定義
         const initDataList = [
             {
                 unit: "数と式",
-                text: "x = (√5 + 1) / 2 のとき、次の式の値を考えよ。",
-                sub: ["(1) x² - x - 1 の値を求めよ。", "(2) x⁵ の値を a√5 + b の形で表せ。"],
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="180" fill="#fcfcfc" stroke="#ccc"/><text x="100" y="90" font-size="20" font-weight="bold" text-anchor="middle" fill="#333">x = (√5 + 1) / 2</text><text x="100" y="130" font-size="14" text-anchor="middle" fill="#27ae60">x² - x - 1 = 0 を利用する</text></svg>`,
-                hint: "(1)の結果を利用して、x² = x + 1 と変形し、次数下げを行いましょう。"
+                text: "x = \\frac{\\sqrt{5} + 1}{2} のとき、次の式の値を考えよ。",
+                sub: ["(1) x^2 - x - 1 の値を求めよ。", "(2) x^5 の値を a\\sqrt{5} + b の形で表せ。"],
+                has_diagram: false,
+                hint: "(1)の結果を利用して、$x^2 = x + 1$ と変形し、次数下げを行いましょう。"
+            },
+            {
+                unit: "整数問題",
+                text: "自然数 $n$ について、$n^2 + 4n + 11$ が素数となるような $n$ をすべて求めよ。",
+                sub: ["(1) 式を変形して条件を絞り込め。"],
+                has_diagram: false,
+                hint: "素数であることを利用し、因数分解に近い形を作ってから候補を絞りましょう。"
             },
             {
                 unit: "方程式",
-                text: "ある列車が長さ1200mのトンネルに完全に入ってから、先頭が出始めるまでに60秒かかった。また、長さ2000mの鉄橋を渡り始めてから渡り終わるまでに110秒かかった。",
+                text: "ある列車が長さ $1200\\text{m}$ のトンネルに完全に入ってから、先頭が出始めるまでに $60$ 秒かかった。また、長さ $2000\\text{m}$ の鉄橋を渡り始めてから渡り終わるまでに $110$ 秒かかった。",
                 sub: ["(1) この列車の長さと秒速をそれぞれ求めよ。"],
+                has_diagram: true,
                 svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect x="30" y="80" width="100" height="40" fill="none" stroke="#333" stroke-width="2"/><rect x="50" y="90" width="40" height="20" fill="rgba(231,76,60,0.5)" stroke="#e74c3c"/><text x="80" y="70" font-size="12" text-anchor="middle">トンネル 1200m</text><text x="70" y="105" font-size="10" fill="#fff" font-weight="bold">列車 x(m)</text></svg>`,
-                hint: "列車の長さをx(m)、速さをy(m/s)として、進んだ距離と時間の関係を連立方程式にしましょう。"
+                hint: "列車の長さを $x(\\text{m})$、速さを $y(\\text{m/s})$ として、進んだ距離と時間の関係を連立方程式にしましょう。"
             },
             {
                 unit: "関数",
-                text: "放物線 y = x² 上に2点 A, B があり、x座標はそれぞれ -1, 2 である。原点をOとする。",
-                sub: ["(1) 直線ABの方程式を求めよ。", "(2) △OABの面積を求めよ。"],
+                text: "放物線 $y = x^2$ 上に2点 A, B があり、x座標はそれぞれ $-1, 2$ である。原点をOとする。",
+                sub: ["(1) 直線ABの方程式を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"],
+                has_diagram: true,
                 svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="100" y1="180" x2="100" y2="20" stroke="#aaa"/><line x1="20" y1="150" x2="180" y2="150" stroke="#aaa"/><circle cx="70" cy="115" r="4" fill="#e74c3c"/><circle cx="145" cy="70" r="4" fill="#e74c3c"/><line x1="70" y1="115" x2="145" y2="70" stroke="#27ae60" stroke-width="2"/><text x="50" y="115" font-size="12" font-weight="bold">A</text><text x="155" y="70" font-size="12" font-weight="bold">B</text><text x="90" y="165" font-size="12">O</text></svg>`,
-                hint: "△OABの面積は、直線ABのy切片を利用して、2つの三角形の面積の和として計算すると簡単です。"
-            },
-            {
-                unit: "平面図形",
-                text: "半径6の円Oの周上に3点A, B, Cがあり、AB = AC = 8 である。弦BCの中点をMとし、直線AMと円Oの交点のうちAでない方をDとする。",
-                sub: ["(1) 線分AMの長さを求めよ。", "(2) △ABCの面積を求めよ。"],
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333" stroke-width="2"/><polygon points="100,20 40,140 160,140" fill="rgba(231,76,60,0.2)" stroke="#e74c3c" stroke-width="2"/><line x1="100" y1="20" x2="100" y2="180" stroke="#27ae60" stroke-dasharray="4"/><text x="100" y="15" font-size="12" font-weight="bold">A</text><text x="25" y="150" font-size="12" font-weight="bold">B</text><text x="165" y="150" font-size="12" font-weight="bold">C</text><text x="110" y="145" font-size="12" font-weight="bold">M</text><text x="105" y="195" font-size="12" font-weight="bold">D</text></svg>`,
-                hint: "方べきの定理 (AM × MD = BM × MC) や、直角三角形の三平方の定理を活用しましょう。"
+                hint: "$\\triangle OAB$ の面積は、直線ABのy切片を利用して、2つの三角形の面積の和として計算すると簡単です。"
             },
             {
                 unit: "立体図形",
                 text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
                 sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
+                has_diagram: true,
                 svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/><path d="M75 35 L155 35 L155 115 L75 115 Z" fill="none" stroke="#333" stroke-dasharray="2"/><path d="M40 70 L75 35 M120 70 L155 35 M120 150 L155 115 M40 150 L75 115" fill="none" stroke="#333"/><path d="M80 70 L137.5 52.5 L155 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="75" y="65" font-size="12" font-weight="bold">P</text><text x="145" y="50" font-size="12" font-weight="bold">Q</text><text x="160" y="85" font-size="12" font-weight="bold">R</text></svg>`,
                 hint: "切り口は正三角形になります。三角錐として体積を計算しましょう。"
-            },
-            {
-                unit: "確率",
-                text: "1から6までの目が出る大小2つのサイコロを同時に投げる。大きいサイコロの目を a、小さいサイコロの目を b とし、座標平面上に点 P(a, b) をとる。",
-                sub: ["(1) 点Pが放物線 y = (1/2)x² 上にある確率を求めよ。", "(2) 原点をOとしたとき、線分OPの長さが5以上になる確率を求めよ。"],
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="180" x2="180" y2="180" stroke="#333" stroke-width="2"/><line x1="20" y1="20" x2="20" y2="180" stroke="#333" stroke-width="2"/><circle cx="80" cy="120" r="4" fill="#e74c3c"/><text x="90" y="115" font-size="12" font-weight="bold">P(a,b)</text><line x1="20" y1="180" x2="80" y2="120" stroke="#27ae60" stroke-dasharray="4"/><text x="10" y="195" font-size="12">O</text><text x="170" y="195" font-size="12">x</text><text x="10" y="20" font-size="12">y</text></svg>`,
-                hint: "全事象は36通りです。(1)は b = (1/2)a² を満たす (a, b) を探します。"
             }
         ];
 
@@ -175,9 +181,20 @@
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             
-            const layer = document.getElementById('svg-layer');
-            if (p.svg) layer.innerHTML = p.svg;
-            state.scale = 1; state.x = 0; state.y = 0; updateView();
+            // 【修正】図が不要な場合はキャンバスごと非表示にする
+            const canvasBox = document.getElementById('zoom-box');
+            if (p.has_diagram === false) {
+                canvasBox.style.display = 'none';
+            } else {
+                canvasBox.style.display = 'flex';
+                const layer = document.getElementById('svg-layer');
+                if (p.svg) layer.innerHTML = p.svg;
+                state.scale = 1; state.x = 0; state.y = 0; updateView();
+            }
+
+            if (window.MathJax) {
+                MathJax.typesetPromise([document.getElementById('math-content-area')]).catch((err) => console.log(err));
+            }
         }
 
         async function generateNext(isOtherUnit = false) {
@@ -195,14 +212,15 @@
                 adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎が抜けている可能性があるため、ひねりをなくし、公式の確認ができる標準的な難易度にレベルを下げて作成せよ。`;
             }
 
-            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。`;
+            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
             if (isOtherUnit) {
-                promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。`;
+                promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
             }
 
             showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
             
             try {
+                // 【修正】has_diagram のフラグをAIに設定させる
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
@@ -210,9 +228,10 @@
                     ${adaptiveInstruction}
                     
                     【厳守フォーマット】
-                    ・unitには「立体図形」「整数問題」などの『数学の単元名』を必ず入れること。単位（cm等）は絶対に入れない。
+                    ・unitには「立体図形」「整数問題」などの『数学の単元名』を必ず入れる。
+                    ・図解が必要な問題（図形、関数など）は has_diagram を true、不要な問題（計算、整数問題など）は false にすること。
                     ・必ず「〜を求めよ」という問いで完結させること。
-                    {"unit":"単元名","text":"...","sub":["..."],"hint":"..."}` }] }] })
+                    {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
                 });
                 const data = await res.json();
                 if (data.error) throw new Error(data.error.message);
@@ -222,7 +241,11 @@
                 
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
-                autoDraw(key); 
+                
+                // 【修正】図が必要な場合のみ作図エンジンを回す
+                if (json.has_diagram !== false) {
+                    autoDraw(key); 
+                }
             } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
         }
 
@@ -234,14 +257,16 @@
             }, 100);
 
             try {
+                // 【修正】ネタバレ防止の強力な制約を追加
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説用SVG図を作成せよ。
-                    【厳守】
+                    【絶対厳守】
                     1. 純粋な <svg> タグのみ出力。マークダウン禁止。
-                    2. 立体図形の場合は必ず斜投影（キャビネット図等）で奥行きを描き、正方形にしないこと。
-                    3. viewBox="0 0 200 200" を必ず指定。
-                    4. xmlns="http://www.w3.org/2000/svg" を必ず含める。` }] }] })
+                    2. 絶対に「解答」「途中式」「ヒントになる数値」をSVG内に書き込まないこと。問題の状況を視覚化するだけに留めよ。
+                    3. 立体図形の場合は必ず斜投影（キャビネット図等）で奥行きを描き、正方形にしないこと。
+                    4. viewBox="0 0 200 200" を必ず指定。
+                    5. xmlns="http://www.w3.org/2000/svg" を必ず含める。` }] }] })
                 });
                 const data = await res.json();
                 clearInterval(drawTimer);
@@ -271,11 +296,11 @@
                         body: JSON.stringify({ 
                             contents: [{ 
                                 parts: [
-                                    { text: `あなたは最難関高校の数学講師です。添付した生徒の解答画像の内容をしっかり読み取って採点してください。
+                                    { text: `あなたは最難関高校の数学講師です。添付した生徒の解答画像の内容をしっかり読み取って採点してください。数式はLaTeX記法（$で囲む）を使用してください。
                                     問題：『${state.prob.text}』
                                     
                                     【必須ルール】
-                                    1. 画像に書かれている途中式や解答のどこが合っていて、どこが間違っているかを具体的に指摘すること。
+                                    1. どこが合っていて、どこが間違っているかを具体的に指摘すること。
                                     2. 最後に必ず【Score: X/10】の形式で点数をつけること。` }, 
                                     { inlineData: { mimeType: mimeType, data: b64 } } 
                                 ] 
@@ -286,8 +311,13 @@
                     if(data.error) throw new Error(data.error.message);
                     
                     const fb = data.candidates[0].content.parts[0].text;
-                    document.getElementById('res-box').innerText = fb;
-                    document.getElementById('res-box').style.display = 'block';
+                    const resBox = document.getElementById('res-box');
+                    resBox.innerText = fb;
+                    resBox.style.display = 'block';
+                    
+                    if (window.MathJax) {
+                        MathJax.typesetPromise([resBox]).catch((err) => console.log(err));
+                    }
                     
                     const scoreMatch = fb.match(/Score:\s*(\d+)/i);
                     const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
@@ -320,12 +350,17 @@
             
             document.getElementById('dev-val').innerText = dev.toFixed(1);
 
-            // 【新規】偏差値に基づく志望校の判定
             let schoolLabel = "[基礎固め]";
-            if (dev >= 63) schoolLabel = "[筑駒・開成]";
-            else if (dev >= 58) schoolLabel = "[学芸・早慶]";
-            else if (dev >= 53) schoolLabel = "[都立トップ]";
-            else if (dev >= 48) schoolLabel = "[都立上位]";
+            if (dev >= 68) schoolLabel = "[筑駒]";
+            else if (dev >= 66) schoolLabel = "[開成・灘]";
+            else if (dev >= 64) schoolLabel = "[渋幕・学芸大附]";
+            else if (dev >= 62) schoolLabel = "[日比谷・慶應志木・早実]";
+            else if (dev >= 60) schoolLabel = "[西・早大本庄・早大学院・慶應義塾]";
+            else if (dev >= 58) schoolLabel = "[国立・青山・立教新座]";
+            else if (dev >= 56) schoolLabel = "[戸山・ICU]";
+            else if (dev >= 54) schoolLabel = "[新宿・八王子東]";
+            else if (dev >= 52) schoolLabel = "[都立共通上位]";
+            else if (dev >= 50) schoolLabel = "[都立中堅]";
             
             document.getElementById('target-school').innerText = schoolLabel;
             
@@ -372,7 +407,11 @@
         }
 
         function toggleSettings() { const s = document.getElementById('settings-area'); s.style.display = (s.style.display === 'block') ? 'none' : 'block'; }
-        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; }
+        function toggleHint() { 
+            const b = document.getElementById('h-box'); 
+            b.style.display = (b.style.display === 'block') ? 'none' : 'block';
+            if (window.MathJax) MathJax.typesetPromise([b]).catch(err => console.log(err));
+        }
         function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
