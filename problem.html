@@ -3,27 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最難関高校突破 AI数学講師</title>
+    <title>最難関高校突破 AI数学講師 Hybrid</title>
     <style>
-        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; }
+        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; max-width: 800px; margin: auto; line-height: 1.6; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 15px; padding-bottom: 8px; }
         h1 { color: var(--primary); font-size: 1.3rem; margin: 0; }
         .header-right { display: flex; align-items: center; gap: 10px; }
         .version-tag { font-size: 0.7rem; color: #888; font-family: monospace; }
-        .btn-skip-top { background: var(--skip); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; font-weight: bold; }
-        .canvas-container { background: #ffffff; padding: 25px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 280px; margin-bottom: 15px; }
-        .hint-toggle-btn { background: none; border: 1px solid var(--hint); color: var(--hint); padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; margin-bottom: 10px; display: inline-block; width: auto; }
+        .canvas-container { background: #ffffff; padding: 25px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 280px; margin-bottom: 15px; position: relative; }
         .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 12px; border-left: 4px solid var(--hint); font-size: 0.9rem; background: rgba(243, 156, 18, 0.05); margin-bottom: 15px; border-radius: 0 5px 5px 0; }
-        button { border: none; border-radius: 8px; padding: 15px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; transition: 0.3s; }
+        button { border: none; border-radius: 8px; padding: 15px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; transition: 0.3s; margin-bottom: 10px; }
         .btn-camera { background: var(--success); color: white; }
-        .btn-reload { background: #8e44ad; color: white; margin-top: 20px; display: none; }
+        .btn-ai-gen { background: var(--ai); color: white; }
+        .btn-skip { background: var(--skip); color: white; width: auto; padding: 5px 15px; font-size: 0.8rem; }
         input[type="password"] { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; background: #333; color: white; border: 1px solid #444; box-sizing: border-box; }
-        #preview { width: 100%; border-radius: 8px; margin-top: 15px; display: none; border: 1px solid #555; }
         #result { background: #111; padding: 20px; border-radius: 8px; border-left: 5px solid var(--primary); white-space: pre-wrap; display: none; margin-top: 20px; }
-        .loading { display: none; text-align: center; color: var(--primary); font-weight: bold; padding: 20px; }
-        .history-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #444; font-size: 0.8rem; }
+        .loading { display: none; text-align: center; color: var(--ai); font-weight: bold; padding: 20px; }
     </style>
 </head>
 <body>
@@ -31,7 +28,7 @@
     <div class="card">
         <div class="header-flex">
             <h1>1. 設定</h1>
-            <span class="version-tag">ver 1.1.0</span>
+            <span class="version-tag">ver 1.2.0 Hybrid</span>
         </div>
         <input type="password" id="apiKey" placeholder="Gemini API Keyを入力">
     </div>
@@ -40,92 +37,79 @@
         <div class="header-flex">
             <h1>2. 演習 [<span id="unit-name"></span>]</h1>
             <div class="header-right">
-                <span class="version-tag">System: 2.5-Flash</span>
-                <button class="btn-skip-top" onclick="skipProblem()">SKIP ≫</button>
+                <button class="btn-skip" onclick="skipProblem()">SKIP ≫</button>
             </div>
         </div>
+        <div id="loading-ai" class="loading">AIが類題を生成中...</div>
         <div class="canvas-container" id="svg-container"></div>
         <div class="problem-info">
             <p id="problem-text" style="font-weight:bold;"></p>
             <ol id="sub-questions"></ol>
-            <button class="hint-toggle-btn" onclick="toggleHint()">💡 ヒントを表示</button>
+            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:5px; width:auto; font-size:0.8rem;">💡 ヒント</button>
             <div id="hint-area" class="hint-box"></div>
+            <button class="btn-ai-gen" onclick="generateSimilarProblem()" style="margin-top:15px;">✨ この単元の類題をAIで作る</button>
         </div>
     </div>
 
     <div class="card">
-        <h1>3. 答案提出</h1>
+        <h1>3. 提出・添削</h1>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
-        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">カメラを起動して撮影</button>
-        <img id="preview">
-        <button id="sendBtn" style="display:none; margin-top:15px; background:var(--primary); color:white;">AI添削を開始する</button>
-        <div class="loading" id="loading">Gemini 2.5 Flash 解析中...</div>
-    </div>
-
-    <div id="result" class="card"></div>
-    <button id="nextProblemBtn" class="btn-reload" onclick="loadNextProblem()">次の問題にチャレンジ！</button>
-
-    <div class="card">
-        <h1>4. 復習リスト (Best 50 HS Challenge)</h1>
-        <div id="history-list"></div>
-        <button onclick="clearHistory()" style="margin-top:15px; background:#444; font-size:0.8rem; padding:8px; width:auto; color:white;">履歴リセット</button>
+        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">撮影して提出</button>
+        <div id="loading-grade" class="loading">解析中...</div>
+        <div id="result"></div>
     </div>
 
     <script>
         const MODEL_NAME = "gemini-2.5-flash";
-        let currentProbIndex = new Date().getDate();
+        let currentProb = {};
 
+        // 厳選50問のサンプル
         const problemDatabase = [
             {
-                unit: "灘高・立体図形",
-                hint: "ヒント: 立方体の対角線に垂直な平面で切断すると、切り口は正六角形になることがあります。対称性を利用しましょう。",
-                get: (d) => ({
-                    text: "一辺の長さがaの立方体がある。各辺の中点を結んでできる立体の体積を求めよ。",
-                    sub: ["切り出される四面体の形状を特定せよ。", "立方体から取り除くべき部分の体積を計算せよ。"],
-                    svg: `<svg width="250" height="200" viewBox="0 0 200 200"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333" stroke-width="1"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333" stroke-width="1"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333" stroke-width="1"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="12" fill="#e74c3c">中点を結ぶ</text></svg>`
-                })
-            },
-            {
-                unit: "開成高・関数とグラフ",
-                hint: "ヒント: 2つのグラフの交点の座標を求め、三角形の面積を底辺と高さに分けて考えます。",
-                get: (d) => ({
-                    text: "放物線 y = x^2 と直線 y = x + 2 の交点をA, Bとする。原点をOとするとき、三角形AOBの面積を求めよ。",
-                    sub: ["交点A, Bの座標を求めよ。", "x軸またはy軸で三角形を分割して面積を計算せよ。"],
-                    svg: `<svg width="250" height="200" viewBox="-100 -20 200 160"><g transform="scale(1, -1) translate(0, -130)"><line x1="-90" y1="0" x2="90" y2="0" stroke="#888"/><line x1="0" y1="-10" x2="0" y2="140" stroke="#888"/><path d="M-40 160 Q 0 0 40 160" fill="none" stroke="#2e86c1" stroke-width="2"/><line x1="-30" y1="10" x2="60" y2="100" stroke="#e74c3c" stroke-width="2"/></g><text x="60" y="30" font-size="12" fill="#e74c3c">A</text><text x="-40" y="110" font-size="12" fill="#e74c3c">B</text></svg>`
-                })
-            },
-            {
-                unit: "筑駒高・整数論",
-                hint: "ヒント: n^2 - 1 = (n-1)(n+1) という因数分解を利用し、素数の性質を考えます。",
-                get: (d) => ({
-                    text: "n^2 - 1 が素数となるような正の整数nをすべて求めよ。",
-                    sub: ["n^2 - 1 を因数分解せよ。", "積が素数になるためには、一方が1である必要があることを利用せよ。"],
-                    svg: `<svg width="250" height="100" viewBox="0 0 200 80"><text x="50" y="50" font-size="24" font-weight="bold">n² - 1 = Prime?</text></svg>`
-                })
+                unit: "灘高・平面図形（面積比）",
+                text: "三角形ABCにおいて、辺ABを2:1に内分する点をD、辺ACを1:2に内分する点をEとする。BEとCDの交点をPとするとき、三角形PBCの面積は三角形ABCの面積の何倍か。",
+                sub: ["メネラウスの定理またはチェバの定理を用いて、BP:PEを求めよ。", "面積比を計算せよ。"],
+                svg: `<svg width="250" height="180" viewBox="0 0 200 150"><path d="M100 20 L30 130 L170 130 Z" fill="none" stroke="#333" stroke-width="2"/><line x1="123" y1="93" x2="30" y2="130" stroke="#e74c3c"/><line x1="77" y1="57" x2="170" y2="130" stroke="#e74c3c"/><text x="95" y="15">A</text><text x="15" y="145">B</text><text x="175" y="145">C</text><text x="45" y="55" fill="#e74c3c">D</text><text x="145" y="95" fill="#e74c3c">E</text><text x="100" y="110" font-weight="bold">P</text></svg>`,
+                hint: "ヒント: 三角形の内部の1点で交わる3本の線がある場合、チェバの定理が強力です。"
             }
         ];
 
         window.onload = () => {
             const savedKey = localStorage.getItem('gemini_api_key');
             if (savedKey) document.getElementById('apiKey').value = savedKey;
-            loadProblem(currentProbIndex % problemDatabase.length);
-            showHistory();
+            displayProblem(problemDatabase[0]);
         };
 
-        function loadProblem(index) {
-            const db = problemDatabase[index];
-            const prob = db.get(new Date().getDate());
-            document.getElementById('unit-name').innerText = db.unit;
+        function displayProblem(prob) {
+            currentProb = prob;
+            document.getElementById('unit-name').innerText = prob.unit;
             document.getElementById('problem-text').innerText = prob.text;
             document.getElementById('svg-container').innerHTML = prob.svg;
             document.getElementById('sub-questions').innerHTML = prob.sub.map(s => `<li>${s}</li>`).join('');
-            document.getElementById('hint-area').innerText = db.hint;
-            document.getElementById('hint-area').style.display = 'none';
+            document.getElementById('hint-area').innerText = prob.hint;
             document.getElementById('result').style.display = 'none';
-            document.getElementById('preview').style.display = 'none';
-            document.getElementById('sendBtn').style.display = 'none';
-            document.getElementById('nextProblemBtn').style.display = 'none';
-            window.scrollTo(0,0);
+        }
+
+        async function generateSimilarProblem() {
+            const key = document.getElementById('apiKey').value;
+            if(!key) return alert("APIキーが必要です");
+            document.getElementById('loading-ai').style.display = 'block';
+            
+            const prompt = `あなたは灘・開成・筑駒の数学講師です。
+            現在の問題：『${currentProb.text}』
+            この問題と同じ単元・難易度で、数値や設定を変えた「類題」を1問作成し、以下のJSON形式のみで出力してください。
+            {"unit": "単元名", "text": "問題文", "sub": ["小問1", "小問2"], "svg": "SVGコード(width250,height180)", "hint": "ヒント"}`;
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await res.json();
+                const aiProb = JSON.parse(data.candidates[0].content.parts[0].text);
+                displayProblem(aiProb);
+            } catch (e) { alert("類題生成に失敗しました。形式エラーの可能性があります。"); }
+            finally { document.getElementById('loading-ai').style.display = 'none'; }
         }
 
         function toggleHint() {
@@ -133,59 +117,7 @@
             h.style.display = (h.style.display === 'block') ? 'none' : 'block';
         }
 
-        function loadNextProblem() { currentProbIndex++; loadProblem(currentProbIndex % problemDatabase.length); }
-        function skipProblem() { saveHistory("SKIP"); loadNextProblem(); }
-
-        const cameraInput = document.getElementById('cameraInput');
-        const preview = document.getElementById('preview');
-        const sendBtn = document.getElementById('sendBtn');
-        let base64Image = "";
-
-        cameraInput.onchange = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                base64Image = reader.result.split(',')[1];
-                preview.src = reader.result; preview.style.display = 'block'; sendBtn.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        };
-
-        sendBtn.onclick = async () => {
-            const key = document.getElementById('apiKey').value;
-            if(!key) return alert("APIキーを入力してください");
-            localStorage.setItem('gemini_api_key', key);
-            document.getElementById('loading').style.display = 'block';
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校（灘・開成・筑駒）講師として添削。問題：${document.getElementById('problem-text').innerText}。論理を採点し【判定】○△×から始め解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64Image } }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 } })
-                });
-                const data = await res.json();
-                const feedback = data.candidates[0].content.parts[0].text;
-                document.getElementById('result').innerText = feedback;
-                document.getElementById('result').style.display = 'block';
-                document.getElementById('nextProblemBtn').style.display = 'block';
-                saveHistory(feedback.includes("○") ? "○" : feedback.includes("△") ? "△" : "×");
-            } catch (e) { alert("エラー: " + e.message); }
-            finally { document.getElementById('loading').style.display = 'none'; }
-        };
-
-        function saveHistory(mark) {
-            let history = JSON.parse(localStorage.getItem('math_history') || "[]");
-            history.unshift({ date: new Date().toLocaleDateString(), unit: document.getElementById('unit-name').innerText, mark: mark });
-            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 50)));
-            showHistory();
-        }
-
-        function showHistory() {
-            const history = JSON.parse(localStorage.getItem('math_history') || "[]");
-            const list = document.getElementById('history-list');
-            if (history.length === 0) { list.innerHTML = "履歴はありません"; return; }
-            list.innerHTML = history.map(h => `<div class="history-item"><span>${h.date} - ${h.unit}</span><span class="mark-${h.mark}">${h.mark}</span></div>`).join('');
-        }
-
-        function clearHistory() { if(confirm("履歴リセット？")) { localStorage.removeItem('math_history'); location.reload(); } }
+        function skipProblem() { /* 次の問題を表示するロジック */ }
     </script>
 </body>
 </html>
