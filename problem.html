@@ -204,16 +204,35 @@
 
         async function generateSVGForCurrent() {
             const key = document.getElementById('apiKey').value;
-            startStatusUI("作図中...");
+            if(!key) return alert("API Keyが必要です");
+            startStatusUI("3Dモデルを再構築中...");
+        
+            // 【修正】立体図形を「立体」として描かせるための強力なプロンプト
+            const prompt = `あなたは最難関数学講師です。問題『${currentProb.text}』の解説図を作成してください。
+            
+            【作図の絶対条件】
+            1. 立体（立方体等）の場合、真上や真横からの平面図（正方形等）ではなく、必ず奥行きのある「見取り図（斜めから見た図）」で描いてください。
+            2. 見えない奥の辺は stroke-dasharray="4" を使用して「破線」で描くこと。
+            3. 問題文にある全ての点（A, B, P, Q等）を太字 <text> で適切な頂点・位置に配置。
+            4. 比（1:1等）や長さは緑色（#27ae60）で書き込む。
+            5. 切断面や補助線は赤色（#e74c3c）で描画。
+            6. viewBox="0 0 200 200"、stroke="#333"を使用。
+            
+            JSONの"svg"キーのみ返してください。{"svg": "<svg>...</svg>"}`;
+        
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題『${currentProb.text}』の図解。ラベル太字、比・長さを緑。{"svg":"<svg>...</svg>"}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
                 const data = await res.json();
-                currentProb.svg = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]).svg;
-                displayProblem(currentProb);
-            } finally { stopStatusUI(); }
+                const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    currentProb.svg = JSON.parse(jsonMatch[0]).svg;
+                    displayProblem(currentProb);
+                }
+            } catch (e) { alert("作図に失敗しました"); }
+            finally { stopStatusUI(); }
         }
 
         function loadFromHistory(i) { const h = JSON.parse(localStorage.getItem('math_history')); if (confirm("再挑戦？")) displayProblem(h[i].problemData); }
