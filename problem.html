@@ -87,10 +87,15 @@
             document.getElementById('problem-text').innerText = prob.text;
             document.getElementById('sub-questions').innerHTML = prob.sub.map(s => `<li>${s}</li>`).join('');
             
+            // 【重要】ヒントエリアを必ず非表示にリセット
+            const hintArea = document.getElementById('hint-area');
+            hintArea.innerText = prob.hint || "";
+            hintArea.style.display = 'none'; 
+            
             const svgArea = document.getElementById('svg-container');
             const drawBtn = document.getElementById('btn-draw');
             
-            if (prob.svg) {
+            if (prob.svg && prob.svg.length > 10) {
                 svgArea.innerHTML = prob.svg;
                 svgArea.style.display = 'flex';
                 drawBtn.style.display = 'none';
@@ -100,7 +105,7 @@
             }
             document.getElementById('result').style.display = 'none';
         }
-
+        
         // ステップ1: テキストのみ生成
         async function generateSimilarTextOnly() {
             const key = document.getElementById('apiKey').value;
