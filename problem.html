@@ -89,29 +89,53 @@
 
         async function generateSimilarProblem() {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("APIキーを入力してください");
-            
-            // UI状態のリセットとタイマー開始
+            if(!key) return alert("APIキーが必要です");
+        
+            // UI状態のロック
+            const genBtn = document.querySelector('.btn-ai-gen');
+            genBtn.disabled = true;
             startStatusUI();
-
-            // 通信中断用のコントローラー作成
+        
+            // 通信中断用のコントローラー
             abortController = new AbortController();
             
-            const prompt = `あなたは難関高校入試（灘・開成・筑駒）専門の数学塾講師です。
-                            問題『${currentProb.text}』の類題を1問作成してください。
-
-                            【厳守：出題範囲】
-                            1. 中学校で学習する数学（高校入試範囲）のみを使用すること。
-                            2. 【絶対禁止】三角関数(sin, cos, tan)、ベクトル、微分積分、複素数、対数。
-                            3. 三平方の定理、相似比、円周角の定理、2次関数(y=ax^2)、方程式を駆使した難問にすること。
-                        
-                            【重要：作図ルール】
-                            1. SVGコードを必ず生成すること。viewBox="-100 -20 200 160" を使用。
-                            2. 図の中に必ず頂点記号(A, B, C等)を <text> タグで配置すること。
-                        
-                            【出力形式】
-                            JSONのみ返してください。解説やMarkdownは不要。
-                            {"unit": "類題: ...", "text": "...", "sub": ["...", "..."], "svg": "...", "hint": "..."}`;
+            // 【新規】30秒で強制タイムアウトさせるタイマー
+            const timeoutId = setTimeout(() => {
+                if (abortController) {
+                    abortController.abort();
+                    alert("30秒経過しても応答がないため、タイムアウトしました。もう一度試してください。");
+                }
+            }, 30000); // 30000ms = 30秒
+        
+            const prompt = `数学講師として問題『${currentProb.text}』の類題を1問作成。中学数学（高校入試）範囲厳守。JSONのみ返して。{"unit":"...","text":"...","sub":["..."],"svg":"...","hint":"..."}`;
+        
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    signal: abortController.signal,
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                
+                clearTimeout(timeoutId); // 正常に応答が来たらタイムアウトを解除
+        
+                const data = await res.json();
+                const text = data.candidates[0].content.parts[0].text;
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) displayProblem(JSON.parse(jsonMatch[0]));
+        
+            } catch (e) {
+                clearTimeout(timeoutId);
+                if(e.name === 'AbortError') {
+                    console.log('通信が中断されました');
+                } else {
+                    alert("生成に失敗しました。");
+                }
+            } finally {
+                genBtn.disabled = false;
+                stopStatusUI();
+            }
+        }
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST",
