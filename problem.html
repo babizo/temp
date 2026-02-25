@@ -106,23 +106,43 @@
         }
 
         async function generateSimilarProblem() {
-            const key = document.getElementById('apiKey').value;
-            if(!key) return alert("APIキーを「初期設定」欄に入力してください");
-            localStorage.setItem('gemini_api_key', key);
-            document.getElementById('loading-ai').style.display = 'block';
-            
-            const prompt = `数学講師として問題『${currentProb.text}』の数値違い類題を1問作成。Markdown無しのJSONのみ返して。{"unit":"...","text":"...","sub":["..."],"svg":"...","hint":"..."}`;
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await res.json();
-                const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
-                displayProblem(JSON.parse(jsonMatch[0]));
-            } catch (e) { alert("生成に失敗しました"); }
-            finally { document.getElementById('loading-ai').style.display = 'none'; }
+    const key = document.getElementById('apiKey').value;
+    if(!key) return alert("APIキーが必要です");
+    document.getElementById('loading-ai').style.display = 'block';
+    
+    // AIに対する指示（プロンプト）を大幅に具体化
+    const prompt = `あなたは灘・開成・筑駒の数学講師です。
+    問題『${currentProb.text}』の類題を1問作成してください。
+
+    【重要：作図ルール】
+    1. SVGコードを必ず生成してください。
+    2. viewBox="-100 -20 200 160" を基準とし、中心付近に図形を描画してください。
+    3. 頂点ラベル（A, B, C等）や長さの数値を <text> タグで必ず入れてください。
+    4. 線は stroke="#333"、強調する補助線や動点は stroke="#e74c3c" を使ってください。
+
+    【出力形式】
+    Markdownは一切含まず、以下のJSON構造のみを返してください。
+    {"unit": "類題: ...", "text": "...", "sub": ["...", "..."], "svg": "<svg>...</svg>", "hint": "..."}`;
+
+    try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await res.json();
+        const text = data.candidates[0].content.parts[0].text;
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const aiProb = JSON.parse(jsonMatch[0]);
+            // SVGが空だった場合のガード（簡易）
+            if(!aiProb.svg || aiProb.svg.length < 10) {
+                aiProb.svg = currentProb.svg; // 最悪、前問の図を使い回す
+            }
+            displayProblem(aiProb);
         }
+    } catch (e) { alert("生成に失敗しました。もう一度試してください。"); }
+    finally { document.getElementById('loading-ai').style.display = 'none'; }
+}
 
         function skipProblem() {
             saveHistory("SKIP");
