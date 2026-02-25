@@ -11,55 +11,65 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; }
-        .btn-skip { background: var(--skip); color: white; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.7rem; cursor: pointer; }
         
-        /* 図解エリア：スマホで大きく見えるよう調整 */
+        /* 設定エリア */
+        .api-input { width: 100%; padding: 10px; background: #333; color: #eee; border: 1px solid #555; border-radius: 6px; font-size: 0.8rem; box-sizing: border-box; }
+        
+        .btn-skip { background: var(--skip); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; }
         .canvas-container { background: #ffffff; padding: 10px; border-radius: 6px; display: flex; justify-content: center; min-height: 200px; margin-bottom: 10px; overflow: hidden; }
         svg { width: 100%; height: auto; max-height: 220px; }
 
-        .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 10px; border-left: 3px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.05); margin: 10px 0; }
+        .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 10px; border-left: 3px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.05); margin: 10px 0; border-radius: 0 5px 5px 0; }
         
-        /* ボタン類：スマホで押しやすい高さ(44px以上)を確保 */
-        button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; }
-        .btn-camera { background: var(--success); color: white; height: 50px; }
+        button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 10px; transition: 0.2s; }
+        .btn-camera { background: var(--success); color: white; height: 52px; font-size: 1.1rem; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
         
-        .loading { display: none; text-align: center; color: var(--ai); font-weight: bold; padding: 10px; font-size: 0.9rem; }
-        .history-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #444; font-size: 0.75rem; }
+        .loading { display: none; text-align: center; color: var(--ai); font-weight: bold; padding: 15px; font-size: 0.9rem; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #444; font-size: 0.8rem; }
         .mark-○ { color: var(--success); font-weight: bold; }
+        .mark-SKIP { color: var(--skip); font-style: italic; }
     </style>
 </head>
 <body>
 
-    <div class="card" style="padding: 10px;">
+    <div class="card">
         <div class="header-flex">
-            <h1>演習 [<span id="unit-name"></span>]</h1>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span class="version-tag">v1.2.3</span>
-                <button class="btn-skip" onclick="skipProblem()">SKIP</button>
-            </div>
+            <h1>1. 初期設定</h1>
+            <span class="version-tag">v1.2.4</span>
         </div>
-        <div id="loading-ai" class="loading">類題生成中...</div>
-        <div class="canvas-container" id="svg-container"></div>
-        <p id="problem-text" style="font-weight:bold; margin: 5px 0;"></p>
-        <ol id="sub-questions" style="padding-left: 20px; margin: 5px 0;"></ol>
-        
-        <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:4px; width:auto; font-size:0.75rem; margin-top:5px;">💡 ヒント</button>
-        <div id="hint-area" class="hint-box"></div>
+        <input type="password" id="apiKey" class="api-input" placeholder="Gemini API Key を入力">
     </div>
 
     <div class="card">
-        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📸 撮影して提出・添削</button>
-        <button class="btn-ai-gen" onclick="generateSimilarProblem()">✨ AI類題を作成</button>
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
-        <div id="loading-grade" class="loading">AI添削中...</div>
-        <div id="result" style="background:#111; padding:12px; border-radius:6px; font-size:0.85rem; display:none; border-left:4px solid var(--primary); margin-top:10px; white-space:pre-wrap;"></div>
+        <div class="header-flex">
+            <h1>2. 演習 [<span id="unit-name"></span>]</h1>
+            <button class="btn-skip" onclick="skipProblem()">SKIP ≫</button>
+        </div>
+        <div id="loading-ai" class="loading">AIが類題を生成中...</div>
+        <div class="canvas-container" id="svg-container"></div>
+        <p id="problem-text" style="font-weight:bold; margin: 8px 0;"></p>
+        <ol id="sub-questions" style="padding-left: 20px; margin: 8px 0;"></ol>
+        
+        <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:5px; width:auto; font-size:0.8rem; margin-top:5px;">💡 ヒントを表示</button>
+        <div id="hint-area" class="hint-box"></div>
+        <button class="btn-ai-gen" onclick="generateSimilarProblem()" style="margin-top:10px;">✨ AIで類題を作成</button>
     </div>
 
-    <div class="card" style="padding: 10px;">
-        <h2 style="font-size:0.9rem; margin:0 0 8px 0;">復習リスト</h2>
+    <div class="card">
+        <h1>3. 提出・添削</h1>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📸 撮影して添削を受ける</button>
+        <div id="loading-grade" class="loading">AIが答案を解析中...</div>
+        <div id="result" style="background:#111; padding:15px; border-radius:8px; font-size:0.9rem; display:none; border-left:4px solid var(--primary); white-space:pre-wrap;"></div>
+    </div>
+
+    <div class="card">
+        <div class="header-flex">
+            <h1>4. 復習リスト</h1>
+            <button onclick="clearHistory()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto; padding:0;">履歴を全消去</button>
+        </div>
         <div id="history-list"></div>
-        <input type="password" id="apiKey" style="width:100%; margin-top:10px; padding:8px; background:#333; color:#eee; border:1px solid #555; border-radius:4px; font-size:0.7rem;" placeholder="Gemini API Key">
     </div>
 
     <script>
@@ -67,14 +77,13 @@
         let currentProb = {};
         let currentIdx = new Date().getDate();
 
-        // さきほどの10問データ（一部抜粋して初期表示）
         const problemDatabase = [
             {
-                unit: "灘高・空間図形",
+                unit: "灘高・立体図形",
                 text: "一辺6の立方体。辺AB, BC, CGの中点P, Q, Rを通る平面で切断する。",
-                sub: ["切り口の形状は？", "点Bを含む方の体積は？"],
+                sub: ["切り口の形状を答えよ。", "点Bを含む方の立体の体積を求めよ。"],
                 svg: `<svg viewBox="0 0 200 180"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="12" fill="#e74c3c">P,Q,R</text></svg>`,
-                hint: "切り口は正三角形。三角錐の体積として計算。"
+                hint: "切り口は正三角形。切断部分は三角錐の体積として計算できます。"
             }
         ];
 
@@ -98,8 +107,10 @@
 
         async function generateSimilarProblem() {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("Keyを入力してください");
+            if(!key) return alert("APIキーを「初期設定」欄に入力してください");
+            localStorage.setItem('gemini_api_key', key);
             document.getElementById('loading-ai').style.display = 'block';
+            
             const prompt = `数学講師として問題『${currentProb.text}』の数値違い類題を1問作成。Markdown無しのJSONのみ返して。{"unit":"...","text":"...","sub":["..."],"svg":"...","hint":"..."}`;
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
@@ -109,7 +120,7 @@
                 const data = await res.json();
                 const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
                 displayProblem(JSON.parse(jsonMatch[0]));
-            } catch (e) { alert("生成失敗"); }
+            } catch (e) { alert("生成に失敗しました"); }
             finally { document.getElementById('loading-ai').style.display = 'none'; }
         }
 
@@ -136,28 +147,31 @@
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `添削：${currentProb.text}` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として添削。問題：${currentProb.text}。判定○△×から始めて解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 } })
                 });
                 const data = await res.json();
                 const feedback = data.candidates[0].content.parts[0].text;
                 document.getElementById('result').innerText = feedback;
                 document.getElementById('result').style.display = 'block';
-                saveHistory(feedback.includes("○") ? "○" : "×");
-            } catch (e) { alert("エラー"); }
+                saveHistory(feedback.includes("○") ? "○" : feedback.includes("△") ? "△" : "×");
+            } catch (e) { alert("エラーが発生しました"); }
             finally { document.getElementById('loading-grade').style.display = 'none'; }
         }
 
         function saveHistory(mark) {
             let history = JSON.parse(localStorage.getItem('math_history') || "[]");
             history.unshift({ date: new Date().toLocaleDateString(), unit: document.getElementById('unit-name').innerText, mark: mark });
-            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 10)));
+            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 15)));
             showHistory();
         }
 
         function showHistory() {
             const history = JSON.parse(localStorage.getItem('math_history') || "[]");
-            document.getElementById('history-list').innerHTML = history.map(h => `<div class="history-item"><span>${h.date} ${h.unit}</span><span>${h.mark}</span></div>`).join('');
+            const list = document.getElementById('history-list');
+            list.innerHTML = history.length ? history.map(h => `<div class="history-item"><span>${h.date} ${h.unit}</span><span class="mark-${h.mark}">${h.mark}</span></div>`).join('') : "履歴なし";
         }
+
+        function clearHistory() { if(confirm("履歴を削除しますか？")) { localStorage.removeItem('math_history'); location.reload(); } }
     </script>
 </body>
 </html>
