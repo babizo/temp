@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最難関突破 AI数学添削</title>
+    <title>最難関突破 AI数学添削 & ヒント機能</title>
     <style>
-        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --error: #e74c3c; }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; max-width: 800px; margin: auto; line-height: 1.6; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        h1 { color: var(--primary); font-size: 1.4rem; border-bottom: 2px solid var(--primary); padding-bottom: 8px; margin-top: 0; }
-        .canvas-container { background: #ffffff; padding: 20px; border-radius: 8px; display: flex; justify-content: center; margin: 15px 0; }
-        input[type="password"] { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: 1px solid #444; background: #333; color: white; box-sizing: border-box; }
-        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; font-size: 1.1rem; cursor: pointer; font-weight: bold; }
-        #preview { width: 100%; border-radius: 8px; margin-top: 15px; display: none; border: 2px solid #555; }
-        #result { background: #111; padding: 20px; border-radius: 8px; border-left: 5px solid var(--primary); white-space: pre-wrap; display: none; margin-top: 20px; font-size: 0.95rem; }
+        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; }
+        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; max-width: 800px; margin: auto; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #444; }
+        h1 { color: var(--primary); font-size: 1.3rem; border-bottom: 2px solid var(--primary); padding-bottom: 8px; }
+        .canvas-container { background: #ffffff; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; margin: 15px 0; }
+        .hint-text { display: none; color: var(--hint); font-weight: bold; margin-top: 10px; font-size: 0.9rem; border: 1px dashed var(--hint); padding: 5px 10px; border-radius: 5px; }
+        button { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-size: 1rem; cursor: pointer; font-weight: bold; }
+        .btn-hint { background: var(--hint); margin-bottom: 10px; }
+        #preview { width: 100%; border-radius: 8px; margin-top: 15px; display: none; }
+        #result { background: #111; padding: 20px; border-radius: 8px; border-left: 5px solid var(--primary); white-space: pre-wrap; display: none; margin-top: 20px; }
         .loading { display: none; text-align: center; padding: 20px; color: var(--primary); font-weight: bold; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #444; }
     </style>
 </head>
 <body>
@@ -27,8 +27,12 @@
 
     <div class="card">
         <h1>今日の一問 [<span id="unit-name"></span>]</h1>
-        <p id="problem-text">読み込み中...</p>
-        <div class="canvas-container" id="svg-container"></div>
+        <p id="problem-text"></p>
+        <div class="canvas-container">
+            <div id="svg-container"></div>
+            <button class="btn-hint" onclick="toggleHint()">ヒントを表示/非表示</button>
+            <div id="hint-area" class="hint-text"></div>
+        </div>
         <ol id="sub-questions"></ol>
     </div>
 
@@ -38,24 +42,46 @@
         <button onclick="document.getElementById('cameraInput').click()">カメラを起動して撮影</button>
         <img id="preview">
         <button id="sendBtn" style="display:none; margin-top:15px; background:var(--success);">AI講師に添削を依頼する</button>
-        <div class="loading" id="loading">Gemini 2.5 Flash が思考・解析中...</div>
+        <div class="loading" id="loading">Gemini 2.5 Flash 解析中...</div>
     </div>
 
     <div id="result" class="card"></div>
 
-    <div class="card">
-        <h1>復習リスト</h1>
-        <div id="history-list">履歴はまだありません。</div>
-        <button onclick="clearHistory()" style="margin-top:15px; background:#444; font-size:0.8rem; padding:8px; width:auto;">履歴リセット</button>
-    </div>
-
     <script>
-        const MODEL_NAME = "gemini-2.5-flash"; 
+        const MODEL_NAME = "gemini-2.5-flash";
 
-        // --- 全曜日対応データベース ---
         const problemDatabase = [
-            { unit: "関数と図形", title: "二等辺三角形と動点", svg: `<svg width="200" height="150" viewBox="-80 -10 160 130"><path d="M-50 0 L0 100 L50 0 Z" stroke="#2980b9" fill="none" stroke-width="2"/><line x1="25" y1="50" x2="25" y2="0" stroke="red"/><line x1="-25" y1="50" x2="25" y2="50" stroke="red" stroke-dasharray="3"/></svg>`, get: (d) => ({ text: `A(0, ${10+(d%5)}), B(-6,0), C(6,0)の二等辺三角形ABCがある。辺AC上の点Pからx軸に下ろした垂線をPQ、辺AB上の点RをRQ//BCとなるようにとる。`, sub: ["PQの長さをtで表せ", "四角形RPQCの面積が最大となるtを求めよ"] }) },
-            { unit: "図形の証明", title: "円周角と相似", svg: `<svg width="200" height="120" viewBox="0 0 200 120"><circle cx="100" cy="70" r="40" fill="none" stroke="#000" stroke-width="2"/><line x1="20" y1="70" x2="180" y2="70" stroke="#000"/><line x1="130" y1="45" x2="180" y2="70" stroke="red" stroke-width="2"/></svg>`, get: (d) => ({ text: `線分ABは円Oの直径、点Cは円周上の点。点Cにおける接線とABの延長線の交点をPとする。`, sub: ["∠PCB = ∠PAC であることを証明せよ。"] }) }
+            {
+                unit: "関数と図形",
+                get: (d) => {
+                    const h = 10 + (d % 5);
+                    return {
+                        text: `座標平面上に 3点 A(0, ${h}), B(-6, 0), C(6, 0) を頂点とする二等辺三角形ABCがある。辺AC上の点P(t, y)からx軸へ垂線PQを下ろす。また辺AB上に点RをRQ//BCとなるようにとる。`,
+                        sub: [`PQの長さを t で表せ。`, `四角形RPQCの面積が最大となる t を求めよ。`],
+                        hint: "点Pの座標を (t, y) としたとき、yが点Pの『高さ』、つまりPQの長さになります。線分ACの式を求めましょう。",
+                        svg: `<svg width="300" height="220" viewBox="-110 -20 220 160">
+                            <g transform="scale(1, -1) translate(0, -130)">
+                                <line x1="-100" y1="0" x2="100" y2="0" stroke="#000" stroke-width="1.5"/><line x1="0" y1="-10" x2="0" y2="140" stroke="#000" stroke-width="1.5"/>
+                                <path d="M-60 0 L0 120 L60 0 Z" fill="rgba(41,128,185,0.1)" stroke="#2980b9" stroke-width="2"/>
+                                <line x1="30" y1="60" x2="30" y2="0" stroke="#c0392b" stroke-width="2.5"/>
+                                <line x1="-30" y1="60" x2="30" y2="60" stroke="#c0392b" stroke-width="2" stroke-dasharray="4"/>
+                                <circle cx="30" cy="60" r="4" fill="#c0392b"/><circle cx="30" cy="0" r="4" fill="#c0392b"/><circle cx="-30" cy="60" r="4" fill="#c0392b"/>
+                            </g>
+                            <text x="95" y="135" font-size="12" font-weight="bold">x</text><text x="5" y="10" font-size="12" font-weight="bold">y</text>
+                            <text x="-20" y="10" font-size="12" font-weight="bold" fill="#2980b9">A(0,${h})</text>
+                            <text x="-105" y="145" font-size="11">B(-6,0)</text><text x="65" y="145" font-size="11">C(6,0)</text>
+                            <text x="35" y="60" font-size="12" fill="#c0392b" font-weight="bold">P(t, y)</text>
+                            <text x="35" y="145" font-size="12" fill="#c0392b" font-weight="bold">Q</text>
+                            <text x="-45" y="60" font-size="12" fill="#c0392b" font-weight="bold">R</text>
+                            <g id="svg-hint" style="display:none;">
+                                <text x="-80" y="80" font-size="11" fill="#f39c12">← RQ // BC (平行)</text>
+                                <path d="M 30 115 L 30 125 M 25 120 L 35 120" stroke="#f39c12" stroke-width="1"/>
+                                <text x="10" y="110" font-size="10" fill="#f39c12">PQ ⊥ x軸</text>
+                            </g>
+                        </svg>`
+                    };
+                }
+            }
         ];
 
         window.onload = () => {
@@ -63,17 +89,21 @@
             if (savedKey) document.getElementById('apiKey').value = savedKey;
 
             const today = new Date();
-            // データベースの範囲を超えないように調整（undefined回避）
-            const dataIndex = today.getDay() % problemDatabase.length;
-            const probTemplate = problemDatabase[dataIndex];
-            const prob = probTemplate.get(today.getDate());
-            
-            document.getElementById('unit-name').innerText = probTemplate.unit;
-            document.getElementById('problem-text').innerText = prob.text;
-            document.getElementById('svg-container').innerHTML = probTemplate.svg;
-            document.getElementById('sub-questions').innerHTML = prob.sub.map(s => `<li>${s}</li>`).join('');
-            showHistory();
+            const p = problemDatabase[0].get(today.getDate());
+            document.getElementById('unit-name').innerText = p.unit;
+            document.getElementById('problem-text').innerText = p.text;
+            document.getElementById('svg-container').innerHTML = p.svg;
+            document.getElementById('hint-area').innerText = "ヒント: " + p.hint;
+            document.getElementById('sub-questions').innerHTML = p.sub.map(s => `<li>${s}</li>`).join('');
         };
+
+        function toggleHint() {
+            const area = document.getElementById('hint-area');
+            const svgHint = document.getElementById('svg-hint');
+            const isVisible = area.style.display === 'block';
+            area.style.display = isVisible ? 'none' : 'block';
+            if(svgHint) svgHint.style.display = isVisible ? 'none' : 'block';
+        }
 
         const cameraInput = document.getElementById('cameraInput');
         const preview = document.getElementById('preview');
@@ -92,50 +122,28 @@
 
         sendBtn.onclick = async () => {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("API Keyを入力してください");
+            if(!key) return alert("Keyを入力してください");
             localStorage.setItem('gemini_api_key', key);
-
             document.getElementById('loading').style.display = 'block';
-            document.getElementById('result').style.display = 'none';
 
             const payload = {
                 contents: [{
                     parts: [
-                        { text: `筑駒・開成講師として添削せよ。問題：${document.getElementById('problem-text').innerText}。記述の論理性を厳密に採点し、【判定】(○/△/×)から始めて最後まで具体的に解説せよ。` },
+                        { text: `筑駒・開成講師として添削せよ。問題：${document.getElementById('problem-text').innerText}\n生徒へのヒント：${document.getElementById('hint-area').innerText}\n画像の手書き答案を解析し、【判定】(○/△/×)から始めて論理的に添削せよ。` },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }],
-                generationConfig: { 
-                    temperature: 0.4, 
-                    maxOutputTokens: 4096, // 回答が切れないよう増量
-                    thinking_budget: 2048   // 思考用予算を確保
-                }
+                generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 }
             };
 
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload) });
                 const data = await res.json();
-                const feedback = data.candidates[0].content.parts[0].text;
-                document.getElementById('result').innerText = feedback;
+                document.getElementById('result').innerText = data.candidates[0].content.parts[0].text;
                 document.getElementById('result').style.display = 'block';
-                saveHistory(feedback.includes("○") ? "○" : feedback.includes("△") ? "△" : "×");
-            } catch (e) { alert("添削エラー: " + e.message); }
+            } catch (e) { alert("エラー: " + e.message); }
             finally { document.getElementById('loading').style.display = 'none'; }
         };
-
-        function saveHistory(mark) {
-            let history = JSON.parse(localStorage.getItem('math_history') || "[]");
-            history.unshift({ date: new Date().toLocaleDateString(), unit: document.getElementById('unit-name').innerText, mark: mark });
-            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 15)));
-            showHistory();
-        }
-
-        function showHistory() {
-            const history = JSON.parse(localStorage.getItem('math_history') || "[]");
-            if (history.length > 0) document.getElementById('history-list').innerHTML = history.map(h => `<div class="history-item"><span>${h.date} - ${h.unit}</span><span>${h.mark}</span></div>`).join('');
-        }
-
-        function clearHistory() { if(confirm("履歴リセット？")) { localStorage.removeItem('math_history'); location.reload(); } }
     </script>
 </body>
 </html>
