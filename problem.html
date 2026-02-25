@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.6.5</title>
+    <title>最難関突破 AI数学講師 v1.6.6</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; overflow-x: hidden; }
@@ -24,8 +24,8 @@
         .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
         .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
 
-        .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; }
-        #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; }
+        .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
+        #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
 
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
@@ -43,7 +43,7 @@
 
     <div class="settings-toggle" onclick="toggleSettings()">
         <span>⚙️ 塾生用設定パネル</span>
-        <span class="version-tag">ver 1.6.5 Direct-Draw</span>
+        <span class="version-tag">ver 1.6.6 Timer-Sync</span>
     </div>
     <div id="settings-area">
         <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
@@ -86,7 +86,7 @@
     </div>
 
     <div id="status-ui" class="loading-overlay">
-        <div id="timer" style="font-size:1.5rem; color:var(--ai);">0.0s</div>
+        <div id="timer" style="font-size:1.5rem; color:var(--ai); font-family:monospace;">0.0s</div>
         <p id="msg"></p>
     </div>
 
@@ -119,12 +119,9 @@
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             
-            // 【修正】DOMParserを排除し、直接innerHTMLに流し込む（ダイレクト・レンダリング）
             const layer = document.getElementById('svg-layer');
             if (p.svg) {
                 layer.innerHTML = p.svg;
-            } else {
-                layer.innerHTML = "図解なし";
             }
             state.scale = 1; state.x = 0; state.y = 0; updateView();
         }
@@ -134,7 +131,7 @@
             if(!key) return alert("Keyを入力してください");
             localStorage.setItem('gemini_api_key', key);
             
-            showUI("考案中...");
+            showUI("問題文・小問を生成中...");
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
@@ -146,42 +143,51 @@
                 const json = JSON.parse(jsonText);
                 applyProb(json);
                 hideUI();
-                autoDraw(key);
+                autoDraw(key); // 問題文表示後にバックグラウンドで作図開始
             } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
         }
 
         async function autoDraw(key) {
             const layer = document.getElementById('svg-layer');
-            layer.innerHTML = "見取り図を作成中...";
+            
+            // 【専用タイマー処理】作図中であることが一目でわかるようにする
+            let st = Date.now();
+            let drawTimer = setInterval(() => {
+                layer.innerHTML = `<div style="color:var(--ai); font-weight:bold; margin-bottom:5px;">🎨 作図エンジン稼働中...</div><div style="font-size:1.5rem; font-family:monospace; color:#aaa;">${((Date.now()-st)/1000).toFixed(1)}s</div>`;
+            }, 100);
+
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説用SVG図を作成せよ。
                     【厳守】
-                    1. 純粋な <svg> タグから </svg> タグまでのコードのみを出力すること。マークダウン（\`\`\`xml等）は一切禁止。
+                    1. 純粋な <svg> タグのみ出力。マークダウン禁止。
                     2. 立体図形の場合は必ず斜投影（キャビネット図等）で奥行きを描き、正方形にしないこと。
-                    3. viewBox="0 0 200 200" を必ず指定すること。
-                    4. xmlns="http://www.w3.org/2000/svg" を必ず含めること。` }] }] })
+                    3. viewBox="0 0 200 200" を必ず指定。
+                    4. xmlns="http://www.w3.org/2000/svg" を必ず含める。` }] }] })
                 });
                 const data = await res.json();
-                const text = data.candidates[0].content.parts[0].text;
+                clearInterval(drawTimer); // タイマー停止
                 
-                // 【修正】安全に抽出し、直接描画する
+                const text = data.candidates[0].content.parts[0].text;
                 const match = text.match(/<svg[\s\S]*?<\/svg>/);
+                
                 if (match) {
-                    const rawSvg = match[0];
-                    state.prob.svg = rawSvg;
-                    layer.innerHTML = rawSvg;
+                    state.prob.svg = match[0];
+                    layer.innerHTML = match[0];
                 } else {
                     layer.innerHTML = "作図コードの抽出に失敗しました。";
                 }
-            } catch (e) { layer.innerHTML = "作図エラー: " + e.message; }
+            } catch (e) { 
+                clearInterval(drawTimer);
+                layer.innerHTML = "作図エラー: " + e.message; 
+            }
         }
 
         async function doGrade(file) {
             const key = document.getElementById('apiKey').value;
             if(!key) return alert("Keyを入力してください");
-            showUI("採点中...");
+            showUI("SAPIX基準で採点中...");
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const b64 = e.target.result.split(',')[1];
