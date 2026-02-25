@@ -116,11 +116,19 @@
         function displayProblem(prob) {
             currentProb = prob;
             document.getElementById('unit-name').innerText = prob.unit;
-            document.getElementById('problem-text').innerText = prob.text;
-            document.getElementById('sub-questions').innerHTML = prob.sub.map(s => `<li>${s}</li>`).join('');
+            
+            // 【ガード】問題文がオブジェクトなら中身を取り出す
+            const pText = typeof prob.text === 'object' ? (prob.text.text || JSON.stringify(prob.text)) : prob.text;
+            document.getElementById('problem-text').innerText = pText;
+            
+            // 【ガード】小問リストの各項目を安全に文字列化
+            document.getElementById('sub-questions').innerHTML = prob.sub.map(s => {
+                const sText = typeof s === 'object' ? (s.text || s.question || JSON.stringify(s)) : s;
+                return `<li>${sText}</li>`;
+            }).join('');
             
             const hintArea = document.getElementById('hint-area');
-            hintArea.innerText = prob.hint || "";
+            hintArea.innerText = typeof prob.hint === 'object' ? (prob.hint.text || JSON.stringify(prob.hint)) : (prob.hint || "");
             hintArea.style.display = 'none';
 
             const svgContainer = document.getElementById('svg-container');
