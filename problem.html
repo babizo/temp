@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>最難関突破・今日の一問</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; padding: 20px; color: #333; max-width: 800px; margin: auto; }
+        .problem-box { border: 2px solid #2c3e50; padding: 20px; border-radius: 8px; background: #f9f9f9; }
+        h1 { color: #2c3e50; font-size: 1.5em; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; }
+        .canvas-container { text-align: center; margin: 20px 0; background: white; padding: 10px; border-radius: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.1); }
+        .math { font-style: italic; font-family: 'Times New Roman', serif; }
+    </style>
+</head>
+<body>
+
+<div class="problem-box">
+    <h1>最難関突破・今日の一問（関数と図形）</h1>
+    <p>
+        座標平面上に、3点 <span class="math">A(0, 12), B(-6, 0), C(6, 0)</span> を頂点とする二等辺三角形 <span class="math">ABC</span> がある。
+        辺 <span class="math">AC</span> 上に点 <span class="math">P</span> をとり、点 <span class="math">P</span> から <span class="math">x</span> 軸に下ろした垂線を <span class="math">PQ</span> とする。
+        また、辺 <span class="math">AB</span> 上に点 <span class="math">R</span> を、線分 <span class="math">RQ</span> が <span class="math">x</span> 軸と平行になるようにとる。
+    </p>
+    
+    <div class="canvas-container">
+        <svg width="500" height="400" viewBox="-100 -20 200 150" xmlns="http://www.w3.org/2000/svg">
+            <g stroke="#eee" stroke-width="0.5">
+                <path d="M -80 0 L -80 130 M -60 0 L -60 130 M -40 0 L -40 130 M -20 0 L -20 130 M 20 0 L 20 130 M 40 0 L 40 130 M 60 0 L 60 130 M 80 0 L 80 130" />
+                <path d="M -90 20 L 90 20 M -90 40 L 90 40 M -90 60 L 90 60 M -90 80 L 90 80 M -90 100 L 90 100 M -90 120 L 90 120" />
+            </g>
+            
+            <line x1="-90" y1="0" x2="90" y2="0" stroke="#000" stroke-width="1.5" />
+            <line x1="0" y1="-10" x2="0" y2="140" stroke="#000" stroke-width="1.5" />
+            <text x="85" y="12" font-size="8">x</text>
+            <text x="5" y="135" font-size="8">y</text>
+            <text x="-8" y="10" font-size="8">O</text>
+
+            <path d="M -60 0 L 0 120 L 60 0 Z" fill="rgba(52, 152, 219, 0.1)" stroke="#3498db" stroke-width="2" />
+            <text x="-2" y="130" font-size="10" font-weight="bold">A(0,12)</text>
+            <text x="-75" y="-5" font-size="10">B(-6,0)</text>
+            <text x="62" y="-5" font-size="10">C(6,0)</text>
+
+            <line x1="30" y1="60" x2="30" y2="0" stroke="#e74c3c" stroke-width="2" /> <line x1="-30" y1="60" x2="30" y2="60" stroke="#e74c3c" stroke-width="2" stroke-dasharray="4" /> <path d="M -30 60 L 30 60 L 30 0 L 60 0 Z" fill="rgba(231, 76, 60, 0.2)" /> <circle cx="30" cy="60" r="3" fill="#e74c3c" /> <circle cx="30" cy="0" r="3" fill="#e74c3c" />  <circle cx="-30" cy="60" r="3" fill="#e74c3c" /> <text x="35" y="65" font-size="10" fill="#e74c3c" font-weight="bold">P(t, -2t+12)</text>
+            <text x="35" y="-5" font-size="10" fill="#e74c3c" font-weight="bold">Q(t, 0)</text>
+            <text x="-45" y="72" font-size="10" fill="#e74c3c" font-weight="bold">R</text>
+        </svg>
+    </div>
+
+    <ol>
+        <li>点 <span class="math">P</span> の <span class="math">x</span> 座標を <span class="math">t (0 < t < 6)</span> とするとき、線分 <span class="math">PQ</span> の長さを <span class="math">t</span> を用いて表せ。</li>
+        <li>四角形 <span class="math">RPQC</span> の面積が最大となるときの <span class="math">t</span> の値と、その時の面積の最大値を求めよ。</li>
+    </ol>
+</div>
+
+</body>
+</html>
