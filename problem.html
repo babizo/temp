@@ -3,8 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.7.5</title>
+    <title>最難関突破 AI数学講師 v1.7.7</title>
     
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            startup: {
+                typeset: false // 起動時の自動実行を止め、手動でコントロールする
+            }
+        };
+    </script>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
@@ -49,7 +60,7 @@
 
     <div class="settings-toggle" onclick="toggleSettings()">
         <span>⚙️ 塾生用設定パネル</span>
-        <span class="version-tag">ver 1.7.5 Smart-Draw</span>
+        <span class="version-tag">ver 1.7.7 Math-Fix</span>
     </div>
     <div id="settings-area">
         <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
@@ -114,21 +125,20 @@
         const MODEL_NAME = "gemini-2.5-flash"; 
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
 
-        // 【修正】has_diagram フラグを追加し、図が必要な問題と不要な問題を定義
         const initDataList = [
             {
                 unit: "数と式",
-                text: "x = \\frac{\\sqrt{5} + 1}{2} のとき、次の式の値を考えよ。",
-                sub: ["(1) x^2 - x - 1 の値を求めよ。", "(2) x^5 の値を a\\sqrt{5} + b の形で表せ。"],
+                text: "$x = \\frac{\\sqrt{5} + 1}{2}$ のとき、次の式の値を考えよ。",
+                sub: ["(1) $x^2 - x - 1$ の値を求めよ。", "(2) $x^5$ の値を $a\\sqrt{5} + b$ の形で表せ。"],
                 has_diagram: false,
                 hint: "(1)の結果を利用して、$x^2 = x + 1$ と変形し、次数下げを行いましょう。"
             },
             {
                 unit: "整数問題",
-                text: "自然数 $n$ について、$n^2 + 4n + 11$ が素数となるような $n$ をすべて求めよ。",
-                sub: ["(1) 式を変形して条件を絞り込め。"],
+                text: "自然数 $n$ について、$n^2 - 12n + 27$ が素数となるような $n$ をすべて求めよ。",
+                sub: ["(1) 式を因数分解し、素数の性質を利用して条件を絞り込め。"],
                 has_diagram: false,
-                hint: "素数であることを利用し、因数分解に近い形を作ってから候補を絞りましょう。"
+                hint: "式を因数分解すると $(n-3)(n-9)$ になります。素数は「$1 \\times$ 自分自身」しか約数を持たないので、どちらかのカッコが $1$ か $-1$ になるはずです。"
             },
             {
                 unit: "方程式",
@@ -148,7 +158,7 @@
             },
             {
                 unit: "立体図形",
-                text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
+                text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
                 sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
                 has_diagram: true,
                 svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/><path d="M75 35 L155 35 L155 115 L75 115 Z" fill="none" stroke="#333" stroke-dasharray="2"/><path d="M40 70 L75 35 M120 70 L155 35 M120 150 L155 115 M40 150 L75 115" fill="none" stroke="#333"/><path d="M80 70 L137.5 52.5 L155 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="75" y="65" font-size="12" font-weight="bold">P</text><text x="145" y="50" font-size="12" font-weight="bold">Q</text><text x="160" y="85" font-size="12" font-weight="bold">R</text></svg>`,
@@ -167,6 +177,13 @@
             initZoom();
         });
 
+        // テキストを挿入してからMathJaxを再実行する関数
+        function renderMath() {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetPromise([document.getElementById('math-content-area'), document.getElementById('res-box')]).catch((err) => console.log(err));
+            }
+        }
+
         function applyProb(p) {
             state.prob = p;
             state.graded = false; 
@@ -181,7 +198,6 @@
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             
-            // 【修正】図が不要な場合はキャンバスごと非表示にする
             const canvasBox = document.getElementById('zoom-box');
             if (p.has_diagram === false) {
                 canvasBox.style.display = 'none';
@@ -192,9 +208,8 @@
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
 
-            if (window.MathJax) {
-                MathJax.typesetPromise([document.getElementById('math-content-area')]).catch((err) => console.log(err));
-            }
+            // 【修正】テキストセット後に確実にMathJaxを実行
+            setTimeout(renderMath, 50);
         }
 
         async function generateNext(isOtherUnit = false) {
@@ -220,7 +235,6 @@
             showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
             
             try {
-                // 【修正】has_diagram のフラグをAIに設定させる
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
@@ -242,7 +256,6 @@
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 
-                // 【修正】図が必要な場合のみ作図エンジンを回す
                 if (json.has_diagram !== false) {
                     autoDraw(key); 
                 }
@@ -257,7 +270,6 @@
             }, 100);
 
             try {
-                // 【修正】ネタバレ防止の強力な制約を追加
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説用SVG図を作成せよ。
@@ -315,9 +327,7 @@
                     resBox.innerText = fb;
                     resBox.style.display = 'block';
                     
-                    if (window.MathJax) {
-                        MathJax.typesetPromise([resBox]).catch((err) => console.log(err));
-                    }
+                    setTimeout(renderMath, 50); // 【修正】採点結果も確実にレンダリング
                     
                     const scoreMatch = fb.match(/Score:\s*(\d+)/i);
                     const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
@@ -410,7 +420,7 @@
         function toggleHint() { 
             const b = document.getElementById('h-box'); 
             b.style.display = (b.style.display === 'block') ? 'none' : 'block';
-            if (window.MathJax) MathJax.typesetPromise([b]).catch(err => console.log(err));
+            setTimeout(renderMath, 50);
         }
         function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
