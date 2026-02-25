@@ -81,32 +81,11 @@
             {
                 unit: "関数と図形", 
                 hint: "ヒント: 点Pの座標を(t, y)とおくと、y座標がそのまま線分PQの長さになります。直線ACの式 y=ax+b を求めましょう。",
-                get: (d) => {
-                    const h = 12;
-                    return {
-                        text: `座標平面上に 3点 A(0, ${h}), B(-6, 0), C(6, 0) を頂点とする二等辺三角形ABCがある。辺AC上の点Pからx軸に下ろした垂線をPQ、辺AB上の点RをRQ//BCとなるようにとる。`,
-                        sub: ["PQの長さを t で表せ。", "四角形RPQCの面積が最大となる t を求めよ。"],
-                        svg: `<svg width="280" height="200" viewBox="-100 -20 200 160" xmlns="http://www.w3.org/2000/svg">
-                            <g transform="scale(1, -1) translate(0, -130)">
-                                <line x1="-90" y1="0" x2="90" y2="0" stroke="#888" stroke-width="1"/>
-                                <line x1="0" y1="-10" x2="0" y2="140" stroke="#888" stroke-width="1"/>
-                                <path d="M-60 0 L0 120 L60 0 Z" fill="none" stroke="#2e86c1" stroke-width="2"/>
-                                <line x1="30" y1="60" x2="30" y2="0" stroke="#e74c3c" stroke-width="2.5"/>
-                                <line x1="-30" y1="60" x2="30" y2="60" stroke="#e74c3c" stroke-dasharray="4" stroke-width="1.5"/>
-                            </g>
-                            <text x="85" y="145" font-size="12" font-style="italic">x</text>
-                            <text x="5" y="10" font-size="12" font-style="italic">y</text>
-                            <text x="-25" y="15" font-size="12" font-weight="bold" fill="#2e86c1">A(0, ${h})</text>
-                            <text x="-95" y="145" font-size="11" fill="#2e86c1">B(-6, 0)</text>
-                            <text x="65" y="145" font-size="11" fill="#2e86c1">C(6, 0)</text>
-                            <text x="35" y="65" font-size="13" fill="#e74c3c" font-weight="bold">P(t, y)</text>
-                            <text x="35" y="148" font-size="12" fill="#e74c3c" font-weight="bold">Q</text>
-                            <text x="-48" y="65" font-size="12" fill="#e74c3c" font-weight="bold">R</text>
-                            <text x="35" y="100" font-size="10" fill="#e74c3c">長さy</text>
-                            <text x="-75" y="125" font-size="10" fill="#2e86c1">長さ 12</text>
-                        </svg>`
-                    };
-                }
+                get: (d) => ({
+                    text: `座標平面上に 3点 A(0, 12), B(-6, 0), C(6, 0) を頂点とする二等辺三角形ABCがある。辺AC上の点Pからx軸に下ろした垂線をPQ、辺AB上の点RをRQ//BCとなるようにとる。`,
+                    sub: ["PQの長さを t で表せ。", "四角形RPQCの面積が最大となる t を求めよ。"],
+                    svg: `<svg width="280" height="200" viewBox="-100 -20 200 160" xmlns="http://www.w3.org/2000/svg"><g transform="scale(1, -1) translate(0, -130)"><line x1="-90" y1="0" x2="90" y2="0" stroke="#888" stroke-width="1"/><line x1="0" y1="-10" x2="0" y2="140" stroke="#888" stroke-width="1"/><path d="M-60 0 L0 120 L60 0 Z" fill="none" stroke="#2e86c1" stroke-width="2"/><line x1="30" y1="60" x2="30" y2="0" stroke="#e74c3c" stroke-width="2.5"/><line x1="-30" y1="60" x2="30" y2="60" stroke="#e74c3c" stroke-dasharray="4" stroke-width="1.5"/></g><text x="85" y="145" font-size="12">x</text><text x="5" y="10" font-size="12">y</text><text x="-25" y="15" font-size="12" font-weight="bold" fill="#2e86c1">A(0, 12)</text><text x="-95" y="145" font-size="11" fill="#2e86c1">B(-6, 0)</text><text x="65" y="145" font-size="11" fill="#2e86c1">C(6, 0)</text><text x="35" y="65" font-size="13" fill="#e74c3c" font-weight="bold">P(t, y)</text><text x="35" y="148" font-size="12" fill="#e74c3c" font-weight="bold">Q</text><text x="-48" y="65" font-size="12" fill="#e74c3c" font-weight="bold">R</text><text x="35" y="100" font-size="10" fill="#e74c3c">長さy</text></svg>`
+                })
             },
             {
                 unit: "図形の証明", 
@@ -114,17 +93,7 @@
                 get: (d) => ({
                     text: `右の図において、線分ABは円Oの直径であり、点Cは円周上の点である。点Cにおける接線とABの延長線の交点をPとする。`,
                     sub: ["∠PCB = ∠PAC であることを証明せよ。"],
-                    svg: `<svg width="280" height="150" viewBox="0 0 200 120">
-                        <circle cx="100" cy="75" r="40" stroke="#333" fill="none" stroke-width="2"/>
-                        <line x1="20" y1="75" x2="185" y2="75" stroke="#333" stroke-width="1.5"/>
-                        <line x1="130" y1="48" x2="185" y2="75" stroke="#e74c3c" stroke-width="2.5"/>
-                        <text x="95" y="90" font-size="11" font-weight="bold">O</text>
-                        <text x="15" y="88" font-size="11" font-weight="bold">A</text>
-                        <text x="140" y="88" font-size="11" font-weight="bold">B</text>
-                        <text x="125" y="42" font-size="13" font-weight="bold" fill="#e74c3c">C</text>
-                        <text x="188" y="80" font-size="13" font-weight="bold" fill="#e74c3c">P</text>
-                        <text x="145" y="60" font-size="10" fill="#e74c3c">接線</text>
-                    </svg>`
+                    svg: `<svg width="280" height="150" viewBox="0 0 200 120"><circle cx="100" cy="75" r="40" stroke="#333" fill="none" stroke-width="2"/><line x1="20" y1="75" x2="185" y2="75" stroke="#333" stroke-width="1.5"/><line x1="130" y1="48" x2="185" y2="75" stroke="#e74c3c" stroke-width="2.5"/><text x="95" y="90" font-size="11" font-weight="bold">O</text><text x="15" y="88" font-size="11" font-weight="bold">A</text><text x="140" y="88" font-size="11" font-weight="bold">B</text><text x="125" y="42" font-size="13" font-weight="bold" fill="#e74c3c">C</text><text x="188" y="80" font-size="13" font-weight="bold" fill="#e74c3c">P</text><text x="145" y="60" font-size="10" fill="#e74c3c">接線</text></svg>`
                 })
             }
         ];
@@ -183,7 +152,7 @@
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `筑駒・開成講師として添削。問題：${document.getElementById('problem-text').innerText}。記述を採点し【判定】○△×から始め解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64Image } }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `筑駒・開成講師。問題：${document.getElementById('problem-text').innerText}。採点し【判定】○△×から始め解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64Image } }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 } })
                 });
                 const data = await res.json();
                 const feedback = data.candidates[0].content.parts[0].text;
@@ -209,7 +178,7 @@
             list.innerHTML = history.map(h => `<div class="history-item"><span>${h.date} - ${h.unit}</span><span class="mark-${h.mark}">${h.mark}</span></div>`).join('');
         }
 
-        function clearHistory() { if(confirm("履歴リセット？")) { localStorage.removeItem('math_history'); location.reload(); } }
+        function clearHistory() { if(confirm("リセット？")) { localStorage.removeItem('math_history'); location.reload(); } }
     </script>
 </body>
 </html>
