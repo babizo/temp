@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.6.6</title>
+    <title>最難関突破 AI数学講師 v1.6.8</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; overflow-x: hidden; }
@@ -37,13 +37,16 @@
         .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 12px; border-left: 4px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.08); margin: 10px 0; border-radius: 0 8px 8px 0; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
         .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        
+        /* アダプティブ通知用バッジ */
+        .adaptive-badge { background: #e67e22; color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; margin-left: 5px; vertical-align: middle; }
     </style>
 </head>
 <body>
 
     <div class="settings-toggle" onclick="toggleSettings()">
         <span>⚙️ 塾生用設定パネル</span>
-        <span class="version-tag">ver 1.6.6 Timer-Sync</span>
+        <span class="version-tag">ver 1.6.8 Adaptive</span>
     </div>
     <div id="settings-area">
         <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
@@ -53,7 +56,7 @@
     <div class="card">
         <div class="header-flex"><h1>分析パネル</h1><span style="font-size:0.6rem; color:#888;">SAPIX偏差値準拠</span></div>
         <div style="display:flex; justify-content:space-around; text-align:center;">
-            <div><div style="font-size:0.7rem; color:#aaa;">想定偏差値</div><div id="dev-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">--</div></div>
+            <div><div style="font-size:0.7rem; color:#aaa;">想定偏差値</div><div id="dev-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">50.0</div></div>
             <div><div style="font-size:0.7rem; color:#aaa;">累計演習</div><div id="count-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">0</div></div>
         </div>
         <div id="unit-chart" style="margin-top:10px; font-size:0.8rem;"></div>
@@ -61,7 +64,7 @@
 
     <div class="card">
         <div class="header-flex">
-            <h1>演習 [<span id="u-title"></span>]</h1>
+            <h1>演習 [<span id="u-title"></span>]<span id="adaptive-label" class="adaptive-badge" style="display:none;">レベル調整済</span></h1>
             <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">SKIP</button>
         </div>
         <div class="canvas-container" id="zoom-box">
@@ -71,11 +74,11 @@
         <ul id="q-list" style="padding-left: 20px; margin: 8px 0;"></ul>
         <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem;">💡 ヒント</button>
         <div id="h-box" class="hint-box"></div>
-        <button class="btn-ai-gen" onclick="generateNext()">✨ AIによる類題を作成</button>
+        <button class="btn-ai-gen" onclick="generateNext()">✨ 現在の偏差値で類題を作成</button>
     </div>
 
     <div class="card">
-        <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 採点する</button>
+        <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 解答を撮影して採点</button>
         <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
         <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); white-space:pre-wrap; font-size:0.85rem; margin-top:10px;"></div>
     </div>
@@ -112,7 +115,11 @@
 
         function applyProb(p) {
             state.prob = p;
-            document.getElementById('u-title').innerText = p.unit || "演習";
+            // 万が一単位などが入っていた場合のフォールバック（表示上だけ綺麗にする）
+            let unitName = p.unit || "総合演習";
+            if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
+            
+            document.getElementById('u-title').innerText = unitName;
             document.getElementById('p-text').innerText = p.text || "";
             document.getElementById('q-list').innerHTML = (p.sub || []).map(s => `<li>${s}</li>`).join('');
             document.getElementById('h-box').innerText = p.hint || "";
@@ -120,9 +127,7 @@
             document.getElementById('res-box').style.display = 'none';
             
             const layer = document.getElementById('svg-layer');
-            if (p.svg) {
-                layer.innerHTML = p.svg;
-            }
+            if (p.svg) layer.innerHTML = p.svg;
             state.scale = 1; state.x = 0; state.y = 0; updateView();
         }
 
@@ -131,26 +136,46 @@
             if(!key) return alert("Keyを入力してください");
             localStorage.setItem('gemini_api_key', key);
             
-            showUI("問題文・小問を生成中...");
+            // アダプティブ（偏差値）の取得
+            const currentDevText = document.getElementById('dev-val').innerText;
+            const currentDev = parseFloat(currentDevText) || 50;
+            
+            // 偏差値に応じたプロンプトの動的生成
+            let adaptiveInstruction = "標準的な難易度の応用問題にせよ。";
+            if (currentDev >= 60) {
+                adaptiveInstruction = `現在の生徒の偏差値は${currentDev}（最上位層）です。高校範囲の知識（余弦定理等）を使うと有利になるような、ひねりの効いた超難問を作成せよ。`;
+            } else if (currentDev < 45) {
+                adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎が抜けている可能性があるため、ひねりをなくし、公式の確認ができる標準的な難易度にレベルを下げて作成せよ。`;
+            }
+
+            showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
+            
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師。問題「${state.prob.text}」の類題をJSONで。必ず「〜を求めよ」という問いで完結させること。{"unit":"...","text":"...","sub":["..."],"hint":"..."}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。
+                    【アダプティブ指示】
+                    ${adaptiveInstruction}
+                    
+                    【厳守フォーマット】
+                    ・unitには「立体図形」「整数問題」などの『数学の単元名』を必ず入れること。単位（cm等）は絶対に入れない。
+                    ・必ず「〜を求めよ」という問いで完結させること。
+                    {"unit":"単元名","text":"...","sub":["..."],"hint":"..."}` }] }] })
                 });
                 const data = await res.json();
                 if (data.error) throw new Error(data.error.message);
                 const jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
                 const json = JSON.parse(jsonText);
                 applyProb(json);
+                
+                document.getElementById('adaptive-label').style.display = 'inline-block'; // バッジ表示
                 hideUI();
-                autoDraw(key); // 問題文表示後にバックグラウンドで作図開始
+                autoDraw(key); 
             } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
         }
 
         async function autoDraw(key) {
             const layer = document.getElementById('svg-layer');
-            
-            // 【専用タイマー処理】作図中であることが一目でわかるようにする
             let st = Date.now();
             let drawTimer = setInterval(() => {
                 layer.innerHTML = `<div style="color:var(--ai); font-weight:bold; margin-bottom:5px;">🎨 作図エンジン稼働中...</div><div style="font-size:1.5rem; font-family:monospace; color:#aaa;">${((Date.now()-st)/1000).toFixed(1)}s</div>`;
@@ -167,42 +192,55 @@
                     4. xmlns="http://www.w3.org/2000/svg" を必ず含める。` }] }] })
                 });
                 const data = await res.json();
-                clearInterval(drawTimer); // タイマー停止
-                
+                clearInterval(drawTimer);
                 const text = data.candidates[0].content.parts[0].text;
                 const match = text.match(/<svg[\s\S]*?<\/svg>/);
                 
                 if (match) {
                     state.prob.svg = match[0];
                     layer.innerHTML = match[0];
-                } else {
-                    layer.innerHTML = "作図コードの抽出に失敗しました。";
-                }
-            } catch (e) { 
-                clearInterval(drawTimer);
-                layer.innerHTML = "作図エラー: " + e.message; 
-            }
+                } else { layer.innerHTML = "作図コードの抽出に失敗しました。"; }
+            } catch (e) { clearInterval(drawTimer); layer.innerHTML = "作図エラー: " + e.message; }
         }
 
         async function doGrade(file) {
             const key = document.getElementById('apiKey').value;
             if(!key) return alert("Keyを入力してください");
-            showUI("SAPIX基準で採点中...");
+            showUI("解答の画像を解析・採点中...");
+            
+            const mimeType = file.type || "image/jpeg";
             const reader = new FileReader();
+            
             reader.onload = async (e) => {
                 const b64 = e.target.result.split(',')[1];
                 try {
                     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。問題：${state.prob.text}。【Score: X/10】で採点し解説。` }, { inline_data: { mime_type: "image/jpeg", data: b64 } }] }] })
+                        body: JSON.stringify({ 
+                            contents: [{ 
+                                parts: [
+                                    { text: `あなたは最難関高校の数学講師です。添付した生徒の解答画像の内容をしっかり読み取って採点してください。
+                                    問題：『${state.prob.text}』
+                                    
+                                    【必須ルール】
+                                    1. 画像に書かれている途中式や解答のどこが合っていて、どこが間違っているかを具体的に指摘すること。
+                                    2. 最後に必ず【Score: X/10】の形式で点数をつけること。` }, 
+                                    { inlineData: { mimeType: mimeType, data: b64 } } 
+                                ] 
+                            }] 
+                        })
                     });
                     const data = await res.json();
+                    if(data.error) throw new Error(data.error.message);
+                    
                     const fb = data.candidates[0].content.parts[0].text;
                     document.getElementById('res-box').innerText = fb;
                     document.getElementById('res-box').style.display = 'block';
-                    const score = (fb.match(/Score:\s*(\d+)/)||[0,0])[1];
-                    saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), parseInt(score));
-                } catch (e) { alert("採点失敗"); } finally { hideUI(); }
+                    
+                    const scoreMatch = fb.match(/Score:\s*(\d+)/i);
+                    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+                    saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), score);
+                } catch (e) { alert("採点失敗: " + e.message); } finally { hideUI(); }
             };
             reader.readAsDataURL(file);
         }
@@ -218,10 +256,15 @@
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             document.getElementById('count-val').innerText = h.length;
             document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><div><span class="score-badge">${x.s}/10</span> ${x.m}</div></div>`).join('');
+            
+            // 初回表示用にデフォルト値を50.0にする
             if (h.length >= 1) {
                 const avg = h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length;
                 document.getElementById('dev-val').innerText = (40 + (avg * 3.5)).toFixed(1);
+            } else {
+                document.getElementById('dev-val').innerText = "50.0";
             }
+            
             const units = {};
             h.forEach(x => { if(!units[x.u]) units[x.u]={s:0,c:0}; units[x.u].s+=x.s; units[x.u].c++; });
             let html = "";
@@ -255,7 +298,7 @@
             c.ontouchend = () => isDrag = false;
         }
 
-        function loadHist(i) { const h = JSON.parse(localStorage.getItem('m_hist')); applyProb(h[i].p); }
+        function loadHist(i) { const h = JSON.parse(localStorage.getItem('m_hist')); applyProb(h[i].p); document.getElementById('adaptive-label').style.display = 'none'; }
         function doSkip() { saveLog("SKIP", 0); generateNext(); }
         function toggleSettings() { const s = document.getElementById('settings-area'); s.style.display = (s.style.display === 'block') ? 'none' : 'block'; }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; }
