@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.6.8</title>
+    <title>最難関突破 AI数学講師 v1.7.1</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; overflow-x: hidden; }
@@ -38,7 +38,6 @@
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
         .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
         
-        /* アダプティブ通知用バッジ */
         .adaptive-badge { background: #e67e22; color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; margin-left: 5px; vertical-align: middle; }
     </style>
 </head>
@@ -46,7 +45,7 @@
 
     <div class="settings-toggle" onclick="toggleSettings()">
         <span>⚙️ 塾生用設定パネル</span>
-        <span class="version-tag">ver 1.6.8 Adaptive</span>
+        <span class="version-tag">ver 1.7.1 School-Target</span>
     </div>
     <div id="settings-area">
         <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
@@ -56,8 +55,17 @@
     <div class="card">
         <div class="header-flex"><h1>分析パネル</h1><span style="font-size:0.6rem; color:#888;">SAPIX偏差値準拠</span></div>
         <div style="display:flex; justify-content:space-around; text-align:center;">
-            <div><div style="font-size:0.7rem; color:#aaa;">想定偏差値</div><div id="dev-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">50.0</div></div>
-            <div><div style="font-size:0.7rem; color:#aaa;">累計演習</div><div id="count-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">0</div></div>
+            <div>
+                <div style="font-size:0.7rem; color:#aaa;">想定偏差値</div>
+                <div style="display:flex; align-items:baseline; justify-content:center; gap:5px;">
+                    <span id="dev-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">50.0</span>
+                    <span id="target-school" style="font-size:0.75rem; color:var(--hint); font-weight:bold;">[都立上位]</span>
+                </div>
+            </div>
+            <div>
+                <div style="font-size:0.7rem; color:#aaa;">累計演習</div>
+                <div id="count-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">0</div>
+            </div>
         </div>
         <div id="unit-chart" style="margin-top:10px; font-size:0.8rem;"></div>
     </div>
@@ -65,7 +73,7 @@
     <div class="card">
         <div class="header-flex">
             <h1>演習 [<span id="u-title"></span>]<span id="adaptive-label" class="adaptive-badge" style="display:none;">レベル調整済</span></h1>
-            <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">SKIP</button>
+            <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">他の単元へ ≫</button>
         </div>
         <div class="canvas-container" id="zoom-box">
             <div id="svg-layer"></div>
@@ -74,7 +82,7 @@
         <ul id="q-list" style="padding-left: 20px; margin: 8px 0;"></ul>
         <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem;">💡 ヒント</button>
         <div id="h-box" class="hint-box"></div>
-        <button class="btn-ai-gen" onclick="generateNext()">✨ 現在の偏差値で類題を作成</button>
+        <button class="btn-ai-gen" onclick="generateNext(false)">✨ 現在の偏差値で類題を作成</button>
     </div>
 
     <div class="card">
@@ -95,27 +103,68 @@
 
     <script>
         const MODEL_NAME = "gemini-2.5-flash"; 
-        let state = { prob: {}, scale: 1, x: 0, y: 0, t: null };
+        let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
 
-        const initData = {
-            unit: "立体図形",
-            text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
-            sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
-            svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/><path d="M75 35 L155 35 L155 115 L75 115 Z" fill="none" stroke="#333" stroke-dasharray="2"/><path d="M40 70 L75 35 M120 70 L155 35 M120 150 L155 115 M40 150 L75 115" fill="none" stroke="#333"/><path d="M80 70 L137.5 52.5 L155 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="75" y="65" font-size="12" font-weight="bold">P</text><text x="145" y="50" font-size="12" font-weight="bold">Q</text><text x="160" y="85" font-size="12" font-weight="bold">R</text></svg>`,
-            hint: "切り口は正三角形になります。"
-        };
+        const initDataList = [
+            {
+                unit: "数と式",
+                text: "x = (√5 + 1) / 2 のとき、次の式の値を考えよ。",
+                sub: ["(1) x² - x - 1 の値を求めよ。", "(2) x⁵ の値を a√5 + b の形で表せ。"],
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="180" height="180" fill="#fcfcfc" stroke="#ccc"/><text x="100" y="90" font-size="20" font-weight="bold" text-anchor="middle" fill="#333">x = (√5 + 1) / 2</text><text x="100" y="130" font-size="14" text-anchor="middle" fill="#27ae60">x² - x - 1 = 0 を利用する</text></svg>`,
+                hint: "(1)の結果を利用して、x² = x + 1 と変形し、次数下げを行いましょう。"
+            },
+            {
+                unit: "方程式",
+                text: "ある列車が長さ1200mのトンネルに完全に入ってから、先頭が出始めるまでに60秒かかった。また、長さ2000mの鉄橋を渡り始めてから渡り終わるまでに110秒かかった。",
+                sub: ["(1) この列車の長さと秒速をそれぞれ求めよ。"],
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect x="30" y="80" width="100" height="40" fill="none" stroke="#333" stroke-width="2"/><rect x="50" y="90" width="40" height="20" fill="rgba(231,76,60,0.5)" stroke="#e74c3c"/><text x="80" y="70" font-size="12" text-anchor="middle">トンネル 1200m</text><text x="70" y="105" font-size="10" fill="#fff" font-weight="bold">列車 x(m)</text></svg>`,
+                hint: "列車の長さをx(m)、速さをy(m/s)として、進んだ距離と時間の関係を連立方程式にしましょう。"
+            },
+            {
+                unit: "関数",
+                text: "放物線 y = x² 上に2点 A, B があり、x座標はそれぞれ -1, 2 である。原点をOとする。",
+                sub: ["(1) 直線ABの方程式を求めよ。", "(2) △OABの面積を求めよ。"],
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="100" y1="180" x2="100" y2="20" stroke="#aaa"/><line x1="20" y1="150" x2="180" y2="150" stroke="#aaa"/><circle cx="70" cy="115" r="4" fill="#e74c3c"/><circle cx="145" cy="70" r="4" fill="#e74c3c"/><line x1="70" y1="115" x2="145" y2="70" stroke="#27ae60" stroke-width="2"/><text x="50" y="115" font-size="12" font-weight="bold">A</text><text x="155" y="70" font-size="12" font-weight="bold">B</text><text x="90" y="165" font-size="12">O</text></svg>`,
+                hint: "△OABの面積は、直線ABのy切片を利用して、2つの三角形の面積の和として計算すると簡単です。"
+            },
+            {
+                unit: "平面図形",
+                text: "半径6の円Oの周上に3点A, B, Cがあり、AB = AC = 8 である。弦BCの中点をMとし、直線AMと円Oの交点のうちAでない方をDとする。",
+                sub: ["(1) 線分AMの長さを求めよ。", "(2) △ABCの面積を求めよ。"],
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333" stroke-width="2"/><polygon points="100,20 40,140 160,140" fill="rgba(231,76,60,0.2)" stroke="#e74c3c" stroke-width="2"/><line x1="100" y1="20" x2="100" y2="180" stroke="#27ae60" stroke-dasharray="4"/><text x="100" y="15" font-size="12" font-weight="bold">A</text><text x="25" y="150" font-size="12" font-weight="bold">B</text><text x="165" y="150" font-size="12" font-weight="bold">C</text><text x="110" y="145" font-size="12" font-weight="bold">M</text><text x="105" y="195" font-size="12" font-weight="bold">D</text></svg>`,
+                hint: "方べきの定理 (AM × MD = BM × MC) や、直角三角形の三平方の定理を活用しましょう。"
+            },
+            {
+                unit: "立体図形",
+                text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
+                sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/><path d="M75 35 L155 35 L155 115 L75 115 Z" fill="none" stroke="#333" stroke-dasharray="2"/><path d="M40 70 L75 35 M120 70 L155 35 M120 150 L155 115 M40 150 L75 115" fill="none" stroke="#333"/><path d="M80 70 L137.5 52.5 L155 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="75" y="65" font-size="12" font-weight="bold">P</text><text x="145" y="50" font-size="12" font-weight="bold">Q</text><text x="160" y="85" font-size="12" font-weight="bold">R</text></svg>`,
+                hint: "切り口は正三角形になります。三角錐として体積を計算しましょう。"
+            },
+            {
+                unit: "確率",
+                text: "1から6までの目が出る大小2つのサイコロを同時に投げる。大きいサイコロの目を a、小さいサイコロの目を b とし、座標平面上に点 P(a, b) をとる。",
+                sub: ["(1) 点Pが放物線 y = (1/2)x² 上にある確率を求めよ。", "(2) 原点をOとしたとき、線分OPの長さが5以上になる確率を求めよ。"],
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="180" x2="180" y2="180" stroke="#333" stroke-width="2"/><line x1="20" y1="20" x2="20" y2="180" stroke="#333" stroke-width="2"/><circle cx="80" cy="120" r="4" fill="#e74c3c"/><text x="90" y="115" font-size="12" font-weight="bold">P(a,b)</text><line x1="20" y1="180" x2="80" y2="120" stroke="#27ae60" stroke-dasharray="4"/><text x="10" y="195" font-size="12">O</text><text x="170" y="195" font-size="12">x</text><text x="10" y="20" font-size="12">y</text></svg>`,
+                hint: "全事象は36通りです。(1)は b = (1/2)a² を満たす (a, b) を探します。"
+            }
+        ];
 
         document.addEventListener('DOMContentLoaded', () => {
             const saved = localStorage.getItem('gemini_api_key');
             if (saved) document.getElementById('apiKey').value = saved;
-            applyProb(initData);
+            
+            const randomInitProb = initDataList[Math.floor(Math.random() * initDataList.length)];
+            applyProb(randomInitProb);
+            
             refreshStats();
             initZoom();
         });
 
         function applyProb(p) {
             state.prob = p;
-            // 万が一単位などが入っていた場合のフォールバック（表示上だけ綺麗にする）
+            state.graded = false; 
+            
             let unitName = p.unit || "総合演習";
             if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
             
@@ -131,16 +180,14 @@
             state.scale = 1; state.x = 0; state.y = 0; updateView();
         }
 
-        async function generateNext() {
+        async function generateNext(isOtherUnit = false) {
             const key = document.getElementById('apiKey').value;
             if(!key) return alert("Keyを入力してください");
             localStorage.setItem('gemini_api_key', key);
             
-            // アダプティブ（偏差値）の取得
             const currentDevText = document.getElementById('dev-val').innerText;
             const currentDev = parseFloat(currentDevText) || 50;
             
-            // 偏差値に応じたプロンプトの動的生成
             let adaptiveInstruction = "標準的な難易度の応用問題にせよ。";
             if (currentDev >= 60) {
                 adaptiveInstruction = `現在の生徒の偏差値は${currentDev}（最上位層）です。高校範囲の知識（余弦定理等）を使うと有利になるような、ひねりの効いた超難問を作成せよ。`;
@@ -148,12 +195,17 @@
                 adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎が抜けている可能性があるため、ひねりをなくし、公式の確認ができる標準的な難易度にレベルを下げて作成せよ。`;
             }
 
+            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。`;
+            if (isOtherUnit) {
+                promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。`;
+            }
+
             showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
             
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
                     【アダプティブ指示】
                     ${adaptiveInstruction}
                     
@@ -168,7 +220,7 @@
                 const json = JSON.parse(jsonText);
                 applyProb(json);
                 
-                document.getElementById('adaptive-label').style.display = 'inline-block'; // バッジ表示
+                document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 autoDraw(key); 
             } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
@@ -240,6 +292,9 @@
                     const scoreMatch = fb.match(/Score:\s*(\d+)/i);
                     const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
                     saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), score);
+                    
+                    state.graded = true;
+                    
                 } catch (e) { alert("採点失敗: " + e.message); } finally { hideUI(); }
             };
             reader.readAsDataURL(file);
@@ -257,13 +312,22 @@
             document.getElementById('count-val').innerText = h.length;
             document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><div><span class="score-badge">${x.s}/10</span> ${x.m}</div></div>`).join('');
             
-            // 初回表示用にデフォルト値を50.0にする
+            let dev = 50.0;
             if (h.length >= 1) {
                 const avg = h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length;
-                document.getElementById('dev-val').innerText = (40 + (avg * 3.5)).toFixed(1);
-            } else {
-                document.getElementById('dev-val').innerText = "50.0";
+                dev = 40 + (avg * 3.5);
             }
+            
+            document.getElementById('dev-val').innerText = dev.toFixed(1);
+
+            // 【新規】偏差値に基づく志望校の判定
+            let schoolLabel = "[基礎固め]";
+            if (dev >= 63) schoolLabel = "[筑駒・開成]";
+            else if (dev >= 58) schoolLabel = "[学芸・早慶]";
+            else if (dev >= 53) schoolLabel = "[都立トップ]";
+            else if (dev >= 48) schoolLabel = "[都立上位]";
+            
+            document.getElementById('target-school').innerText = schoolLabel;
             
             const units = {};
             h.forEach(x => { if(!units[x.u]) units[x.u]={s:0,c:0}; units[x.u].s+=x.s; units[x.u].c++; });
@@ -299,7 +363,14 @@
         }
 
         function loadHist(i) { const h = JSON.parse(localStorage.getItem('m_hist')); applyProb(h[i].p); document.getElementById('adaptive-label').style.display = 'none'; }
-        function doSkip() { saveLog("SKIP", 0); generateNext(); }
+        
+        function doSkip() { 
+            if (!state.graded) {
+                saveLog("SKIP", 0); 
+            }
+            generateNext(true); 
+        }
+
         function toggleSettings() { const s = document.getElementById('settings-area'); s.style.display = (s.style.display === 'block') ? 'none' : 'block'; }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; }
         function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
