@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.3</title>
+    <title>最難関突破 AI数学講師 v1.3.3</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; }
@@ -11,14 +11,22 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .btn-skip { background: var(--skip); color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; }
-        .canvas-container { background: #ffffff; padding: 10px; border-radius: 6px; display: none; justify-content: center; min-height: 200px; margin-bottom: 10px; }
+        .canvas-container { background: #ffffff; padding: 10px; border-radius: 6px; display: flex; justify-content: center; min-height: 200px; margin-bottom: 10px; }
         svg { width: 100%; height: auto; max-height: 220px; }
-        button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 10px; transition: 0.2s; }
+        button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 10px; }
         .btn-camera { background: var(--success); color: white; height: 52px; }
         .btn-ai-gen { background: var(--ai); color: white; }
         .btn-draw { background: #555; color: white; font-size: 0.8rem; display: none; }
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.8); border-radius: 10px; border: 1px solid var(--ai); margin-bottom: 15px; }
-        .history-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #444; font-size: 0.75rem; }
+        .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 10px; border-left: 3px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.05); margin: 10px 0; border-radius: 0 5px 5px 0; }
+        
+        /* 履歴リストのスタイル改善 */
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+        .history-item:active { background: #333; }
+        .history-item:hover { background: #2d2d2d; }
+        .mark-○ { color: var(--success); font-weight: bold; }
+        .mark-× { color: var(--error); font-weight: bold; }
+        .mark-SKIP { color: var(--skip); font-style: italic; }
     </style>
 </head>
 <body>
@@ -26,14 +34,14 @@
     <div class="card">
         <div class="header-flex">
             <h1>1. 初期設定</h1>
-            <span style="font-size:0.6rem; color:#888;">ver 1.3.0</span>
+            <span style="font-size:0.6rem; color:#888;">ver 1.3.3</span>
         </div>
         <input type="password" id="apiKey" style="width:100%; padding:10px; background:#333; color:#eee; border:1px solid #555; border-radius:6px; box-sizing:border-box;" placeholder="Gemini API Key">
     </div>
 
     <div id="ai-status" class="loading-overlay">
         <div style="font-size:1.5rem; color:var(--ai); font-family:monospace;"><span id="timer-count">0.0</span>s</div>
-        <p id="ai-msg" style="font-size:0.8rem;">問題を生成中...</p>
+        <p id="ai-msg" style="font-size:0.8rem;"></p>
     </div>
 
     <div class="card">
@@ -41,22 +49,32 @@
             <h1>2. 演習 [<span id="unit-name"></span>]</h1>
             <button class="btn-skip" onclick="skipProblem()">SKIP ≫</button>
         </div>
-        <div class="canvas-container" id="svg-container"></div>
-        <button id="btn-draw" class="btn-draw" onclick="generateSVGForCurrent()">🎨 図を表示する（AI生成）</button>
+        
+        <div id="svg-area-wrapper">
+            <div class="canvas-container" id="svg-container"></div>
+            <button id="btn-draw" class="btn-draw" onclick="generateSVGForCurrent()">🎨 図を表示する（AI生成）</button>
+        </div>
         
         <p id="problem-text" style="font-weight:bold;"></p>
         <ol id="sub-questions" style="padding-left: 20px;"></ol>
+        
+        <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:4px; width:auto; font-size:0.75rem; margin-top:5px;">💡 ヒントを表示</button>
+        <div id="hint-area" class="hint-box"></div>
+        
         <button class="btn-ai-gen" id="btn-ai-gen" onclick="generateSimilarTextOnly()">✨ AIで類題を作成（文のみ）</button>
     </div>
 
     <div class="card">
-        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📸 撮影して添削</button>
+        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📸 撮影して添削を受ける</button>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
         <div id="result" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); white-space:pre-wrap; font-size:0.85rem;"></div>
     </div>
 
     <div class="card">
-        <h1 style="font-size:1rem;">4. 復習リスト</h1>
+        <div class="header-flex">
+            <h1>4. 復習リスト（タップで再挑戦）</h1>
+            <button onclick="clearHistory()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto; padding:0;">全消去</button>
+        </div>
         <div id="history-list"></div>
     </div>
 
@@ -66,13 +84,15 @@
         let currentIdx = new Date().getDate();
         let timerInterval = null;
 
-        const problemDatabase = [{
-            unit: "灘高・立体図形",
-            text: "一辺6の立方体。辺AB, BC, CGの中点P, Q, Rを通る平面で切断する。",
-            sub: ["切り口の形状を答えよ。", "点Bを含む方の立体の体積を求めよ。"],
-            svg: `<svg viewBox="0 0 200 180"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="12" fill="#e74c3c">P,Q,R</text></svg>`,
-            hint: "切り口は正三角形。"
-        }];
+        const problemDatabase = [
+            {
+                unit: "灘高・立体図形",
+                text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
+                sub: ["3点P, Q, Rを通る平面で切断した切り口の名称を答えよ。", "その切り口の面積を求めよ。"],
+                svg: `<svg viewBox="0 0 200 180"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="12" fill="#e74c3c">P,Q,R</text></svg>`,
+                hint: "切り口は正三角形になります。"
+            }
+        ];
 
         window.onload = () => {
             const savedKey = localStorage.getItem('gemini_api_key');
@@ -81,39 +101,36 @@
             showHistory();
         };
 
-        function displayProblem(prob, isNewAI = false) {
+        function displayProblem(prob) {
             currentProb = prob;
             document.getElementById('unit-name').innerText = prob.unit;
             document.getElementById('problem-text').innerText = prob.text;
             document.getElementById('sub-questions').innerHTML = prob.sub.map(s => `<li>${s}</li>`).join('');
             
-            // 【重要】ヒントエリアを必ず非表示にリセット
             const hintArea = document.getElementById('hint-area');
             hintArea.innerText = prob.hint || "";
-            hintArea.style.display = 'none'; 
-            
-            const svgArea = document.getElementById('svg-container');
+            hintArea.style.display = 'none';
+
+            const svgContainer = document.getElementById('svg-container');
             const drawBtn = document.getElementById('btn-draw');
             
-            if (prob.svg && prob.svg.length > 10) {
-                svgArea.innerHTML = prob.svg;
-                svgArea.style.display = 'flex';
+            if (prob.svg && prob.svg.trim() !== "") {
+                svgContainer.innerHTML = prob.svg;
+                svgContainer.style.display = 'flex';
                 drawBtn.style.display = 'none';
             } else {
-                svgArea.style.display = 'none';
+                svgContainer.style.display = 'none';
                 drawBtn.style.display = 'block';
             }
             document.getElementById('result').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // 問題切り替え時に上へスクロール
         }
-        
-        // ステップ1: テキストのみ生成
+
         async function generateSimilarTextOnly() {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("Keyが必要です");
+            if(!key) return alert("APIキーを入力してください");
             startStatusUI("問題を生成中...");
-
-            const prompt = `数学講師として問題『${currentProb.text}』の類題を1問作成。高校入試範囲厳守。図は不要。JSONのみ返して。{"unit":"...","text":"...","sub":["..."],"hint":"..."}`;
-            
+            const prompt = `最難関高校数学講師として問題『${currentProb.text}』の類題を1問作成。高校入試範囲厳守。図(svg)は含めず、代わりにsvgキーを空欄("")にしてJSONのみ返して。{"unit":"...","text":"...","sub":["..."],"svg":"","hint":"..."}`;
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
@@ -121,24 +138,16 @@
                 });
                 const data = await res.json();
                 const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    const newProb = JSON.parse(jsonMatch[0]);
-                    newProb.svg = null; // 図は最初は空
-                    displayProblem(newProb, true);
-                }
+                if (jsonMatch) displayProblem(JSON.parse(jsonMatch[0]));
             } catch (e) { alert("失敗しました"); }
             finally { stopStatusUI(); }
         }
 
-        // ステップ2: 図解のみ生成
         async function generateSVGForCurrent() {
             const key = document.getElementById('apiKey').value;
+            if(!key) return alert("APIキーを入力してください");
             startStatusUI("図を描いています...");
-
-            const prompt = `問題：『${currentProb.text}』の解説用SVG図解を作成してください。
-            viewBox="0 0 200 200"を用い、stroke="#333"で描画。JSONの"svg"キーに文字列として入れて。
-            {"svg": "<svg>...</svg>"}`;
-
+            const prompt = `問題：『${currentProb.text}』の解説用SVG図解を生成。viewBox="0 0 200 200"を用い、頂点ラベルを必ず入れること。JSONの"svg"キーに文字列として入れて。{"svg": "<svg>...</svg>"}`;
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
@@ -147,11 +156,89 @@
                 const data = await res.json();
                 const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
-                    const result = JSON.parse(jsonMatch[0]);
-                    currentProb.svg = result.svg;
+                    currentProb.svg = JSON.parse(jsonMatch[0]).svg;
                     displayProblem(currentProb);
                 }
             } catch (e) { alert("作図に失敗しました"); }
+            finally { stopStatusUI(); }
+        }
+
+        function toggleHint() {
+            const h = document.getElementById('hint-area');
+            h.style.display = (h.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function skipProblem() {
+            saveHistory("SKIP");
+            currentIdx++;
+            displayProblem(problemDatabase[currentIdx % problemDatabase.length]);
+        }
+
+        // --- 履歴・復習機能の拡張 ---
+
+        function saveHistory(mark) {
+            let history = JSON.parse(localStorage.getItem('math_history') || "[]");
+            // 問題データそのものを履歴に保存する
+            history.unshift({ 
+                date: new Date().toLocaleDateString(), 
+                unit: document.getElementById('unit-name').innerText, 
+                mark: mark,
+                problemData: JSON.parse(JSON.stringify(currentProb)) // ディープコピーして保存
+            });
+            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 15)));
+            showHistory();
+        }
+
+        function showHistory() {
+            const history = JSON.parse(localStorage.getItem('math_history') || "[]");
+            const list = document.getElementById('history-list');
+            if (history.length === 0) {
+                list.innerHTML = "<p style='font-size:0.7rem; color:#888;'>履歴なし</p>";
+                return;
+            }
+            list.innerHTML = history.map((h, index) => `
+                <div class="history-item" onclick="loadFromHistory(${index})">
+                    <span>${h.date} ${h.unit}</span>
+                    <span class="mark-${h.mark}">${h.mark}</span>
+                </div>
+            `).join('');
+        }
+
+        // リストから問題を読み込む
+        function loadFromHistory(index) {
+            const history = JSON.parse(localStorage.getItem('math_history') || "[]");
+            if (history[index] && history[index].problemData) {
+                if (confirm("この問題をもう一度解きますか？")) {
+                    displayProblem(history[index].problemData);
+                }
+            }
+        }
+
+        function clearHistory() { if(confirm("履歴を削除しますか？")) { localStorage.removeItem('math_history'); showHistory(); } }
+
+        // --- 添削機能 ---
+        document.getElementById('cameraInput').onchange = (e) => {
+            const reader = new FileReader();
+            reader.onloadend = () => startGrading(reader.result.split(',')[1]);
+            reader.readAsDataURL(e.target.files[0]);
+        };
+
+        async function startGrading(base64) {
+            const key = document.getElementById('apiKey').value;
+            if(!key) return alert("APIキーを入力してください");
+            startStatusUI("添削中...");
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として添削。問題：${currentProb.text}。判定○△×から始め詳細に解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 } })
+                });
+                const data = await res.json();
+                const feedback = data.candidates[0].content.parts[0].text;
+                document.getElementById('result').innerText = feedback;
+                document.getElementById('result').style.display = 'block';
+                const mark = feedback.includes("○") ? "○" : feedback.includes("△") ? "△" : "×";
+                saveHistory(mark);
+            } catch (e) { alert("エラーが発生しました。"); }
             finally { stopStatusUI(); }
         }
 
@@ -164,48 +251,6 @@
             }, 100);
         }
         function stopStatusUI() { document.getElementById('ai-status').style.display = 'none'; clearInterval(timerInterval); }
-
-        function skipProblem() {
-            saveHistory("SKIP");
-            currentIdx++;
-            displayProblem(problemDatabase[currentIdx % problemDatabase.length]);
-        }
-
-        function saveHistory(mark) {
-            let history = JSON.parse(localStorage.getItem('math_history') || "[]");
-            history.unshift({ date: new Date().toLocaleDateString(), unit: document.getElementById('unit-name').innerText, mark: mark });
-            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 10)));
-            showHistory();
-        }
-
-        function showHistory() {
-            const history = JSON.parse(localStorage.getItem('math_history') || "[]");
-            document.getElementById('history-list').innerHTML = history.map(h => `<div class="history-item"><span>${h.date} ${h.unit}</span><span>${h.mark}</span></div>`).join('');
-        }
-
-        document.getElementById('cameraInput').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onloadend = () => startGrading(reader.result.split(',')[1]);
-            reader.readAsDataURL(e.target.files[0]);
-        };
-
-        async function startGrading(base64) {
-            const key = document.getElementById('apiKey').value;
-            document.getElementById('ai-status').style.display = 'block';
-            document.getElementById('ai-msg').innerText = "答案を添削中...";
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `添削：${currentProb.text}` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }] })
-                });
-                const data = await res.json();
-                const feedback = data.candidates[0].content.parts[0].text;
-                document.getElementById('result').innerText = feedback;
-                document.getElementById('result').style.display = 'block';
-                saveHistory(feedback.includes("○") ? "○" : "×");
-            } catch (e) { alert("エラー"); }
-            finally { stopStatusUI(); }
-        }
     </script>
 </body>
 </html>
