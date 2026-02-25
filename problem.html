@@ -2,70 +2,64 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最難関高校突破 AI数学講師</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>最難関突破 AI数学講師</title>
     <style>
-        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
-        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; max-width: 800px; margin: auto; line-height: 1.6; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 15px; padding-bottom: 8px; }
-        h1 { color: var(--primary); font-size: 1.3rem; margin: 0; }
-        .version-tag { font-size: 0.7rem; color: #888; font-family: monospace; }
-        .canvas-container { background: #ffffff; padding: 25px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 280px; margin-bottom: 15px; }
-        .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 12px; border-left: 4px solid var(--hint); font-size: 0.9rem; background: rgba(243, 156, 18, 0.05); margin-bottom: 15px; }
-        button { border: none; border-radius: 8px; padding: 15px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; transition: 0.3s; margin-bottom: 10px; }
-        .btn-camera { background: var(--success); color: white; }
-        .btn-ai-gen { background: var(--ai); color: white; }
-        .btn-skip { background: var(--skip); color: white; width: auto; padding: 4px 12px; font-size: 0.75rem; }
-        input[type="password"] { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; background: #333; color: white; border: 1px solid #444; box-sizing: border-box; }
-        #result { background: #111; padding: 20px; border-radius: 8px; border-left: 5px solid var(--primary); white-space: pre-wrap; display: none; margin-top: 20px; }
-        .loading { display: none; text-align: center; color: var(--ai); font-weight: bold; padding: 20px; }
-        .history-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #444; font-size: 0.8rem; }
+        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --skip: #95a5a6; --ai: #a29bfe; }
+        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; }
+        .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #444; }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
+        h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
+        .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; }
+        .btn-skip { background: var(--skip); color: white; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.7rem; cursor: pointer; }
+        
+        /* 図解エリア：スマホで大きく見えるよう調整 */
+        .canvas-container { background: #ffffff; padding: 10px; border-radius: 6px; display: flex; justify-content: center; min-height: 200px; margin-bottom: 10px; overflow: hidden; }
+        svg { width: 100%; height: auto; max-height: 220px; }
+
+        .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 10px; border-left: 3px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.05); margin: 10px 0; }
+        
+        /* ボタン類：スマホで押しやすい高さ(44px以上)を確保 */
+        button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; }
+        .btn-camera { background: var(--success); color: white; height: 50px; }
+        .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
+        
+        .loading { display: none; text-align: center; color: var(--ai); font-weight: bold; padding: 10px; font-size: 0.9rem; }
+        .history-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #444; font-size: 0.75rem; }
         .mark-○ { color: var(--success); font-weight: bold; }
-        .mark-SKIP { color: var(--skip); font-style: italic; }
     </style>
 </head>
 <body>
 
-    <div class="card">
+    <div class="card" style="padding: 10px;">
         <div class="header-flex">
-            <h1>1. 設定</h1>
-            <span class="version-tag">ver 1.2.2</span>
-        </div>
-        <input type="password" id="apiKey" placeholder="Gemini API Keyを入力">
-    </div>
-
-    <div class="card">
-        <div class="header-flex">
-            <h1>2. 演習 [<span id="unit-name"></span>]</h1>
-            <div class="header-right" style="display:flex; align-items:center; gap:10px;">
-                <span class="version-tag">2.5-Flash</span>
-                <button class="btn-skip" onclick="skipProblem()">SKIP ≫</button>
+            <h1>演習 [<span id="unit-name"></span>]</h1>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="version-tag">v1.2.3</span>
+                <button class="btn-skip" onclick="skipProblem()">SKIP</button>
             </div>
         </div>
-        <div id="loading-ai" class="loading">AIが類題を生成中...（通常10秒以内）</div>
+        <div id="loading-ai" class="loading">類題生成中...</div>
         <div class="canvas-container" id="svg-container"></div>
-        <div class="problem-info">
-            <p id="problem-text" style="font-weight:bold;"></p>
-            <ol id="sub-questions"></ol>
-            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:5px; width:auto; font-size:0.8rem;">💡 ヒント</button>
-            <div id="hint-area" class="hint-box"></div>
-            <button class="btn-ai-gen" onclick="generateSimilarProblem()">✨ この単元の類題をAIで作る</button>
-        </div>
+        <p id="problem-text" style="font-weight:bold; margin: 5px 0;"></p>
+        <ol id="sub-questions" style="padding-left: 20px; margin: 5px 0;"></ol>
+        
+        <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:4px; width:auto; font-size:0.75rem; margin-top:5px;">💡 ヒント</button>
+        <div id="hint-area" class="hint-box"></div>
     </div>
 
     <div class="card">
-        <h1>3. 提出・添削</h1>
+        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📸 撮影して提出・添削</button>
+        <button class="btn-ai-gen" onclick="generateSimilarProblem()">✨ AI類題を作成</button>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
-        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">カメラを起動して提出</button>
-        <div id="loading-grade" class="loading">AI講師が解析中...</div>
-        <div id="result"></div>
+        <div id="loading-grade" class="loading">AI添削中...</div>
+        <div id="result" style="background:#111; padding:12px; border-radius:6px; font-size:0.85rem; display:none; border-left:4px solid var(--primary); margin-top:10px; white-space:pre-wrap;"></div>
     </div>
 
-    <div class="card">
-        <h1>4. 復習リスト</h1>
+    <div class="card" style="padding: 10px;">
+        <h2 style="font-size:0.9rem; margin:0 0 8px 0;">復習リスト</h2>
         <div id="history-list"></div>
-        <button onclick="clearHistory()" style="margin-top:15px; background:#444; font-size:0.8rem; padding:8px; width:auto; color:white;">履歴リセット</button>
+        <input type="password" id="apiKey" style="width:100%; margin-top:10px; padding:8px; background:#333; color:#eee; border:1px solid #555; border-radius:4px; font-size:0.7rem;" placeholder="Gemini API Key">
     </div>
 
     <script>
@@ -73,78 +67,16 @@
         let currentProb = {};
         let currentIdx = new Date().getDate();
 
+        // さきほどの10問データ（一部抜粋して初期表示）
         const problemDatabase = [
-    {
-        unit: "灘高・空間図形（切断）",
-        text: "一辺の長さが6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。この3点を通る平面で立方体を切断する。",
-        sub: ["切り口の図形の名称を答えよ。", "切断によって分けられた2つの立体のうち、点Bを含む方の体積を求めよ。"],
-        svg: `<svg width="200" height="200" viewBox="0 0 200 200"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="10" fill="#e74c3c">P,Q,Rを通る切断</text></svg>`,
-        hint: "切り口は正三角形になります。切断された部分は三角錐（断頭三角柱の特殊ケース）として計算できます。"
-    },
-    {
-        unit: "開成高・平面図形（円）",
-        text: "AB=13, BC=14, CA=15の三角形ABCがある。この三角形の内接円と辺BCの接点をDとする。",
-        sub: ["三角形ABCの面積を求めよ。", "線分BDの長さを求めよ。"],
-        svg: `<svg width="220" height="150" viewBox="0 0 220 150"><path d="M110 20 L40 130 L180 130 Z" fill="none" stroke="#333" stroke-width="2"/><circle cx="110" cy="92" r="38" fill="none" stroke="#e74c3c"/><text x="105" y="15">A</text><text x="30" y="145">B</text><text x="185" y="145">C</text><text x="110" y="145" fill="#e74c3c">D</text></svg>`,
-        hint: "三辺が与えられた三角形の面積はヘロンの公式、または垂線を下ろして三平方の定理で求められます。"
-    },
-    {
-        unit: "筑駒高・数と式（不定方程式）",
-        text: "2つの正の整数x, yが 3x + 7y = 100 を満たしている。",
-        sub: ["この方程式を満たす組(x, y)をすべて求めよ。", "x + y が最大となる組を答えよ。"],
-        svg: `<svg width="200" height="100" viewBox="0 0 200 100"><text x="30" y="60" font-size="20" font-weight="bold">3x + 7y = 100</text></svg>`,
-        hint: "係数の大きい y に具体的な数字（1, 2...）を代入して、3の倍数になる組み合わせを探すと早いです。"
-    },
-    {
-        unit: "灘高・関数（動点）",
-        text: "放物線 y = 1/4 x^2 上に2点A, Bがあり、Aのx座標は-2、Bのx座標は4である。",
-        sub: ["直線ABの式を求めよ。", "△OABの面積を求めよ。"],
-        svg: `<svg width="250" height="180" viewBox="-100 -20 200 160"><g transform="scale(1, -1) translate(0, -130)"><line x1="-90" y1="0" x2="90" y2="0" stroke="#888"/><line x1="0" y1="-10" x2="0" y2="140" stroke="#888"/><path d="M-80 160 Q 0 0 80 160" fill="none" stroke="#2e86c1" stroke-width="2"/><line x1="-40" y1="10" x2="80" y2="40" stroke="#e74c3c" stroke-width="2"/></g><text x="-55" y="115">A(-2,1)</text><text x="85" y="85">B(4,4)</text></svg>`,
-        hint: "y軸との交点（切片）を利用して、三角形を左右に分割すると面積計算が楽になります。"
-    },
-    {
-        unit: "開成高・立体図形（回転体）",
-        text: "直角二等辺三角形ABC（∠B=90°, AB=BC=6）を、辺ACを軸として1回転させてできる立体の体積を求めよ。",
-        sub: ["回転体の形状を答えよ。", "その体積を求めよ。"],
-        svg: `<svg width="200" height="200" viewBox="0 0 200 200"><path d="M50 150 L150 150 L150 50 Z" fill="none" stroke="#333" stroke-width="2"/><path d="M50 150 L150 50" stroke="#e74c3c" stroke-dasharray="4"/><text x="145" y="165">B</text><text x="40" y="165">A</text><text x="155" y="45">C</text></svg>`,
-        hint: "底面を共有する2つの円錐が合体した形になります。"
-    },
-    {
-        unit: "筑駒高・確率（規則性）",
-        text: "1枚の硬貨を5回投げる。表が出る回数をnとする。",
-        sub: ["nが3以上になる確率を求めよ。", "少なくとも1回は連続して表が出る確率を求めよ。"],
-        svg: `<svg width="200" height="80" viewBox="0 0 200 80"><circle cx="40" cy="40" r="20" fill="#f1c40f"/><circle cx="90" cy="40" r="20" fill="#bdc3c7"/><circle cx="140" cy="40" r="20" fill="#f1c40f"/></svg>`,
-        hint: "「少なくとも〜」は余事象（全体から引く）を考えると計算が速くなります。"
-    },
-    {
-        unit: "灘高・平面図形（相似）",
-        text: "平行四辺形ABCDにおいて、辺ABの中点をM、辺BCを2:1に分ける点をNとする。DNとMCの交点をPとするとき、MP:PCを求めよ。",
-        sub: ["補助線を1本引き、相似な三角形の組を作れ。", "線分比を求めよ。"],
-        svg: `<svg width="250" height="150" viewBox="0 0 250 150"><path d="M50 30 L200 30 L230 120 L80 120 Z" fill="none" stroke="#333" stroke-width="2"/><line x1="65" y1="75" x2="230" y2="120" stroke="#e74c3c"/><line x1="80" y1="120" x2="180" y2="120" stroke="#2e86c1" stroke-width="3"/><text x="140" y="100">P</text></svg>`,
-        hint: "延長線を引いて大きな砂時計型の相似を作るのが定石です。"
-    },
-    {
-        unit: "開成高・数と式（展開・因数分解）",
-        text: "x + y = 5, xy = 3 のとき、x^3 + y^3 の値を求めよ。",
-        sub: ["(x+y)^3 の展開公式を利用せよ。", "値を代入して計算せよ。"],
-        svg: `<svg width="200" height="80" viewBox="0 0 200 80"><text x="20" y="50" font-size="20">x³ + y³ = ?</text></svg>`,
-        hint: "x^3 + y^3 = (x+y)^3 - 3xy(x+y) という変形を使います。"
-    },
-    {
-        unit: "筑駒高・平面図形（面積）",
-        text: "一辺が10の正方形ABCDの内部に点Pがあり、PA=PB=10である。",
-        sub: ["∠PABの大きさを求めよ。", "△PCDの面積を求めよ。"],
-        svg: `<svg width="200" height="200" viewBox="0 0 200 200"><rect x="50" y="50" width="100" height="100" fill="none" stroke="#333"/><path d="M50 150 L100 63.4 L150 150" fill="rgba(46,204,113,0.2)" stroke="#27ae60"/><text x="95" y="55">P</text></svg>`,
-        hint: "△PABは正三角形になります。正方形の高さから正三角形の高さを引いて、△PCDの高さを出しましょう。"
-    },
-    {
-        unit: "灘高・整数（商と余り）",
-        text: "nは整数とする。n^3 - n が常に6の倍数であることを証明せよ。",
-        sub: ["n^3 - n を因数分解せよ。", "連続する3つの整数の積の性質を述べよ。"],
-        svg: `<svg width="200" height="80" viewBox="0 0 200 80"><text x="30" y="50" font-size="18">n(n-1)(n+1) mod 6</text></svg>`,
-        hint: "連続する3整数の積には、必ず2の倍数と3の倍数が含まれます。"
-    }
-];
+            {
+                unit: "灘高・空間図形",
+                text: "一辺6の立方体。辺AB, BC, CGの中点P, Q, Rを通る平面で切断する。",
+                sub: ["切り口の形状は？", "点Bを含む方の体積は？"],
+                svg: `<svg viewBox="0 0 200 180"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M80 20 L160 20 L160 100 L80 100 Z" fill="none" stroke="#333"/><path d="M50 50 L80 20 M130 50 L160 20 M130 130 L160 100 M50 130 L80 100" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="140" y="45" font-size="12" fill="#e74c3c">P,Q,R</text></svg>`,
+                hint: "切り口は正三角形。三角錐の体積として計算。"
+            }
+        ];
 
         window.onload = () => {
             const savedKey = localStorage.getItem('gemini_api_key');
@@ -166,35 +98,25 @@
 
         async function generateSimilarProblem() {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("APIキーが必要です");
+            if(!key) return alert("Keyを入力してください");
             document.getElementById('loading-ai').style.display = 'block';
-            
-            const prompt = `最難関高校数学講師として、問題『${currentProb.text}』の類題を1問作成してください。
-            Markdownや解説は一切含まず、以下のJSON構造のみを返してください。
-            {"unit": "類題: ${currentProb.unit}", "text": "...", "sub": ["...", "..."], "svg": "...", "hint": "..."}`;
-
+            const prompt = `数学講師として問題『${currentProb.text}』の数値違い類題を1問作成。Markdown無しのJSONのみ返して。{"unit":"...","text":"...","sub":["..."],"svg":"...","hint":"..."}`;
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
                 const data = await res.json();
-                let text = data.candidates[0].content.parts[0].text;
-                // 強力なJSON抽出：最初と最後の{ }を探す
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    displayProblem(JSON.parse(jsonMatch[0]));
-                } else { throw new Error("JSON not found"); }
-            } catch (e) { alert("生成失敗。もう一度お試しください。"); console.error(e); }
+                const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
+                displayProblem(JSON.parse(jsonMatch[0]));
+            } catch (e) { alert("生成失敗"); }
             finally { document.getElementById('loading-ai').style.display = 'none'; }
         }
 
         function skipProblem() {
             saveHistory("SKIP");
             currentIdx++;
-            // データベースの範囲内でループ表示
-            const nextProb = problemDatabase[currentIdx % problemDatabase.length];
-            displayProblem(nextProb);
+            displayProblem(problemDatabase[currentIdx % problemDatabase.length]);
         }
 
         function toggleHint() {
@@ -202,15 +124,10 @@
             h.style.display = (h.style.display === 'block') ? 'none' : 'block';
         }
 
-        const cameraInput = document.getElementById('cameraInput');
-        cameraInput.onchange = (e) => {
-            const file = e.target.files[0];
+        document.getElementById('cameraInput').onchange = (e) => {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64 = reader.result.split(',')[1];
-                startGrading(base64);
-            };
-            reader.readAsDataURL(file);
+            reader.onloadend = () => startGrading(reader.result.split(',')[1]);
+            reader.readAsDataURL(e.target.files[0]);
         };
 
         async function startGrading(base64) {
@@ -219,31 +136,28 @@
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として添削。問題：${currentProb.text}。○△×で判定し解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 4096, thinking_budget: 2048 } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `添削：${currentProb.text}` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }] })
                 });
                 const data = await res.json();
                 const feedback = data.candidates[0].content.parts[0].text;
                 document.getElementById('result').innerText = feedback;
                 document.getElementById('result').style.display = 'block';
-                saveHistory(feedback.includes("○") ? "○" : feedback.includes("△") ? "△" : "×");
-            } catch (e) { alert("エラー: " + e.message); }
+                saveHistory(feedback.includes("○") ? "○" : "×");
+            } catch (e) { alert("エラー"); }
             finally { document.getElementById('loading-grade').style.display = 'none'; }
         }
 
         function saveHistory(mark) {
             let history = JSON.parse(localStorage.getItem('math_history') || "[]");
             history.unshift({ date: new Date().toLocaleDateString(), unit: document.getElementById('unit-name').innerText, mark: mark });
-            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 50)));
+            localStorage.setItem('math_history', JSON.stringify(history.slice(0, 10)));
             showHistory();
         }
 
         function showHistory() {
             const history = JSON.parse(localStorage.getItem('math_history') || "[]");
-            const list = document.getElementById('history-list');
-            list.innerHTML = history.length ? history.map(h => `<div class="history-item"><span>${h.date} - ${h.unit}</span><span class="mark-${h.mark}">${h.mark}</span></div>`).join('') : "履歴なし";
+            document.getElementById('history-list').innerHTML = history.map(h => `<div class="history-item"><span>${h.date} ${h.unit}</span><span>${h.mark}</span></div>`).join('');
         }
-
-        function clearHistory() { if(confirm("消去？")) { localStorage.removeItem('math_history'); location.reload(); } }
     </script>
 </body>
 </html>
