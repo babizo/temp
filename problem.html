@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.5.5</title>
+    <title>最難関突破 AI数学講師 v1.5.6</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; overflow-x: hidden; }
@@ -15,15 +15,6 @@
         .settings-toggle { background: #333; color: #888; font-size: 0.7rem; padding: 5px 10px; border-radius: 5px; cursor: pointer; text-align: center; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         #settings-content { display: none; padding: 10px; background: #222; border-radius: 8px; margin-bottom: 10px; }
 
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
-        .stat-label { font-size: 0.7rem; color: #aaa; }
-        .stat-val { font-size: 1.3rem; font-weight: bold; color: var(--primary); }
-        .unit-analysis { font-size: 0.8rem; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
-        .unit-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
-        .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
-
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; cursor: grab; display: flex; align-items: center; justify-content: center; color: #888; flex-direction: column; font-size: 0.8rem; }
         #svg-content { width: 100%; height: 100%; transform-origin: 0 0; display: flex; align-items: center; justify-content: center; }
         svg { width: 100%; height: 100%; }
@@ -33,31 +24,24 @@
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-camera { background: var(--success); color: white; height: 52px; font-size: 1.1rem; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
-        .btn-draw { background: #555; color: white; font-size: 0.8rem; display: none; }
         .btn-retry { background: var(--error); color: white; padding: 8px 15px; font-size: 0.8rem; width: auto; margin-top: 10px; border-radius: 5px; }
-        
-        .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 12px; border-left: 4px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.08); margin: 10px 0; border-radius: 0 8px 8px 0; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
-        .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="settings-toggle" onclick="toggleSettings()">
         <span>⚙️ 設定（API Key等）</span>
-        <span class="version-tag">ver 1.5.5 Elite</span>
+        <span class="version-tag">ver 1.5.6 Stable</span>
     </div>
     <div id="settings-content">
-        <input type="password" id="apiKey" style="width:100%; padding:10px; background:#111; color:#eee; border:1px solid #444; border-radius:6px; box-sizing:border-box;" placeholder="Gemini API Key を入力">
+        <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
+        <input type="password" id="apiKey" style="width:100%; padding:10px; background:#111; color:#eee; border:1px solid #444; border-radius:6px; box-sizing:border-box;" placeholder="キーを入力してください">
+        <div style="font-size:0.6rem; color:#888; margin-top:5px;">※入力後、類題作成時に自動保存されます。</div>
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>分析パネル</h1><span style="font-size:0.6rem; color:#888;">SAPIX基準</span></div>
-        <div class="stats-grid">
-            <div class="stat-box"><div class="stat-label">あなたの想定偏差値</div><div class="stat-val" id="sapix-dev">--</div></div>
-            <div class="stat-box"><div class="stat-label">累計演習数</div><div class="stat-val" id="total-count">0</div></div>
-        </div>
-        <div id="unit-analysis" class="unit-analysis"></div>
+        <div class="header-flex"><h1>分析パネル</h1></div>
+        <div id="sapix-dev" style="font-size:1.3rem; font-weight:bold; color:var(--primary);">--</div>
     </div>
 
     <div class="card">
@@ -66,220 +50,110 @@
             <button onclick="skipProblem()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">SKIP ≫</button>
         </div>
         <div class="canvas-container" id="zoom-container">
-            <div id="svg-content">図形データを待機中...</div>
+            <div id="svg-content"></div>
         </div>
-        <button id="btn-draw" onclick="autoGenerateSVG(3)" style="background:#555; color:white; font-size:0.8rem;">🎨 図を強制再生成</button>
-        
         <p id="problem-text" style="font-weight:bold; margin: 8px 0; font-size: 1rem;"></p>
         <ul id="sub-questions" style="padding-left: 20px; margin: 8px 0;"></ul>
-        
-        <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem; margin-top:5px;">💡 ヒントを表示</button>
-        <div id="hint-area" class="hint-box"></div>
-        
-        <button class="btn-ai-gen" id="btn-ai-gen" onclick="generateSimilarTextOnly()">✨ AIによる類題を作成</button>
-    </div>
-
-    <div class="card">
-        <button class="btn-camera" onclick="document.getElementById('cameraInput').click()">📸 撮影して添削・採点</button>
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
-        <div id="result" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); white-space:pre-wrap; font-size:0.85rem; margin-top:10px;"></div>
-    </div>
-
-    <div class="card">
-        <div class="header-flex"><h1>4. 復習リスト</h1><button onclick="clearHistory()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">全消去</button></div>
-        <div id="history-list"></div>
+        <button class="btn-ai-gen" onclick="generateSimilarTextOnly()">✨ AIによる類題を作成</button>
     </div>
 
     <div id="ai-status" class="loading-overlay">
-        <div id="timer-count" style="font-size:1.5rem; color:var(--ai); font-family:monospace;">0.0s</div>
-        <p id="ai-msg" style="font-size:0.8rem;"></p>
+        <div id="timer-count" style="font-size:1.5rem; color:var(--ai);">0.0s</div>
+        <p id="ai-msg"></p>
     </div>
 
     <script>
-        const MODEL_NAME = "gemini-2.0-flash"; // 高速・安定モデルを維持
+        const MODEL_NAME = "gemini-1.5-flash"; // 安定モデルに変更
         let currentProb = {};
-        let timerInterval = null;
         let scale = 1, offsetX = 0, offsetY = 0;
-        let isDragging = false, startX, startY, lastTouchDist = 0;
 
         const initialProb = {
             unit: "立体図形",
             text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
             sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
-            svg: `<svg viewBox="0 0 200 180"><path d="M40 65 L120 65 L120 145 L40 145 Z" fill="none" stroke="#333"/><path d="M70 35 L150 35 L150 115 L70 115 Z" fill="none" stroke="#333"/><path d="M40 65 L70 35 M120 65 L150 35 M120 145 L150 115 M40 145 L70 115" fill="none" stroke="#333"/><path d="M80 65 L135 50 L150 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="72" y="60" font-size="12" font-weight="bold">P</text><text x="140" y="45" font-size="12" font-weight="bold">Q</text><text x="155" y="80" font-size="12" font-weight="bold">R</text></svg>`,
-            hint: "切り口は正三角形になります。相似比と体積公式を活用しましょう。"
+            svg: `<svg viewBox="0 0 200 180"><path d="M40 65 L120 65 L120 145 L40 145 Z" fill="none" stroke="#333"/><path d="M70 35 L150 35 L150 115 L70 115 Z" fill="none" stroke="#333"/><path d="M40 65 L70 35 M120 65 L150 35 M120 145 L150 115 M40 145 L70 115" fill="none" stroke="#333"/><path d="M80 65 L135 50 L150 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="72" y="60" font-size="12" font-weight="bold">P</text><text x="140" y="45" font-size="12" font-weight="bold">Q</text><text x="155" y="80" font-size="12" font-weight="bold">R</text></svg>`
         };
 
         window.onload = () => {
             const savedKey = localStorage.getItem('gemini_api_key');
             if (savedKey) document.getElementById('apiKey').value = savedKey;
             displayProblem(initialProb);
-            initZoomLogic();
-            showHistory();
         };
+
+        function displayProblem(prob) {
+            currentProb = prob;
+            document.getElementById('unit-name').innerText = prob.unit;
+            document.getElementById('problem-text').innerText = prob.text;
+            document.getElementById('sub-questions').innerHTML = (prob.sub || []).map(s => `<li>${s}</li>`).join('');
+            
+            const svgCont = document.getElementById('svg-content');
+            if (prob.svg) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(prob.svg, "image/svg+xml");
+                const svgNode = doc.querySelector("svg");
+                if (svgNode) {
+                    svgCont.innerHTML = "";
+                    svgCont.appendChild(svgNode);
+                }
+            }
+        }
+
+        async function generateSimilarTextOnly() {
+            const key = document.getElementById('apiKey').value;
+            if(!key) return alert("API Keyを設定してください");
+            localStorage.setItem('gemini_api_key', key);
+            
+            startStatusUI("通信中...");
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: "最難関高校数学講師。問題『" + currentProb.text + "』の類題をJSONで作成。{\"unit\":\"...\",\"text\":\"...\",\"sub\":[\"...\"],\"hint\":\"...\"}" }] }] })
+                });
+                
+                if (!res.ok) {
+                    const errData = await res.json();
+                    console.error("API Error Detail:", errData);
+                    throw new Error("HTTP " + res.status);
+                }
+
+                const data = await res.json();
+                const jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
+                displayProblem(JSON.parse(jsonText));
+                stopStatusUI();
+                autoGenerateSVG(3);
+            } catch (e) {
+                stopStatusUI();
+                console.error("生成失敗の要因:", e);
+                alert("生成失敗: キーが正しいか、通信環境を確認してください。");
+            }
+        }
+
+        async function autoGenerateSVG(retryCount) {
+            const key = document.getElementById('apiKey').value;
+            const svgCont = document.getElementById('svg-content');
+            svgCont.innerHTML = "作図中...";
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: "問題：『" + currentProb.text + "』の図解SVGをJSONで。{\"svg\":\"<svg>...</svg>\"}" }] }] })
+                });
+                const data = await res.json();
+                const svgCode = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]).svg;
+                const parser = new DOMParser();
+                const svgNode = parser.parseFromString(svgCode, "image/svg+xml").querySelector("svg");
+                if (svgNode) { svgCont.innerHTML = ""; svgCont.appendChild(svgNode); }
+            } catch (e) {
+                if (retryCount > 1) setTimeout(() => autoGenerateSVG(retryCount - 1), 1000);
+                else svgCont.innerHTML = "作図失敗";
+            }
+        }
 
         function toggleSettings() {
             const c = document.getElementById('settings-content');
             c.style.display = (c.style.display === 'block') ? 'none' : 'block';
         }
-
-        function displayProblem(prob) {
-            currentProb = prob;
-            const sanitizeStr = (str) => {
-                if (typeof str !== 'string') return "";
-                return str.replace(/\{unit\}/g, prob.unit || "総合問題").replace(/\{text\}/g, "").replace(/\{.*?\}/g, "");
-            };
-            document.getElementById('unit-name').innerText = sanitizeStr(prob.unit);
-            document.getElementById('problem-text').innerText = sanitizeStr(prob.text);
-            document.getElementById('sub-questions').innerHTML = (prob.sub || []).map(s => `<li>${sanitizeStr(s)}</li>`).join('');
-            const hArea = document.getElementById('hint-area');
-            hArea.innerText = sanitizeStr(prob.hint) || "ヒントなし";
-            hArea.style.display = 'none';
-            scale = 1; offsetX = 0; offsetY = 0; updateTransform();
-            
-            if (prob.svg) renderSVG(prob.svg);
-            else { document.getElementById('svg-content').innerText = "図解なし"; document.getElementById('btn-draw').style.display = 'block'; }
-        }
-
-        // SVGの安全な描画（DOMParserによる自動修復）
-        function renderSVG(rawSvg) {
-            const svgCont = document.getElementById('svg-content');
-            try {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(rawSvg, "image/svg+xml");
-                const svgElement = doc.querySelector("svg");
-                if (svgElement) {
-                    svgCont.innerHTML = "";
-                    svgCont.appendChild(svgElement);
-                    document.getElementById('btn-draw').style.display = 'none';
-                } else { throw new Error("SVG Parse Error"); }
-            } catch (e) {
-                svgCont.innerHTML = `<div>図の描画に失敗しました</div><button class="btn-retry" onclick="autoGenerateSVG(3)">再試行</button>`;
-                document.getElementById('btn-draw').style.display = 'block';
-            }
-        }
-
-        function initZoomLogic() {
-            const c = document.getElementById('zoom-container');
-            c.onwheel = (e) => { e.preventDefault(); scale *= (e.deltaY > 0 ? 0.9 : 1.1); scale = Math.min(Math.max(0.5, scale), 5); updateTransform(); };
-            c.onmousedown = (e) => { isDragging = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; };
-            window.onmousemove = (e) => { if (isDragging) { offsetX = e.clientX - startX; offsetY = e.clientY - startY; updateTransform(); } };
-            window.onmouseup = () => isDragging = false;
-            c.ontouchstart = (e) => {
-                if (e.touches.length === 1) { isDragging = true; startX = e.touches[0].clientX - offsetX; startY = e.touches[0].clientY - offsetY; }
-                else if (e.touches.length === 2) lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            };
-            c.ontouchmove = (e) => {
-                e.preventDefault();
-                if (e.touches.length === 1 && isDragging) { offsetX = e.touches[0].clientX - startX; offsetY = e.touches[0].clientY - startY; }
-                else if (e.touches.length === 2) {
-                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    scale *= (d / lastTouchDist); scale = Math.min(Math.max(0.5, scale), 5); lastTouchDist = d;
-                }
-                updateTransform();
-            };
-            c.ontouchend = () => isDragging = false;
-        }
-        function updateTransform() { document.getElementById('svg-content').style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`; }
-
-        async function generateSimilarTextOnly() {
-            const key = document.getElementById('apiKey').value;
-            if(!key) return alert("API Keyを入力してください");
-            localStorage.setItem('gemini_api_key', key);
-            startStatusUI("AIが最難関レベルの問いを作成中...");
-            try {
-                const prompt = `最難関高校数学講師。問題『${currentProb.text}』の類題をJSONで作成。具体的な問い（面積、体積等）で完結させること。高校先取り知識が有効な問題を推奨。{"unit":"...","text":"...","sub":["..."],"hint":"..."}`;
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await res.json();
-                const jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
-                const json = JSON.parse(jsonText);
-                displayProblem(json); stopStatusUI();
-                setTimeout(() => autoGenerateSVG(3), 600);
-            } catch (e) { stopStatusUI(); alert("生成失敗"); }
-        }
-
-        async function autoGenerateSVG(retryCount = 3) {
-            const key = document.getElementById('apiKey').value;
-            const drawBtn = document.getElementById('btn-draw');
-            const svgCont = document.getElementById('svg-content');
-            svgCont.innerHTML = `<div>図を作成中... (試行:${4-retryCount}/3)</div>`;
-            drawBtn.disabled = true; drawBtn.style.display = "block";
-            
-            const prompt = `数学講師。問題：『${currentProb.text}』の解説図をSVGで描け。奥行きのある立体を描き、ラベル太字、比は緑、補助線は赤。返信はJSON形式でsvgキーにタグのみ入れ、マークダウン禁止。`;
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await res.json();
-                const rawResponse = data.candidates[0].content.parts[0].text;
-                const svgMatch = rawResponse.match(/<svg[\s\S]*?<\/svg>/);
-                if (svgMatch) {
-                    renderSVG(svgMatch[0]);
-                } else { throw new Error("SVG not found"); }
-            } catch (e) {
-                if (retryCount > 1) setTimeout(() => autoGenerateSVG(retryCount - 1), 1500);
-                else {
-                    svgCont.innerHTML = `<div>図の生成に失敗</div><button class="btn-retry" onclick="autoGenerateSVG(3)">再試行</button>`;
-                    drawBtn.disabled = false;
-                }
-            }
-        }
-
-        async function startGrading(base64) {
-            const key = document.getElementById('apiKey').value;
-            startStatusUI("SAPIX基準で採点中...");
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。問題：${currentProb.text}。【Score: X/10】で採点し解説。` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }] })
-                });
-                const data = await res.json();
-                const fb = data.candidates[0].content.parts[0].text;
-                document.getElementById('result').innerText = fb; document.getElementById('result').style.display = 'block';
-                const score = (fb.match(/Score:\s*(\d+)/)||[0,0])[1];
-                saveHistory(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), parseInt(score));
-            } finally { stopStatusUI(); }
-        }
-
-        function saveHistory(mark, score) {
-            let h = JSON.parse(localStorage.getItem('math_history') || "[]");
-            h.unshift({ date: new Date().toLocaleDateString(), unit: currentProb.unit, mark: mark, score: score, problemData: JSON.parse(JSON.stringify(currentProb)) });
-            localStorage.setItem('math_history', JSON.stringify(h.slice(0, 30)));
-            showHistory();
-        }
-
-        function showHistory() {
-            const h = JSON.parse(localStorage.getItem('math_history') || "[]");
-            document.getElementById('history-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadFromHistory(${i})"><span>${x.date} ${x.unit}</span><div><span class="score-badge">${x.score}/10</span> ${x.mark}</div></div>`).join('');
-            updateAnalysis(h);
-        }
-
-        function updateAnalysis(h) {
-            if (h.length === 0) return;
-            document.getElementById('total-count').innerText = h.length;
-            const avg = h.map(x => x.score).reduce((a,b)=>a+b,0)/h.length;
-            document.getElementById('sapix-dev').innerText = (h.length < 2) ? "--" : (40 + (avg * 2.5)).toFixed(1);
-            const units = {};
-            h.forEach(x => { if(!units[x.unit]) units[x.unit]={s:0,c:0}; units[x.unit].s+=x.score; units[x.unit].c++; });
-            let html = "";
-            for(let u in units) {
-                const a = units[u].s/units[u].c;
-                html += `<div><div class="unit-row"><span>${u}</span><span>${a.toFixed(1)}/10</span></div><div class="unit-bar-bg"><div class="unit-bar-fill" style="width:${a*10}%; background:${a>=8?'#27ae60':(a<=4?'#e74c3c':'#5dade2')}"></div></div></div>`;
-            }
-            document.getElementById('unit-analysis').innerHTML = html;
-        }
-
-        function toggleHint() { const h = document.getElementById('hint-area'); h.style.display = (h.style.display==='block')?'none':'block'; }
-        function loadFromHistory(i) { const h = JSON.parse(localStorage.getItem('math_history')); if (confirm("再挑戦？")) displayProblem(h[i].problemData); }
-        function skipProblem() { saveHistory("SKIP", 0); generateSimilarTextOnly(); }
-        function clearHistory() { if(confirm("消去？")) { localStorage.removeItem('math_history'); location.reload(); } }
-        function startStatusUI(m) { document.getElementById('ai-status').style.display='block'; document.getElementById('ai-msg').innerText=m; let s=Date.now(); timerInterval=setInterval(() => { document.getElementById('timer-count').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
-        function stopStatusUI() { document.getElementById('ai-status').style.display='none'; clearInterval(timerInterval); }
-        document.getElementById('cameraInput').onchange = (e) => { const r=new FileReader(); r.onloadend=()=>startGrading(r.result.split(',')[1]); r.readAsDataURL(e.target.files[0]); };
+        function startStatusUI(m) { document.getElementById('ai-status').style.display='block'; document.getElementById('ai-msg').innerText=m; }
+        function stopStatusUI() { document.getElementById('ai-status').style.display='none'; }
     </script>
 </body>
 </html>
