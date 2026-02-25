@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.4.3</title>
+    <title>最難関突破 AI数学講師 v1.4.5</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; }
@@ -21,7 +21,6 @@
         .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
         .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
 
-        /* AIステータス */
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.9); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 100; width: 80%; }
         
         .canvas-container { background: #ffffff; padding: 10px; border-radius: 6px; display: flex; justify-content: center; min-height: 200px; margin-bottom: 10px; overflow: hidden; }
@@ -41,7 +40,7 @@
 <body>
 
     <div class="card">
-        <div class="header-flex"><h1>1. 設定</h1><span style="font-size:0.6rem; color:#888;">ver 1.4.3</span></div>
+        <div class="header-flex"><h1>1. 設定</h1><span style="font-size:0.6rem; color:#888;">ver 1.4.5</span></div>
         <input type="password" id="apiKey" style="width:100%; padding:12px; background:#333; color:#eee; border:1px solid #555; border-radius:6px; box-sizing:border-box;" placeholder="Gemini API Key を入力">
     </div>
 
@@ -68,7 +67,7 @@
         <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem; margin-top:5px;">💡 ヒントを表示</button>
         <div id="hint-area" class="hint-box"></div>
         
-        <button class="btn-ai-gen" onclick="generateSimilarTextOnly()">✨ 次の類題を作成</button>
+        <button class="btn-ai-gen" onclick="generateSimilarTextOnly()">✨ AIによる類題を作成</button>
     </div>
 
     <div class="card">
@@ -96,7 +95,16 @@
             unit: "立体図形",
             text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をP, Q, Rとする。3点P, Q, Rを通る平面で切断した切り口を考えよ。",
             sub: ["切り口の形状を答えよ。", "Bを含む立体の体積を求めよ。"],
-            svg: `<svg viewBox="0 0 200 180"><path d="M50 50 L130 50 L130 130 L50 130 Z" fill="none" stroke="#333"/><path d="M90 50 L130 90 L145 60 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="105" y="45" font-size="9" fill="#27ae60">1:1</text><text x="85" y="45" font-size="12" font-weight="bold">P</text><text x="135" y="100" font-size="12" font-weight="bold">Q</text><text x="150" y="65" font-size="12" font-weight="bold">R</text></svg>`,
+            // 初期データの立方体SVGをキャビネット図に修正
+            svg: `<svg viewBox="0 0 200 180">
+                <path d="M40 60 L120 60 L120 140 L40 140 Z" fill="none" stroke="#333"/>
+                <path d="M70 30 L150 30 L150 110 L70 110 Z" fill="none" stroke="#333"/>
+                <path d="M40 60 L70 30 M120 60 L150 30 M120 140 L150 110 M40 140 L70 110" fill="none" stroke="#333"/>
+                <path d="M80 60 L135 45 L150 70 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/>
+                <text x="75" y="55" font-size="12" font-weight="bold">P</text>
+                <text x="140" y="40" font-size="12" font-weight="bold">Q</text>
+                <text x="155" y="75" font-size="12" font-weight="bold">R</text>
+            </svg>`,
             hint: "切り口は正三角形になります。相似と三角錐の体積公式を思い出しましょう。"
         };
 
@@ -112,12 +120,9 @@
             document.getElementById('unit-name').innerText = prob.unit;
             document.getElementById('problem-text').innerText = prob.text;
             document.getElementById('sub-questions').innerHTML = (prob.sub||[]).map(s => `<li>${s}</li>`).join('');
-            
-            // ヒントの初期化
             const hArea = document.getElementById('hint-area');
             hArea.innerText = prob.hint || "ヒントはありません。";
             hArea.style.display = 'none';
-
             const svgCont = document.getElementById('svg-container');
             const drawBtn = document.getElementById('btn-draw');
             if (prob.svg) { svgCont.innerHTML = prob.svg; svgCont.style.display = 'flex'; drawBtn.style.display = 'none'; }
@@ -130,15 +135,36 @@
             h.style.display = (h.style.display === 'block') ? 'none' : 'block';
         }
 
-        async function startGrading(base64) {
+        async function generateSVGForCurrent() {
             const key = document.getElementById('apiKey').value;
             if(!key) return alert("API Keyを入力してください");
-            localStorage.setItem('gemini_api_key', key);
-            startStatusUI("SAPIX基準で採点中...");
+            startStatusUI("3D空間を投影中...");
+            const prompt = `問題『${currentProb.text}』の解説図を、必ず奥行きのある立体（等角投影図またはキャビネット図）で描いてください。
+            【絶対ルール】
+            1. 正方形のような平面図は禁止。奥行き方向の線を必ず描くこと。
+            2. 問題文の全ての点(A,B,P,Q等)を太字で配置。
+            3. 比や長さを緑、補助線を赤。
+            4. viewBox="0 0 200 200", stroke="#333"。
+            JSON形式 {"svg":"<svg>...</svg>"} のみ返せ。`;
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。問題：${currentProb.text}。【Score: X/10】で採点し解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await res.json();
+                currentProb.svg = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]).svg;
+                displayProblem(currentProb);
+            } finally { stopStatusUI(); }
+        }
+
+        async function startGrading(base64) {
+            const key = document.getElementById('apiKey').value;
+            if(!key) return alert("API Keyを入力してください");
+            startStatusUI("採点中...");
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。【Score: X/10】で採点し解説せよ。` }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }] })
                 });
                 const data = await res.json();
                 const fb = data.candidates[0].content.parts[0].text;
@@ -171,13 +197,11 @@
             document.getElementById('total-count').innerText = history.length;
             const avg = history.map(h => h.score).reduce((a,b)=>a+b,0)/history.length;
             document.getElementById('sapix-dev').innerText = (history.length < 2) ? "--" : (40 + (avg * 2.5)).toFixed(1);
-
             const units = {};
             history.forEach(h => {
                 if(!units[h.unit]) units[h.unit] = { sum: 0, count: 0 };
                 units[h.unit].sum += h.score; units[h.unit].count++;
             });
-
             let html = "";
             for(let u in units) {
                 const uAvg = units[u].sum / units[u].count;
@@ -190,49 +214,16 @@
         async function generateSimilarTextOnly() {
             const key = document.getElementById('apiKey').value;
             if(!key) return alert("APIキーが必要です");
-            startStatusUI("次の難問を作成中...");
+            startStatusUI("類題を作成中...");
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師。問題『${currentProb.text}』の類題を別単元も含めJSONで作成せよ。{"unit":"...","text":"...","sub":["..."],"hint":"..."}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。問題『${currentProb.text}』の類題をJSONで作成せよ。{"unit":"...","text":"...","sub":["..."],"hint":"..."}` }] }] })
                 });
                 const data = await res.json();
                 const json = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]);
                 displayProblem(json);
             } finally { stopStatusUI(); }
-        }
-
-        async function generateSVGForCurrent() {
-            const key = document.getElementById('apiKey').value;
-            if(!key) return alert("API Keyが必要です");
-            startStatusUI("3Dモデルを再構築中...");
-        
-            // 【修正】立体図形を「立体」として描かせるための強力なプロンプト
-            const prompt = `あなたは最難関数学講師です。問題『${currentProb.text}』の解説図を作成してください。
-            
-            【作図の絶対条件】
-            1. 立体（立方体等）の場合、真上や真横からの平面図（正方形等）ではなく、必ず奥行きのある「見取り図（斜めから見た図）」で描いてください。
-            2. 見えない奥の辺は stroke-dasharray="4" を使用して「破線」で描くこと。
-            3. 問題文にある全ての点（A, B, P, Q等）を太字 <text> で適切な頂点・位置に配置。
-            4. 比（1:1等）や長さは緑色（#27ae60）で書き込む。
-            5. 切断面や補助線は赤色（#e74c3c）で描画。
-            6. viewBox="0 0 200 200"、stroke="#333"を使用。
-            
-            JSONの"svg"キーのみ返してください。{"svg": "<svg>...</svg>"}`;
-        
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await res.json();
-                const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    currentProb.svg = JSON.parse(jsonMatch[0]).svg;
-                    displayProblem(currentProb);
-                }
-            } catch (e) { alert("作図に失敗しました"); }
-            finally { stopStatusUI(); }
         }
 
         function loadFromHistory(i) { const h = JSON.parse(localStorage.getItem('math_history')); if (confirm("再挑戦？")) displayProblem(h[i].problemData); }
