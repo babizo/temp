@@ -127,16 +127,31 @@
 
         function displayProblem(prob) {
             currentProb = prob;
-            document.getElementById('unit-name').innerText = prob.unit;
-            document.getElementById('problem-text').innerText = prob.text;
-            document.getElementById('sub-questions').innerHTML = (prob.sub||[]).map(s => `<li>${s}</li>`).join('');
-            document.getElementById('hint-area').innerText = prob.hint || "ヒントなし";
-            document.getElementById('hint-area').style.display = 'none';
+            
+            // 【修正】{unit} や {text} などのプレースホルダーが混入していたら除去・置換するガード
+            const sanitize = (str) => {
+                if (typeof str !== 'string') return "";
+                return str.replace(/\{unit\}/g, prob.unit || "総合問題")
+                          .replace(/\{text\}/g, "")
+                          .replace(/\{.*?\}/g, ""); // その他全ての{}括弧を除去
+            };
+        
+            document.getElementById('unit-name').innerText = sanitize(prob.unit);
+            document.getElementById('problem-text').innerText = sanitize(prob.text);
+            
+            document.getElementById('sub-questions').innerHTML = (prob.sub || []).map(s => {
+                return `<li>${sanitize(s)}</li>`;
+            }).join('');
+        
+            // --- 以下、既存のヒント・ズーム・SVG処理 ---
+            const hArea = document.getElementById('hint-area');
+            hArea.innerText = sanitize(prob.hint) || "ヒントはありません。";
+            hArea.style.display = 'none';
             
             // ズームリセット
             scale = 1; offsetX = 0; offsetY = 0;
             updateTransform();
-
+        
             const svgCont = document.getElementById('svg-content');
             const drawBtn = document.getElementById('btn-draw');
             if (prob.svg) { svgCont.innerHTML = prob.svg; drawBtn.style.display = 'none'; }
