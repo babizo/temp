@@ -3,44 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.4.5</title>
+    <title>最難関突破 AI数学講師 v1.4.6</title>
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
-        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; }
+        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.4; font-size: 14px; overflow-x: hidden; }
         .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #444; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         
-        /* 分析パネル */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
-        .stat-label { font-size: 0.7rem; color: #aaa; }
-        .stat-val { font-size: 1.3rem; font-weight: bold; color: var(--primary); }
-        .unit-analysis { font-size: 0.8rem; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
-        .unit-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
-        .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
+        /* ズーム・ドラッグ可能なキャンバス */
+        .canvas-container { 
+            background: #ffffff; 
+            border-radius: 6px; 
+            height: 250px; 
+            margin-bottom: 10px; 
+            overflow: hidden; 
+            position: relative; 
+            touch-action: none; /* ブラウザのデフォルト動作を抑止 */
+            cursor: grab;
+        }
+        .canvas-container:active { cursor: grabbing; }
+        #svg-content { 
+            width: 100%; 
+            height: 100%; 
+            transform-origin: 0 0; 
+            will-change: transform;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        svg { width: 100%; height: 100%; }
 
-        .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.9); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 100; width: 80%; }
-        
-        .canvas-container { background: #ffffff; padding: 10px; border-radius: 6px; display: flex; justify-content: center; min-height: 200px; margin-bottom: 10px; overflow: hidden; }
-        svg { width: 100%; height: auto; max-height: 220px; }
-        
+        .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.9); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 80%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; }
         .btn-camera { background: var(--success); color: white; height: 52px; font-size: 1.1rem; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
         .btn-draw { background: #555; color: white; font-size: 0.8rem; display: none; }
-        
         .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 12px; border-left: 4px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.08); margin: 10px 0; border-radius: 0 8px 8px 0; }
-        
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
-        .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
+        .stat-label { font-size: 0.7rem; color: #aaa; }
+        .stat-val { font-size: 1.3rem; font-weight: bold; color: var(--primary); }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div class="header-flex"><h1>1. 設定</h1><span style="font-size:0.6rem; color:#888;">ver 1.4.5</span></div>
+        <div class="header-flex"><h1>1. 設定</h1><span style="font-size:0.6rem; color:#888;">ver 1.4.6 ZoomMode</span></div>
         <input type="password" id="apiKey" style="width:100%; padding:12px; background:#333; color:#eee; border:1px solid #555; border-radius:6px; box-sizing:border-box;" placeholder="Gemini API Key を入力">
     </div>
 
@@ -50,7 +59,7 @@
             <div class="stat-box"><div class="stat-label">あなたの想定偏差値</div><div class="stat-val" id="sapix-dev">--</div></div>
             <div class="stat-box"><div class="stat-label">累計演習数</div><div class="stat-val" id="total-count">0</div></div>
         </div>
-        <div class="unit-analysis" id="unit-analysis"></div>
+        <div id="unit-analysis" style="font-size: 0.8rem;"></div>
     </div>
 
     <div class="card">
@@ -58,8 +67,12 @@
             <h1>2. 演習 [<span id="unit-name"></span>]</h1>
             <button onclick="skipProblem()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">SKIP ≫</button>
         </div>
-        <div class="canvas-container" id="svg-container"></div>
-        <button id="btn-draw" onclick="generateSVGForCurrent()" style="background:#555; color:white; font-size:0.8rem; display:none;">🎨 図を表示（比・長さ込）</button>
+        
+        <div class="canvas-container" id="zoom-container">
+            <div id="svg-content"></div>
+        </div>
+        <div style="text-align:right; font-size:0.6rem; color:#888; margin-bottom:5px;">※ピンチ/ドラッグで操作可能</div>
+        <button id="btn-draw" onclick="generateSVGForCurrent()" style="background:#555; color:white; font-size:0.8rem;">🎨 図を表示（手動）</button>
         
         <p id="problem-text" style="font-weight:bold; margin: 8px 0;"></p>
         <ul id="sub-questions" style="padding-left: 20px; margin: 8px 0;"></ul>
@@ -67,7 +80,7 @@
         <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem; margin-top:5px;">💡 ヒントを表示</button>
         <div id="hint-area" class="hint-box"></div>
         
-        <button class="btn-ai-gen" onclick="generateSimilarTextOnly()">✨ AIによる類題を作成</button>
+        <button class="btn-ai-gen" id="btn-ai-gen" onclick="generateSimilarTextOnly()">✨ AIによる類題を作成</button>
     </div>
 
     <div class="card">
@@ -90,28 +103,25 @@
         const MODEL_NAME = "gemini-2.5-flash";
         let currentProb = {};
         let timerInterval = null;
+        
+        // ズーム・ドラッグ用変数
+        let scale = 1, offsetX = 0, offsetY = 0;
+        let isDragging = false, startX, startY;
+        let lastTouchDist = 0;
 
         const initialProb = {
             unit: "立体図形",
             text: "一辺6の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をP, Q, Rとする。3点P, Q, Rを通る平面で切断した切り口を考えよ。",
             sub: ["切り口の形状を答えよ。", "Bを含む立体の体積を求めよ。"],
-            // 初期データの立方体SVGをキャビネット図に修正
-            svg: `<svg viewBox="0 0 200 180">
-                <path d="M40 60 L120 60 L120 140 L40 140 Z" fill="none" stroke="#333"/>
-                <path d="M70 30 L150 30 L150 110 L70 110 Z" fill="none" stroke="#333"/>
-                <path d="M40 60 L70 30 M120 60 L150 30 M120 140 L150 110 M40 140 L70 110" fill="none" stroke="#333"/>
-                <path d="M80 60 L135 45 L150 70 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/>
-                <text x="75" y="55" font-size="12" font-weight="bold">P</text>
-                <text x="140" y="40" font-size="12" font-weight="bold">Q</text>
-                <text x="155" y="75" font-size="12" font-weight="bold">R</text>
-            </svg>`,
-            hint: "切り口は正三角形になります。相似と三角錐の体積公式を思い出しましょう。"
+            svg: `<svg viewBox="0 0 200 180"><path d="M40 60 L120 60 L120 140 L40 140 Z" fill="none" stroke="#333"/><path d="M70 30 L150 30 L150 110 L70 110 Z" fill="none" stroke="#333"/><path d="M40 60 L70 30 M120 60 L150 30 M120 140 L150 110 M40 140 L70 110" fill="none" stroke="#333"/><path d="M80 60 L135 45 L150 70 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="75" y="55" font-size="12" font-weight="bold">P</text><text x="140" y="40" font-size="12" font-weight="bold">Q</text><text x="155" y="75" font-size="12" font-weight="bold">R</text></svg>`,
+            hint: "切り口は正三角形になります。"
         };
 
         window.onload = () => {
             const savedKey = localStorage.getItem('gemini_api_key');
             if (savedKey) document.getElementById('apiKey').value = savedKey;
             displayProblem(initialProb);
+            initZoomLogic();
             showHistory();
         };
 
@@ -120,47 +130,108 @@
             document.getElementById('unit-name').innerText = prob.unit;
             document.getElementById('problem-text').innerText = prob.text;
             document.getElementById('sub-questions').innerHTML = (prob.sub||[]).map(s => `<li>${s}</li>`).join('');
-            const hArea = document.getElementById('hint-area');
-            hArea.innerText = prob.hint || "ヒントはありません。";
-            hArea.style.display = 'none';
-            const svgCont = document.getElementById('svg-container');
+            document.getElementById('hint-area').innerText = prob.hint || "ヒントなし";
+            document.getElementById('hint-area').style.display = 'none';
+            
+            // ズームリセット
+            scale = 1; offsetX = 0; offsetY = 0;
+            updateTransform();
+
+            const svgCont = document.getElementById('svg-content');
             const drawBtn = document.getElementById('btn-draw');
-            if (prob.svg) { svgCont.innerHTML = prob.svg; svgCont.style.display = 'flex'; drawBtn.style.display = 'none'; }
-            else { svgCont.style.display = 'none'; drawBtn.style.display = 'block'; }
+            if (prob.svg) { svgCont.innerHTML = prob.svg; drawBtn.style.display = 'none'; }
+            else { svgCont.innerHTML = ""; drawBtn.style.display = 'block'; }
             document.getElementById('result').style.display = 'none';
         }
 
-        function toggleHint() {
-            const h = document.getElementById('hint-area');
-            h.style.display = (h.style.display === 'block') ? 'none' : 'block';
+        // ズーム・ドラッグのロジック
+        function initZoomLogic() {
+            const container = document.getElementById('zoom-container');
+            
+            // マウスホイールでのズーム
+            container.onwheel = (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                scale *= delta;
+                scale = Math.min(Math.max(0.5, scale), 5);
+                updateTransform();
+            };
+
+            // ドラッグ操作
+            container.onmousedown = (e) => { isDragging = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; };
+            window.onmousemove = (e) => { if (!isDragging) return; offsetX = e.clientX - startX; offsetY = e.clientY - startY; updateTransform(); };
+            window.onmouseup = () => { isDragging = false; };
+
+            // タッチ操作（スマホ）
+            container.ontouchstart = (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true; startX = e.touches[0].clientX - offsetX; startY = e.touches[0].clientY - offsetY;
+                } else if (e.touches.length === 2) {
+                    lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                }
+            };
+            container.ontouchmove = (e) => {
+                e.preventDefault();
+                if (e.touches.length === 1 && isDragging) {
+                    offsetX = e.touches[0].clientX - startX; offsetY = e.touches[0].clientY - startY;
+                } else if (e.touches.length === 2) {
+                    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    scale *= (dist / lastTouchDist);
+                    scale = Math.min(Math.max(0.5, scale), 5);
+                    lastTouchDist = dist;
+                }
+                updateTransform();
+            };
+            container.ontouchend = () => { isDragging = false; };
         }
 
-        async function generateSVGForCurrent() {
+        function updateTransform() {
+            document.getElementById('svg-content').style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+        }
+
+        async function generateSimilarTextOnly() {
             const key = document.getElementById('apiKey').value;
             if(!key) return alert("API Keyを入力してください");
-            startStatusUI("3D空間を投影中...");
-            const prompt = `問題『${currentProb.text}』の解説図を、必ず奥行きのある立体（等角投影図またはキャビネット図）で描いてください。
-            【絶対ルール】
-            1. 正方形のような平面図は禁止。奥行き方向の線を必ず描くこと。
-            2. 問題文の全ての点(A,B,P,Q等)を太字で配置。
-            3. 比や長さを緑、補助線を赤。
-            4. viewBox="0 0 200 200", stroke="#333"。
-            JSON形式 {"svg":"<svg>...</svg>"} のみ返せ。`;
+            startStatusUI("類題を考案中...");
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。問題『${currentProb.text}』の類題をJSONで1問作成せよ。{"unit":"...","text":"...","sub":["..."],"hint":"..."}` }] }] })
                 });
                 const data = await res.json();
-                currentProb.svg = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]).svg;
-                displayProblem(currentProb);
-            } finally { stopStatusUI(); }
+                const json = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]);
+                displayProblem(json);
+                stopStatusUI();
+                // バックグラウンド作図開始
+                autoGenerateSVG();
+            } catch (e) { stopStatusUI(); alert("生成失敗"); }
         }
+
+        async function autoGenerateSVG() {
+            const key = document.getElementById('apiKey').value;
+            const drawBtn = document.getElementById('btn-draw');
+            drawBtn.innerText = "🎨 図をバックグラウンドで作成中...";
+            drawBtn.disabled = true;
+            drawBtn.style.display = "block";
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題『${currentProb.text}』の解説図を、必ず奥行きのある立体（等角投影図）で描け。ラベル太字、比は緑、補助線は赤。{"svg":"<svg>...</svg>"}` }] }] })
+                });
+                const data = await res.json();
+                const svgCode = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]).svg;
+                currentProb.svg = svgCode;
+                document.getElementById('svg-content').innerHTML = svgCode;
+                drawBtn.style.display = 'none';
+            } catch (e) { drawBtn.innerText = "🎨 図の自動生成に失敗（再試行可）"; drawBtn.disabled = false; }
+        }
+
+        async function generateSVGForCurrent() { autoGenerateSVG(); } // 手動ボタンも共通化
 
         async function startGrading(base64) {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("API Keyを入力してください");
-            startStatusUI("採点中...");
+            startStatusUI("SAPIX基準で採点中...");
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
@@ -197,35 +268,9 @@
             document.getElementById('total-count').innerText = history.length;
             const avg = history.map(h => h.score).reduce((a,b)=>a+b,0)/history.length;
             document.getElementById('sapix-dev').innerText = (history.length < 2) ? "--" : (40 + (avg * 2.5)).toFixed(1);
-            const units = {};
-            history.forEach(h => {
-                if(!units[h.unit]) units[h.unit] = { sum: 0, count: 0 };
-                units[h.unit].sum += h.score; units[h.unit].count++;
-            });
-            let html = "";
-            for(let u in units) {
-                const uAvg = units[u].sum / units[u].count;
-                html += `<div><div class="unit-row"><span>${u}</span><span>${uAvg.toFixed(1)}/10</span></div>
-                    <div class="unit-bar-bg"><div class="unit-bar-fill" style="width:${uAvg*10}%; background:${uAvg >= 8 ? '#27ae60' : (uAvg <= 4 ? '#e74c3c' : '#5dade2')}"></div></div></div>`;
-            }
-            document.getElementById('unit-analysis').innerHTML = html;
         }
 
-        async function generateSimilarTextOnly() {
-            const key = document.getElementById('apiKey').value;
-            if(!key) return alert("APIキーが必要です");
-            startStatusUI("類題を作成中...");
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。問題『${currentProb.text}』の類題をJSONで作成せよ。{"unit":"...","text":"...","sub":["..."],"hint":"..."}` }] }] })
-                });
-                const data = await res.json();
-                const json = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0]);
-                displayProblem(json);
-            } finally { stopStatusUI(); }
-        }
-
+        function toggleHint() { const h = document.getElementById('hint-area'); h.style.display = h.style.display === 'block' ? 'none' : 'block'; }
         function loadFromHistory(i) { const h = JSON.parse(localStorage.getItem('math_history')); if (confirm("再挑戦？")) displayProblem(h[i].problemData); }
         function skipProblem() { saveHistory("SKIP", 0); generateSimilarTextOnly(); }
         function clearHistory() { if(confirm("消去？")) { localStorage.removeItem('math_history'); location.reload(); } }
