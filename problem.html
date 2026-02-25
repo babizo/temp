@@ -180,29 +180,42 @@
         }
 
         async function generateSVGForCurrent() {
-            const key = document.getElementById('apiKey').value;
-            if(!key) return alert("APIキーが必要です");
-            startStatusUI("図面を構成中...");
+    const key = document.getElementById('apiKey').value;
+    if(!key) return alert("APIキーが必要です");
+    startStatusUI("全地点をプロット中...");
 
-            const prompt = `問題『${currentProb.text}』の解説図をSVGで作図してください。
-            【必須】問題文にある全ての点（A, B, P, Q等）を <text> タグで図の中に配置すること。
-            viewBox="0 0 200 200"、線の色は stroke="#333"、強調は stroke="#e74c3c" を使用。
-            JSONの"svg"キーに入れて返して。 {"svg": "<svg>...</svg>"}`;
+    const prompt = `あなたは最難関高校数学講師です。
+    
+    【対象問題】
+    『${currentProb.text}』
+    
+    【作図・ラベル出力の絶対ルール】
+    1. 問題文に登場する全てのアルファベット（A, B, C, P, Q, R, Oなど）を抽出してください。
+    2. 抽出した全ての点について、図解上の適切な座標に <circle r="2" fill="black" /> で点を打ち、そのすぐ横に <text font-size="12" font-weight="bold"> でラベルを配置してください。
+    3. viewBox="0 0 200 200" 内に図形が収まるようにバランスを調整すること。
+    4. 補助線や切断面など、解法の鍵となる部分は stroke="#e74c3c" (赤) で描画してください。
+    
+    【出力形式】
+    JSONの"svg"キーのみ返してください。
+    {"svg": "<svg>...</svg>"}`;
 
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await res.json();
-                const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    currentProb.svg = JSON.parse(jsonMatch[0]).svg;
-                    displayProblem(currentProb);
-                }
-            } catch (e) { alert("作図に失敗しました。"); }
-            finally { stopStatusUI(); }
+    try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+            method: "POST", 
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await res.json();
+        const jsonMatch = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            currentProb.svg = JSON.parse(jsonMatch[0]).svg;
+            displayProblem(currentProb);
         }
+    } catch (e) { 
+        alert("作図に失敗しました。"); 
+    }
+    finally { stopStatusUI(); }
+}
 
         function toggleHint() {
             const h = document.getElementById('hint-area');
