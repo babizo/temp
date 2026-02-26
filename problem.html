@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.7.8</title>
+    <title>最難関突破 AI数学講師 v2.0.0</title>
     
     <script>
         window.MathJax = {
@@ -25,11 +25,8 @@
         .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #444; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
-        .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; }
+        .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; background: #333; padding: 2px 6px; border-radius: 4px;}
         
-        .settings-toggle { background: #333; color: #888; font-size: 0.7rem; padding: 5px 10px; border-radius: 5px; cursor: pointer; text-align: center; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        #settings-area { display: none; padding: 10px; background: #222; border-radius: 8px; margin-bottom: 10px; }
-
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
         .stat-label { font-size: 0.7rem; color: #aaa; }
@@ -58,13 +55,9 @@
 </head>
 <body>
 
-    <div class="settings-toggle" onclick="toggleSettings()">
-        <span>⚙️ 塾生用設定パネル</span>
-        <span class="version-tag">ver 1.7.8 Math-Sync</span>
-    </div>
-    <div id="settings-area">
-        <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
-        <input type="password" id="apiKey" style="width:100%; padding:10px; background:#111; color:#eee; border:1px solid #444; border-radius:6px; box-sizing:border-box;" placeholder="キーを入力">
+    <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
+        <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
+        <span class="version-tag">ver 2.0.0 Serverless</span>
     </div>
 
     <div class="card">
@@ -122,7 +115,6 @@
     </div>
 
     <script>
-        const MODEL_NAME = "gemini-2.5-flash"; 
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
 
         const initDataList = [
@@ -167,28 +159,21 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            const saved = localStorage.getItem('gemini_api_key');
-            if (saved) document.getElementById('apiKey').value = saved;
-            
             const randomInitProb = initDataList[Math.floor(Math.random() * initDataList.length)];
             applyProb(randomInitProb);
-            
             refreshStats();
             initZoom();
         });
 
-        // 【修正】数式レンダリングを確実に実行するための堅牢な関数
         let mathJaxTimeout = null;
         function renderMath() {
             clearTimeout(mathJaxTimeout);
             mathJaxTimeout = setTimeout(() => {
                 if (window.MathJax && window.MathJax.typesetPromise) {
-                    // 一度キャッシュをクリアしてエラーを防ぐ
                     MathJax.typesetClear();
-                    // ページ全体の数式を再評価してレンダリング
                     MathJax.typesetPromise().catch((err) => console.log('MathJax Error:', err));
                 }
-            }, 100); // DOMの更新が確実に完了するまで100ms待つ
+            }, 100); 
         }
 
         function applyProb(p) {
@@ -214,16 +199,10 @@
                 if (p.svg) layer.innerHTML = p.svg;
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
-
-            // テキスト挿入後に確実なタイミングで数式変換をキックする
             renderMath();
         }
 
         async function generateNext(isOtherUnit = false) {
-            const key = document.getElementById('apiKey').value;
-            if(!key) return alert("Keyを入力してください");
-            localStorage.setItem('gemini_api_key', key);
-            
             const currentDevText = document.getElementById('dev-val').innerText;
             const currentDev = parseFloat(currentDevText) || 50;
             
@@ -234,15 +213,16 @@
                 adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎が抜けている可能性があるため、ひねりをなくし、公式の確認ができる標準的な難易度にレベルを下げて作成せよ。`;
             }
 
-            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。数式や変数はLaTeX記法（$で囲む）を積極的に用いること。`;
+            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
             if (isOtherUnit) {
-                promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。数式や変数はLaTeX記法（$で囲む）を積極的に用いること。`;
+                promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
             }
 
             showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
             
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                // 【修正】リクエスト先を自作のAPIルート（Serverless Functions）に変更
+                const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
                     【アダプティブ指示】
@@ -254,23 +234,24 @@
                     ・必ず「〜を求めよ」という問いで完結させること。
                     {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
                 });
+                
                 const data = await res.json();
-                if (data.error) throw new Error(data.error.message);
+                if (!res.ok || data.error) throw new Error(data.error?.message || res.statusText);
+                
                 const jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
                 const json = JSON.parse(jsonText);
-                
                 applyProb(json);
                 
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 
                 if (json.has_diagram !== false) {
-                    autoDraw(key); 
+                    autoDraw(); 
                 }
             } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
         }
 
-        async function autoDraw(key) {
+        async function autoDraw() { // 【修正】引数のkeyを削除
             const layer = document.getElementById('svg-layer');
             let st = Date.now();
             let drawTimer = setInterval(() => {
@@ -278,7 +259,8 @@
             }, 100);
 
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                // 【修正】リクエスト先を自作のAPIルートに変更
+                const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説用SVG図を作成せよ。
                     【絶対厳守】
@@ -288,8 +270,11 @@
                     4. viewBox="0 0 200 200" を必ず指定。
                     5. xmlns="http://www.w3.org/2000/svg" を必ず含める。` }] }] })
                 });
+                
                 const data = await res.json();
                 clearInterval(drawTimer);
+                if (!res.ok || data.error) throw new Error(data.error?.message || res.statusText);
+
                 const text = data.candidates[0].content.parts[0].text;
                 const match = text.match(/<svg[\s\S]*?<\/svg>/);
                 
@@ -301,8 +286,6 @@
         }
 
         async function doGrade(file) {
-            const key = document.getElementById('apiKey').value;
-            if(!key) return alert("Keyを入力してください");
             showUI("解答の画像を解析・採点中...");
             
             const mimeType = file.type || "image/jpeg";
@@ -311,7 +294,8 @@
             reader.onload = async (e) => {
                 const b64 = e.target.result.split(',')[1];
                 try {
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${key}`, {
+                    // 【修正】リクエスト先を自作のAPIルートに変更
+                    const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
                         body: JSON.stringify({ 
                             contents: [{ 
@@ -327,15 +311,15 @@
                             }] 
                         })
                     });
+                    
                     const data = await res.json();
-                    if(data.error) throw new Error(data.error.message);
+                    if (!res.ok || data.error) throw new Error(data.error?.message || res.statusText);
                     
                     const fb = data.candidates[0].content.parts[0].text;
                     const resBox = document.getElementById('res-box');
                     resBox.innerText = fb;
                     resBox.style.display = 'block';
                     
-                    // 採点結果表示後にも確実に数式翻訳をキックする
                     renderMath();
                     
                     const scoreMatch = fb.match(/Score:\s*(\d+)/i);
@@ -425,13 +409,12 @@
             generateNext(true); 
         }
 
-        function toggleSettings() { const s = document.getElementById('settings-area'); s.style.display = (s.style.display === 'block') ? 'none' : 'block'; }
         function toggleHint() { 
             const b = document.getElementById('h-box'); 
             b.style.display = (b.style.display === 'block') ? 'none' : 'block';
-            renderMath(); // ヒント表示時にも念のため翻訳をキック
+            renderMath();
         }
-        function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("学習履歴を全消去しますか？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
