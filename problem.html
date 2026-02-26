@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v1.7.7</title>
+    <title>最難関突破 AI数学講師 v1.7.8</title>
     
     <script>
         window.MathJax = {
@@ -12,7 +12,7 @@
                 displayMath: [['$$', '$$'], ['\\[', '\\]']]
             },
             startup: {
-                typeset: false // 起動時の自動実行を止め、手動でコントロールする
+                typeset: false
             }
         };
     </script>
@@ -60,7 +60,7 @@
 
     <div class="settings-toggle" onclick="toggleSettings()">
         <span>⚙️ 塾生用設定パネル</span>
-        <span class="version-tag">ver 1.7.7 Math-Fix</span>
+        <span class="version-tag">ver 1.7.8 Math-Sync</span>
     </div>
     <div id="settings-area">
         <div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px;">Gemini API Key:</div>
@@ -177,11 +177,18 @@
             initZoom();
         });
 
-        // テキストを挿入してからMathJaxを再実行する関数
+        // 【修正】数式レンダリングを確実に実行するための堅牢な関数
+        let mathJaxTimeout = null;
         function renderMath() {
-            if (window.MathJax && window.MathJax.typesetPromise) {
-                MathJax.typesetPromise([document.getElementById('math-content-area'), document.getElementById('res-box')]).catch((err) => console.log(err));
-            }
+            clearTimeout(mathJaxTimeout);
+            mathJaxTimeout = setTimeout(() => {
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                    // 一度キャッシュをクリアしてエラーを防ぐ
+                    MathJax.typesetClear();
+                    // ページ全体の数式を再評価してレンダリング
+                    MathJax.typesetPromise().catch((err) => console.log('MathJax Error:', err));
+                }
+            }, 100); // DOMの更新が確実に完了するまで100ms待つ
         }
 
         function applyProb(p) {
@@ -208,8 +215,8 @@
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
 
-            // 【修正】テキストセット後に確実にMathJaxを実行
-            setTimeout(renderMath, 50);
+            // テキスト挿入後に確実なタイミングで数式変換をキックする
+            renderMath();
         }
 
         async function generateNext(isOtherUnit = false) {
@@ -227,9 +234,9 @@
                 adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎が抜けている可能性があるため、ひねりをなくし、公式の確認ができる標準的な難易度にレベルを下げて作成せよ。`;
             }
 
-            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
+            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。数式や変数はLaTeX記法（$で囲む）を積極的に用いること。`;
             if (isOtherUnit) {
-                promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
+                promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。数式や変数はLaTeX記法（$で囲む）を積極的に用いること。`;
             }
 
             showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
@@ -251,6 +258,7 @@
                 if (data.error) throw new Error(data.error.message);
                 const jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
                 const json = JSON.parse(jsonText);
+                
                 applyProb(json);
                 
                 document.getElementById('adaptive-label').style.display = 'inline-block';
@@ -327,7 +335,8 @@
                     resBox.innerText = fb;
                     resBox.style.display = 'block';
                     
-                    setTimeout(renderMath, 50); // 【修正】採点結果も確実にレンダリング
+                    // 採点結果表示後にも確実に数式翻訳をキックする
+                    renderMath();
                     
                     const scoreMatch = fb.match(/Score:\s*(\d+)/i);
                     const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
@@ -420,7 +429,7 @@
         function toggleHint() { 
             const b = document.getElementById('h-box'); 
             b.style.display = (b.style.display === 'block') ? 'none' : 'block';
-            setTimeout(renderMath, 50);
+            renderMath(); // ヒント表示時にも念のため翻訳をキック
         }
         function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
