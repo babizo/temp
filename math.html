@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v3.1.5</title>
+    <title>最難関突破 AI数学講師 v3.1.7</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.1.5 Mastery-Mode</span>
+        <span class="version-tag">ver 3.1.7 Content-Logic</span>
     </div>
 
     <div class="card">
@@ -158,10 +158,15 @@
         function applyProb(p) {
             if (!p) return;
             state.prob = p; state.seen_answer = false; state.prefetched_answer = null; resetView();
-            state.current_target_unit = p.unit || "総合";
-            document.getElementById('u-title').innerText = state.current_target_unit;
+            
+            // AIのラベルよりシステム決定単元を優先
+            const unitToUse = p.unit_lock || state.current_target_unit || p.unit || "総合";
+            state.current_target_unit = unitToUse;
+            document.getElementById('u-title').innerText = unitToUse;
+
             const mainText = cleanText(p.text || p.problem || p.body || "問題データなし");
             document.getElementById('p-text').innerText = mainText;
+
             const rawSub = p.sub || p.questions || p.q || [];
             let subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
             if (subArray.length === 0 || (subArray.length === 1 && subArray[0].length < 5)) {
@@ -173,9 +178,13 @@
                 }
             }
             document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
-            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "基本を再確認せよ。";
+            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "定義を再確認せよ。";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
-            const showDiagram = p.has_diagram || /平面図形|幾何|関数|立体|空間/.test(state.current_target_unit);
+
+            // 【新ロジック】単元名だけでなく、問題文の中身からも作図の必要性を判定
+            const drawKeywords = /三角形|四角形|円|相似|合同|平行|垂直|線分|中点|関数|グラフ|座標|直線|曲線|放物線|立体|見取り図|展開図|三平方|ピタゴラス/;
+            const showDiagram = p.has_diagram || /平面図形|幾何|関数|立体|空間/.test(unitToUse) || drawKeywords.test(mainText);
+            
             document.getElementById('zoom-box').style.display = showDiagram ? 'flex' : 'none';
             document.getElementById('canvas-footer').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) {
@@ -211,8 +220,6 @@
         async function generateNext(isOther = false, isHardMode = false) {
             if (drawingAbortController) drawingAbortController.abort();
             drawingLock = false; if (state.dt) clearInterval(state.dt);
-            
-            // 難易度設定：最難関ボタンなら80固定、それ以外は入力値
             let devValue = isHardMode ? 80 : (parseFloat(document.getElementById('dev-val').innerText) || 50.0);
             
             let target = "";
@@ -229,15 +236,19 @@
             showUI(`${target}${isHardMode ? 'の最難関問' : ''}を構成中...`);
             currentAbortController = new AbortController();
             
-            const hardPrompt = isHardMode ? "合否を分ける最難関・高難易度な思考力を要する難問を構成せよ。" : "類題を構成せよ。";
-            const prompt = `数学講師。入試問題調。text=条件、sub=問い。単元「${target}」。偏差値${devValue}。${hardPrompt} JSON。最大1分程かけよ。`;
+            const prompt = `数学講師。入試問題調。textには状況、subには問いの配列。
+            必ず単元「${target}」の問題を作れ。偏差値${devValue}レベル。JSON。最大1分程。
+            問題に図形や関数が含まれる場合は、図解が容易な条件設定にせよ。`;
             
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
-                applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
+                const data = await res.json();
+                const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
+                parsed.unit_lock = target;
+                applyProb(parsed);
             } catch (e) { if (isOther) generateNext(true, isHardMode); }
             finally { hideUI(); }
         }
@@ -274,7 +285,9 @@
         }
         function saveLog(mark, score) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            h.unshift({ d: new Date().toLocaleDateString(), u: state.prob.unit || "総合", m: mark, s: score, p: state.prob });
+            const probToSave = JSON.parse(JSON.stringify(state.prob));
+            probToSave.unit = state.current_target_unit;
+            h.unshift({ d: new Date().toLocaleDateString(), u: state.current_target_unit, m: mark, s: score, p: probToSave });
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30))); refreshStats();
         }
 
