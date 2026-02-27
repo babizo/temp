@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.0.7</title>
+    <title>最難関突破 AI数学講師 v2.0.8</title>
     
     <script>
         window.MathJax = {
@@ -11,9 +11,7 @@
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
                 displayMath: [['$$', '$$'], ['\\[', '\\]']]
             },
-            startup: {
-                typeset: false
-            }
+            startup: { typeset: false }
         };
     </script>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
@@ -26,7 +24,6 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; background: #333; padding: 2px 6px; border-radius: 4px;}
-        
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
         .stat-label { font-size: 0.7rem; color: #aaa; }
@@ -35,21 +32,16 @@
         .unit-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
         .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
-
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
-
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
-        
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
         .btn-camera { background: var(--success); color: white; height: 52px; }
-        
         .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 12px; border-left: 4px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.08); margin: 10px 0; border-radius: 0 8px 8px 0; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
         .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-        
         .adaptive-badge { background: #e67e22; color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; margin-left: 5px; vertical-align: middle; }
     </style>
 </head>
@@ -57,7 +49,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.0.7 Full-Algebra</span>
+        <span class="version-tag">ver 2.0.8 Robust-JSON</span>
     </div>
 
     <div class="card">
@@ -70,10 +62,7 @@
                     <span id="target-school" style="font-size:0.75rem; color:var(--hint); font-weight:bold;">[都立中堅]</span>
                 </div>
             </div>
-            <div>
-                <div style="font-size:0.7rem; color:#aaa;">累計演習</div>
-                <div id="count-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">0</div>
-            </div>
+            <div><div style="font-size:0.7rem; color:#aaa;">累計演習</div><div id="count-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">0</div></div>
         </div>
         <div id="unit-chart" style="margin-top:10px; font-size:0.8rem;"></div>
     </div>
@@ -83,17 +72,12 @@
             <h1>演習 [<span id="u-title"></span>]<span id="adaptive-label" class="adaptive-badge" style="display:none;">レベル調整済</span></h1>
             <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">他の単元へ ≫</button>
         </div>
-        
-        <div class="canvas-container" id="zoom-box">
-            <div id="svg-layer"></div>
-        </div>
-        
+        <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; margin: 8px 0;"></p>
             <ul id="q-list" style="padding-left: 20px; margin: 8px 0;"></ul>
             <div id="h-box" class="hint-box"></div>
         </div>
-        
         <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem;">💡 ヒント</button>
         <button class="btn-ai-gen" onclick="generateNext(false)">✨ 現在の偏差値で類題を作成</button>
     </div>
@@ -138,37 +122,6 @@
                 sub: ["(1) $a$ の値を求めよ。", "(2) 他方の解を求めよ。"],
                 has_diagram: false,
                 hint: "$x=0$ を代入して $a$ についての2次方程式を解きます。"
-            },
-            {
-                unit: "関数",
-                text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標が $-2$ であるとき、定数 $a$ を求め、$\\triangle OAB$ の面積を求めよ。",
-                sub: ["(1) $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"],
-                has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/></svg>`,
-                hint: "交点の座標を求め、y切片を利用して面積を二分割して考えます。"
-            },
-            {
-                unit: "平面図形",
-                text: "半径 $6$ の円Oにおいて、中心からの距離が $2$ であるような弦ABを引く。弦ABの長さを求めよ。",
-                sub: ["(1) 弦ABの長さを求めよ。"],
-                has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333"/></svg>`,
-                hint: "中心から弦に垂線を下ろし、三平方の定理を利用します。"
-            },
-            {
-                unit: "立体図形",
-                text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
-                sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
-                has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/></svg>`,
-                hint: "切り口は正三角形になります。"
-            },
-            {
-                unit: "確率",
-                text: "2つのサイコロ $a, b$ を投げ、出た目の和 $s$ が素数になる確率を求めよ。",
-                sub: ["(1) 和が素数となる事象をすべて挙げ、確率を求めよ。"],
-                has_diagram: false,
-                hint: "和が $2, 3, 5, 7, 11$ になる場合を丁寧に数え上げます。"
             }
         ];
 
@@ -185,10 +138,8 @@
             mathJaxTimeout = setTimeout(() => {
                 if (window.MathJax && window.MathJax.typesetPromise) {
                     MathJax.typesetClear();
-                    MathJax.typesetPromise().catch((err) => console.log('MathJax Error:', err));
-                } else {
-                    renderMath();
-                }
+                    MathJax.typesetPromise().catch(e => console.log('MathJax Error:', e));
+                } else { renderMath(); }
             }, 50); 
         }
 
@@ -204,9 +155,8 @@
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             const canvasBox = document.getElementById('zoom-box');
-            if (p.has_diagram === false) {
-                canvasBox.style.display = 'none';
-            } else {
+            if (p.has_diagram === false) { canvasBox.style.display = 'none'; }
+            else {
                 canvasBox.style.display = 'flex';
                 const layer = document.getElementById('svg-layer');
                 if (p.svg) layer.innerHTML = p.svg;
@@ -222,7 +172,7 @@
             if (currentDev >= 60) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}（最上位層）です。最難関私立・国立レベルの、論理的ひねりのある超難問を作成せよ。`;
             else if (currentDev < 45) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基本の組み合わせで解ける典型的な難問にせよ。`;
 
-            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。単なる数値替え禁止。数式はLaTeX記法（$で囲む）。JSON内バックスラッシュは二重（\\\\）。`;
+            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。単なる数値替え禁止。数式はLaTeX記法（$で囲む）。JSON内バックスラッシュは必ず二重（\\\\）にエスケープせよ。`;
             if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる系統の単元から、新傾向の良問をJSONで作成。`;
 
             showUI(`思考力を問う問題を構成中...`);
@@ -234,21 +184,25 @@
                     【アダプティブ指示】
                     ${adaptiveInstruction}
                     【最難関出題ルール】
-                    ・単なる数値の入れ替えは禁止。設定や問いの順序を変える。
-                    ・「方程式」：算数パズルではなく文字定数や解の条件を扱う代数学とする。
+                    ・数値替え禁止。設定や問いの順序を変える。
+                    ・「方程式」：算数パズルを排除し、文字定数や解の条件を扱う代数学とする。
                     ・「数と式」：循環小数の周期性や、有限小数の条件（分母の性質）を含める。
-                    ・「確率」：書き出しで終わらない、n進法や剰余、図形移動との融合を推奨。
+                    ・「確率」：論理的場合分けが必要な思考力問題にせよ。
                     {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
                 });
                 const data = await res.json();
                 let jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
-                jsonText = jsonText.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+                
+                // 【超重要：修正】バックスラッシュのサニタイズを強化
+                // すでに \\ になっているものは維持し、単独の \ だけを \\ に変換する
+                jsonText = jsonText.replace(/\\/g, "\\\\").replace(/\\\\\\\\/g, "\\\\");
+
                 const json = JSON.parse(jsonText);
                 applyProb(json);
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 if (json.has_diagram !== false) autoDraw();
-            } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
+            } catch (e) { hideUI(); console.error(e); alert("通信失敗: " + e.message); }
         }
 
         async function autoDraw() {
@@ -280,7 +234,7 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として画像採点せよ。数式はLaTeX。最後に必ず【Score: X/10】。問題：${state.prob.text}` }, { inline_data: { mime_type: mimeType, data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として画像採点せよ。数式はLaTeX。最後に必ず【Score: X/10】。問題：${state.prob.text}` }, { inlineData: { mimeType: mimeType, data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = data.candidates[0].content.parts[0].text;
