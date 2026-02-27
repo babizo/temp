@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.5.7</title>
+    <title>最難関突破 AI数学講師 v2.5.8</title>
     
     <script>
         window.MathJax = {
@@ -43,7 +43,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.5.7 loader-isolation</span>
+        <span class="version-tag">ver 2.5.8 generator-sync</span>
     </div>
     
     <div id="debug-output"></div>
@@ -104,11 +104,10 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            const firstProb = initDataList[0];
-            applyProb(firstProb);
+            applyProb(initDataList[0]);
             refreshStats();
             initZoom();
-            if (firstProb.has_diagram !== false) autoDraw(0);
+            if (initDataList[0].has_diagram !== false) autoDraw(0);
         });
 
         function logDebug(msg, raw = null) {
@@ -160,7 +159,12 @@
             const hasMath = /[0-9xyz$]|[\u0370-\u03ff]/.test(fullContent);
             const hasObjective = /求めよ|示せ|証明せよ|答えよ|作図せよ/.test(fullContent);
 
-            if (fullContent.length > 0 && (!hasMath || !hasObjective)) { generateNext(false); return; }
+            // 検知ロジックは残すが、再生成時にgenerateNextへ引数を渡さないことで無限ループ回避
+            if (fullContent.length > 0 && (!hasMath || !hasObjective)) {
+                logDebug("Garbage check failed. Retrying...");
+                generateNext(false); 
+                return;
+            }
 
             state.prob = p;
             state.graded = false; state.seen_answer = false; state.prefetched_answer = null; 
@@ -194,7 +198,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `解答と詳細な解説を出力せよ。数式LaTeX。問題：${state.prob.text}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `解答と詳細な解説。数式LaTeX。問題：${state.prob.text}` }] }] })
                 });
                 const data = await res.json();
                 state.prefetched_answer = cleanText(data.candidates[0].content.parts[0].text);
@@ -229,10 +233,17 @@
             }
         }
 
-        async function generateNext(isOtherUnit = false) {
+        async function generateNext(isOtherUnit = false, retryCount = 0) {
+            if (retryCount > 3) { hideUI(); return; } // 無限リトライ防止
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
             const units = ["幾何", "関数", "整数", "確率"];
-            const targetUnit = units[Math.floor(Math.random() * units.length)];
+            
+            // 現在の単元以外を選ぶロジック
+            let targetUnit = units[Math.floor(Math.random() * units.length)];
+            if (isOtherUnit && state.prob.unit) {
+                const others = units.filter(u => !state.prob.unit.includes(u));
+                targetUnit = others[Math.floor(Math.random() * others.length)];
+            }
             
             showUI(`${targetUnit}の問題を構成中...`);
             currentAbortController = new AbortController();
@@ -242,15 +253,21 @@
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `数学問題エンジン。単元「${targetUnit}」の具体的数値を含む良問。JSON直下にtext, sub, unit, hint, has_diagram。偏差値${dev}向け。JSONのみ。` }] }],
+                        contents: [{ parts: [{ text: `数学問題生成エンジン。具体的数値を含むこと。単元は必ず「${targetUnit}」に固定せよ。JSON直下にtext, sub, unit, hint, has_diagram。偏差値${dev}向け。JSONのみ出力せよ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
                 const data = await res.json();
                 lastRaw = data.candidates[0].content.parts[0].text;
                 const json = robustJSONParse(lastRaw);
+                
+                // 単元が不一致ならリトライ（最大回数内）
+                const resultUnit = getUnit(json);
+                if (isOtherUnit && resultUnit.includes(state.prob.unit)) {
+                     return generateNext(isOtherUnit, retryCount + 1);
+                }
+
                 applyProb(json);
-                // メインUIを閉じるのはここ（作図の終了に依存させない）
                 hideUI();
                 if (json.has_diagram !== false) autoDraw(0);
             } catch (e) { 
@@ -272,13 +289,12 @@
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 const currentTimer = document.getElementById('draw-timer-val');
                 if (currentTimer) currentTimer.innerText = elapsed + "s";
-                else if (layer.innerText.includes("作図中")) layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val" style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div><div class="wait-text">（最大1分程度かかる場合があります）</div>`;
             }, 100);
 
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVGのみ。全ラベル配置。viewBox="0 0 200 200"。"&"等の実体参照禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ出力。全ラベル配置。viewBox="0 0 200 200"。"&"等の実体参照禁止。` }] }] })
                 });
                 const data = await res.json();
                 const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
@@ -287,10 +303,7 @@
                 else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
             } catch (e) { 
                 if (retryCount < 1) { autoDraw(retryCount + 1); } 
-            } finally {
-                // ここで hideUI() を呼ばないように修正（メイン画面を閉じない）
-                clearInterval(state.dt);
-            }
+            } finally { clearInterval(state.dt); }
         }
 
         async function doGrade(file) {
@@ -301,7 +314,7 @@
                 reader.onload = async (e) => {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点官。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: e.target.result.split(',')[1] } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: e.target.result.split(',')[1] } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
