@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.0.4</title>
+    <title>最難関突破 AI数学講師 v2.0.6</title>
     
     <script>
         window.MathJax = {
@@ -57,7 +57,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.0.4 Brain-Teaser</span>
+        <span class="version-tag">ver 2.0.6 Advanced-Algebra</span>
     </div>
 
     <div class="card">
@@ -119,58 +119,57 @@
 
         const initDataList = [
             {
+                unit: "数と式（循環小数）",
+                text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。",
+                sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"],
+                has_diagram: false,
+                hint: "まず実際に割り算をして、何桁の周期で数字が繰り返されるか（循環節）を見つけましょう。"
+            },
+            {
                 unit: "数と式",
                 text: "$x = \\frac{\\sqrt{5} + 1}{2}$ のとき、次の式の値を考えよ。",
                 sub: ["(1) $x^2 - x - 1$ の値を求めよ。", "(2) $x^5$ の値を $a\\sqrt{5} + b$ の形で表せ。"],
                 has_diagram: false,
-                hint: "(1)の結果を利用して、$x^2 = x + 1$ と変形し、次数下げを行いましょう。"
+                hint: "次数下げを活用してください。"
             },
             {
                 unit: "整数問題",
                 text: "自然数 $n$ について、$n^2 - 12n + 27$ が素数となるような $n$ をすべて求めよ。",
                 sub: ["(1) 式を因数分解し、素数の性質を利用して条件を絞り込め。"],
                 has_diagram: false,
-                hint: "式を因数分解すると $(n-3)(n-9)$ になります。素数は「$1 \\times$ 自分自身」しか約数を持たないので、どちらかのカッコが $1$ か $-1$ になるはずです。"
+                hint: "$(n-3)(n-9)$ を利用します。"
             },
             {
                 unit: "方程式",
-                text: "A君はP町からQ町へ、B君はQ町からP町へ向かって同時に出発した。2人は途中で出会ってから、A君は $16$ 分後にQ町に到着し、B君は $36$ 分後にP町に到着した。それぞれの速さは一定であるとする。",
+                text: "A君はP町からQ町へ、B君はQ町からP町へ向かって同時に出発した。2人は途中で出会ってから、A君は $16$ 分後にQ町に到着し、B君は $36$ 分後にP町に到着した。",
                 sub: ["(1) A君とB君の速さの比を求めよ。", "(2) 出発してから2人が出会うまでにかかった時間を求めよ。"],
                 has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="100" x2="180" y2="100" stroke="#333" stroke-width="2"/><circle cx="20" cy="100" r="4" fill="#333"/><circle cx="180" cy="100" r="4" fill="#333"/><text x="20" y="80" font-size="14" font-weight="bold" text-anchor="middle">P町</text><text x="180" y="80" font-size="14" font-weight="bold" text-anchor="middle">Q町</text><circle cx="110" cy="100" r="4" fill="#e74c3c"/><text x="110" y="80" font-size="12" fill="#e74c3c" text-anchor="middle">出会った地点</text><path d="M 20 120 Q 65 140 110 120" fill="none" stroke="#5dade2" stroke-width="2" marker-end="url(#arrow)"/><path d="M 110 120 Q 145 140 180 120" fill="none" stroke="#5dade2" stroke-width="2" stroke-dasharray="4"/><text x="145" y="145" font-size="10" fill="#5dade2" text-anchor="middle">16分</text><path d="M 180 160 Q 145 180 110 160" fill="none" stroke="#27ae60" stroke-width="2" marker-end="url(#arrow)"/><path d="M 110 160 Q 65 180 20 160" fill="none" stroke="#27ae60" stroke-width="2" stroke-dasharray="4"/><text x="65" y="185" font-size="10" fill="#27ae60" text-anchor="middle">36分</text></svg>`,
-                hint: "出会うまでにかかった時間を $t$ 分とおき、進んだ距離と速さの関係から方程式（2次方程式）を立てるか、比の性質を利用しましょう。"
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="100" x2="180" y2="100" stroke="#333" stroke-width="2"/><circle cx="20" cy="100" r="4" fill="#333"/><circle cx="180" cy="100" r="4" fill="#333"/><text x="20" y="80" font-size="14" font-weight="bold" text-anchor="middle">P</text><text x="180" y="80" font-size="14" font-weight="bold" text-anchor="middle">Q</text><circle cx="110" cy="100" r="4" fill="#e74c3c"/><path d="M 20 120 Q 65 140 110 120" fill="none" stroke="#5dade2" stroke-width="2"/><path d="M 110 160 Q 65 180 20 160" fill="none" stroke="#27ae60" stroke-width="2"/><text x="145" y="145" font-size="10" fill="#5dade2" text-anchor="middle">16分</text><text x="65" y="185" font-size="10" fill="#27ae60" text-anchor="middle">36分</text></svg>`,
+                hint: "出会うまでの時間を $t$ とします。"
             },
             {
                 unit: "関数",
                 text: "放物線 $y = x^2$ 上に2点 A, B があり、x座標はそれぞれ $-1, 2$ である。原点をOとする。",
                 sub: ["(1) 直線ABの方程式を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"],
                 has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="100" y1="180" x2="100" y2="20" stroke="#aaa"/><line x1="20" y1="150" x2="180" y2="150" stroke="#aaa"/><circle cx="70" cy="115" r="4" fill="#e74c3c"/><circle cx="145" cy="70" r="4" fill="#e74c3c"/><line x1="70" y1="115" x2="145" y2="70" stroke="#27ae60" stroke-width="2"/><text x="50" y="115" font-size="12" font-weight="bold">A</text><text x="155" y="70" font-size="12" font-weight="bold">B</text><text x="90" y="165" font-size="12">O</text></svg>`,
-                hint: "$\\triangle OAB$ の面積は、直線ABのy切片を利用して、2つの三角形の面積の和として計算すると簡単です。"
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><circle cx="70" cy="115" r="4" fill="#e74c3c"/><circle cx="145" cy="70" r="4" fill="#e74c3c"/><line x1="70" y1="115" x2="145" y2="70" stroke="#27ae60" stroke-width="2"/></svg>`,
+                hint: "y切片を活用しましょう。"
             },
             {
                 unit: "平面図形",
-                text: "半径 $6$ の円Oの周上に3点 A, B, C があり、$AB = AC = 8$ である。弦BCの中点をMとし、直線AMと円Oの交点のうちAでない方をDとする。",
+                text: "半径 $6$ の円Oの周上に3点 A, B, C があり、$AB = AC = 8$ である。弦BCの中点をMとし、直線AMと円Oの交点の他方をDとする。",
                 sub: ["(1) 線分AMの長さを求めよ。", "(2) $\\triangle ABC$ の面積を求めよ。"],
                 has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333" stroke-width="2"/><polygon points="100,20 40,140 160,140" fill="rgba(231,76,60,0.2)" stroke="#e74c3c" stroke-width="2"/><line x1="100" y1="20" x2="100" y2="180" stroke="#27ae60" stroke-dasharray="4"/><text x="100" y="15" font-size="12" font-weight="bold">A</text><text x="25" y="150" font-size="12" font-weight="bold">B</text><text x="165" y="150" font-size="12" font-weight="bold">C</text><text x="110" y="145" font-size="12" font-weight="bold">M</text><text x="105" y="195" font-size="12" font-weight="bold">D</text></svg>`,
-                hint: "方べきの定理 ($AM \\times MD = BM \\times MC$) や、直角三角形の三平方の定理を活用しましょう。"
-            },
-            {
-                unit: "立体図形",
-                text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
-                sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
-                has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/><path d="M75 35 L155 35 L155 115 L75 115 Z" fill="none" stroke="#333" stroke-dasharray="2"/><path d="M40 70 L75 35 M120 70 L155 35 M120 150 L155 115 M40 150 L75 115" fill="none" stroke="#333"/><path d="M80 70 L137.5 52.5 L155 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="75" y="65" font-size="12" font-weight="bold">P</text><text x="145" y="50" font-size="12" font-weight="bold">Q</text><text x="160" y="85" font-size="12" font-weight="bold">R</text></svg>`,
-                hint: "切り口は正三角形になります。三角錐として体積を計算しましょう。"
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333" stroke-width="2"/><polygon points="100,20 40,140 160,140" fill="rgba(231,76,60,0.2)" stroke="#e74c3c" stroke-width="2"/></svg>`,
+                hint: "方べきの定理を利用します。"
             },
             {
                 unit: "確率",
-                text: "$1$ から $6$ までの目が出る大小2つのサイコロを同時に投げる。大きいサイコロの目を $a$、小さいサイコロの目を $b$ とし、座標平面上に点 $\\text{P}(a, b)$ をとる。",
-                sub: ["(1) 点Pが放物線 $y = \\frac{1}{2}x^2$ 上にある確率を求めよ。", "(2) 原点をOとしたとき、線分OPの長さが $5$ 以上になる確率を求めよ。"],
+                text: "$1$ から $6$ までのサイコロを2回投げ、出た目を $a, b$ とする。座標平面上の点 $\\text{P}(a, b)$ をとる。",
+                sub: ["(1) 点Pが放物線 $y = \\frac{1}{2}x^2$ 上にある確率を求めよ。", "(2) 原点との距離 $OP \\ge 5$ となる確率を求めよ。"],
                 has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="180" x2="180" y2="180" stroke="#333" stroke-width="2"/><line x1="20" y1="20" x2="20" y2="180" stroke="#333" stroke-width="2"/><circle cx="80" cy="120" r="4" fill="#e74c3c"/><text x="90" y="115" font-size="12" font-weight="bold">P(a,b)</text><line x1="20" y1="180" x2="80" y2="120" stroke="#27ae60" stroke-dasharray="4"/><text x="10" y="195" font-size="12">O</text><text x="170" y="195" font-size="12">x</text><text x="10" y="20" font-size="12">y</text></svg>`,
-                hint: "全事象は $36$ 通りです。(1)は $b = \\frac{1}{2}a^2$ を満たす $(a, b)$ を探します。"
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="180" x2="180" y2="180" stroke="#333" stroke-width="2"/><circle cx="80" cy="120" r="4" fill="#e74c3c"/><text x="90" y="115" font-size="12" font-weight="bold">P(a,b)</text></svg>`,
+                hint: "全36通りを書き出しましょう。"
             }
         ];
 
@@ -188,24 +187,23 @@
                 if (window.MathJax && window.MathJax.typesetPromise) {
                     MathJax.typesetClear();
                     MathJax.typesetPromise().catch((err) => console.log('MathJax Error:', err));
+                } else {
+                    renderMath();
                 }
-            }, 100); 
+            }, 50); 
         }
 
         function applyProb(p) {
             state.prob = p;
             state.graded = false; 
-            
             let unitName = p.unit || "総合演習";
             if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
-            
             document.getElementById('u-title').innerText = unitName;
             document.getElementById('p-text').innerText = p.text || "";
             document.getElementById('q-list').innerHTML = (p.sub || []).map(s => `<li>${s}</li>`).join('');
             document.getElementById('h-box').innerText = p.hint || "";
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
-            
             const canvasBox = document.getElementById('zoom-box');
             if (p.has_diagram === false) {
                 canvasBox.style.display = 'none';
@@ -221,53 +219,35 @@
         async function generateNext(isOtherUnit = false) {
             const currentDevText = document.getElementById('dev-val').innerText;
             const currentDev = parseFloat(currentDevText) || 50;
-            
             let adaptiveInstruction = "標準的な難易度の応用問題にせよ。";
-            if (currentDev >= 60) {
-                adaptiveInstruction = `現在の生徒の偏差値は${currentDev}（最上位層）です。高校範囲の知識（余弦定理等）を使うと有利になるような、ひねりの効いた超難問を作成せよ。`;
-            } else if (currentDev < 45) {
-                adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎が抜けている可能性があるため、ひねりをなくし、公式の確認ができる標準的な難易度にレベルを下げて作成せよ。`;
-            }
+            if (currentDev >= 60) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}（最上位層）です。ひねりの効いた超難問を作成せよ。`;
+            else if (currentDev < 45) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎を重視した問題にせよ。`;
 
-            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。単なる数値の入れ替え問題は絶対に行わず、別角度からの問いや条件の追加など、新たな思考プロセスを促す問題にすること。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
-            if (isOtherUnit) {
-                promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
-            }
+            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。単なる数値の入れ替えは禁止。数式はLaTeX記法（$で囲む）を用い、JSON内ではバックスラッシュを二重（\\\\）にすること。`;
+            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる単元から良問をJSONで作成。`;
 
             showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
             
             try {
-                // 【修正】作図・出題ルールに数値替え禁止と確率の高度化指示を追加
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
                     【アダプティブ指示】
                     ${adaptiveInstruction}
-                    
                     【出題ルール】
-                    ・単なる数値の入れ替え問題は禁止。設定を少し変える、逆から問う、条件を増やすなど、必ず新しい思考プロセスを問うこと。
-                    ・もし「確率」の単元を出題する場合は、単なる公式適用ではなく、論理的な場合分けや複雑な条件整理を要する思考力問題（例: ルールが複雑なサイコロゲーム、図形上の点の移動など）にすること。
-
-                    【厳守フォーマット】
-                    ・unitには「平面図形」「確率」などの『数学の単元名』を必ず入れる。
-                    ・図解が必要な問題（図形、関数など）は has_diagram を true、不要な問題（計算、整数問題など）は false にすること。
-                    ・必ず「〜を求めよ」という問いで完結させること。
+                    ・単なる数値替えは禁止。設定変更や条件追加を行う。
+                    ・「数と式」の範囲には、循環小数・有限小数の周期性や性質を問う高度な問題を含めること。
+                    ・「確率」は論理的場合分けが必要な思考力問題にすること。
                     {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
                 });
-                
                 const data = await res.json();
-                if (!res.ok || data.error) throw new Error(data.error?.message || res.statusText);
-                
-                const jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
+                let jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
+                jsonText = jsonText.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
                 const json = JSON.parse(jsonText);
                 applyProb(json);
-                
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
-                
-                if (json.has_diagram !== false) {
-                    autoDraw(); 
-                }
+                if (json.has_diagram !== false) autoDraw();
             } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
         }
 
@@ -277,76 +257,42 @@
             let drawTimer = setInterval(() => {
                 layer.innerHTML = `<div style="color:var(--ai); font-weight:bold; margin-bottom:5px;">🎨 作図エンジン稼働中...</div><div style="font-size:1.5rem; font-family:monospace; color:#aaa;">${((Date.now()-st)/1000).toFixed(1)}s</div>`;
             }, 100);
-
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説用SVG図を作成せよ。
-                    【絶対厳守】
-                    1. 純粋な <svg> タグのみ出力。マークダウン禁止。
-                    2. 絶対に「解答」「途中式」「ヒントになる数値」をSVG内に書き込まないこと。問題の状況を視覚化するだけに留めよ。
-                    3. 立体図形の場合は必ず斜投影（キャビネット図等）で奥行きを描き、正方形にしないこと。
-                    4. viewBox="0 0 200 200" を必ず指定。
-                    5. xmlns="http://www.w3.org/2000/svg" を必ず含める。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説用SVGを作成。
+                    【絶対厳守】解答・途中式・ヒント数値をSVGに書かない。状況視覚化のみ。viewBox="0 0 200 200"指定。` }] }] })
                 });
-                
                 const data = await res.json();
                 clearInterval(drawTimer);
-                if (!res.ok || data.error) throw new Error(data.error?.message || res.statusText);
-
                 const text = data.candidates[0].content.parts[0].text;
                 const match = text.match(/<svg[\s\S]*?<\/svg>/);
-                
-                if (match) {
-                    state.prob.svg = match[0];
-                    layer.innerHTML = match[0];
-                } else { layer.innerHTML = "作図コードの抽出に失敗しました。"; }
-            } catch (e) { clearInterval(drawTimer); layer.innerHTML = "作図エラー: " + e.message; }
+                if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
+            } catch (e) { clearInterval(drawTimer); layer.innerHTML = "作図エラー"; }
         }
 
         async function doGrade(file) {
-            showUI("解答の画像を解析・採点中...");
-            
+            showUI("採点中...");
             const mimeType = file.type || "image/jpeg";
             const reader = new FileReader();
-            
             reader.onload = async (e) => {
                 const b64 = e.target.result.split(',')[1];
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ 
-                            contents: [{ 
-                                parts: [
-                                    { text: `あなたは最難関高校の数学講師です。添付した生徒の解答画像の内容をしっかり読み取って採点してください。数式はLaTeX記法（$で囲む）を使用してください。
-                                    問題：『${state.prob.text}』
-                                    
-                                    【必須ルール】
-                                    1. どこが合っていて、どこが間違っているかを具体的に指摘すること。
-                                    2. 最後に必ず【Score: X/10】の形式で点数をつけること。` }, 
-                                    { inlineData: { mimeType: mimeType, data: b64 } } 
-                                ] 
-                            }] 
-                        })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として画像採点せよ。数式はLaTeX。最後に必ず【Score: X/10】。問題：${state.prob.text}` }, { inlineData: { mimeType: mimeType, data: b64 } }] }] })
                     });
-                    
                     const data = await res.json();
-                    if (!res.ok || data.error) throw new Error(data.error?.message || res.statusText);
-                    
                     const fb = data.candidates[0].content.parts[0].text;
                     const resBox = document.getElementById('res-box');
                     resBox.innerText = fb;
                     resBox.style.display = 'block';
-                    
                     renderMath();
-                    
                     const scoreMatch = fb.match(/Score:\s*(\d+)/i);
                     const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
                     saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), score);
-                    
                     state.graded = true;
-                    
-                } catch (e) { alert("採点失敗: " + e.message); } finally { hideUI(); }
+                } catch (e) { alert("採点失敗"); } finally { hideUI(); }
             };
             reader.readAsDataURL(file);
         }
@@ -362,16 +308,10 @@
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             document.getElementById('count-val').innerText = h.length;
             document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><div><span class="score-badge">${x.s}/10</span> ${x.m}</div></div>`).join('');
-            
             let dev = 50.0;
-            if (h.length >= 1) {
-                const avg = h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length;
-                dev = 40 + (avg * 3.5);
-            }
-            
+            if (h.length >= 1) dev = 40 + ((h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length) * 3.5);
             document.getElementById('dev-val').innerText = dev.toFixed(1);
-
-            let schoolLabel = "[基礎固め]";
+            let schoolLabel = "[都立中堅]";
             if (dev >= 68) schoolLabel = "[筑駒]";
             else if (dev >= 66) schoolLabel = "[開成・灘]";
             else if (dev >= 64) schoolLabel = "[渋幕・学芸大附]";
@@ -381,10 +321,7 @@
             else if (dev >= 56) schoolLabel = "[戸山・ICU]";
             else if (dev >= 54) schoolLabel = "[新宿・八王子東]";
             else if (dev >= 52) schoolLabel = "[都立共通上位]";
-            else if (dev >= 50) schoolLabel = "[都立中堅]";
-            
             document.getElementById('target-school').innerText = schoolLabel;
-            
             const units = {};
             h.forEach(x => { if(!units[x.u]) units[x.u]={s:0,c:0}; units[x.u].s+=x.s; units[x.u].c++; });
             let html = "";
@@ -398,7 +335,7 @@
         function initZoom() {
             const c = document.getElementById('zoom-box');
             let isDrag = false, sx = 0, sy = 0, lDist = 0;
-            c.onwheel = (e) => { e.preventDefault(); state.scale *= (e.deltaY > 0 ? 0.9 : 1.1); state.scale = Math.min(Math.max(0.5, state.scale), 5); updateView(); };
+            c.onwheel = (e) => { e.preventDefault(); state.scale = Math.min(Math.max(0.5, state.scale * (e.deltaY > 0 ? 0.9 : 1.1)), 5); updateView(); };
             c.onmousedown = (e) => { isDrag = true; sx = e.clientX - state.x; sy = e.clientY - state.y; };
             window.onmousemove = (e) => { if(isDrag) { state.x = e.clientX - sx; state.y = e.clientY - sy; updateView(); } };
             window.onmouseup = () => isDrag = false;
@@ -411,28 +348,16 @@
                 if(e.touches.length === 1 && isDrag) { state.x = e.touches[0].clientX - sx; state.y = e.touches[0].clientY - sy; }
                 else if(e.touches.length === 2) {
                     const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    state.scale *= (d / lDist); state.scale = Math.min(Math.max(0.5, state.scale), 5); lDist = d;
+                    state.scale = Math.min(Math.max(0.5, state.scale * (d / lDist)), 5); lDist = d;
                 }
                 updateView();
             };
             c.ontouchend = () => isDrag = false;
         }
-
-        function loadHist(i) { const h = JSON.parse(localStorage.getItem('m_hist')); applyProb(h[i].p); document.getElementById('adaptive-label').style.display = 'none'; }
-        
-        function doSkip() { 
-            if (!state.graded) {
-                saveLog("SKIP", 0); 
-            }
-            generateNext(true); 
-        }
-
-        function toggleHint() { 
-            const b = document.getElementById('h-box'); 
-            b.style.display = (b.style.display === 'block') ? 'none' : 'block';
-            renderMath(); 
-        }
-        function resetData() { if(confirm("学習履歴を全消去しますか？")) { localStorage.clear(); location.reload(); } }
+        function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); document.getElementById('adaptive-label').style.display = 'none'; }
+        function doSkip() { if (!state.graded) saveLog("SKIP", 0); generateNext(true); }
+        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; renderMath(); }
+        function resetData() { if(confirm("履歴を消去？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
