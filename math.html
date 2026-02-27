@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.2.3</title>
+    <title>最難関突破 AI数学講師 v2.2.4</title>
     
     <script>
         window.MathJax = {
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.2.3 Final-Fix</span>
+        <span class="version-tag">ver 2.2.4 Geometry-Restored</span>
     </div>
 
     <div class="card">
@@ -102,6 +102,7 @@
     <script>
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
 
+        // 【修正】図形や関数を含む全単元を初期データに復活
         const initDataList = [
             {
                 unit: "数と式（循環小数）",
@@ -123,6 +124,37 @@
                 sub: ["(1) 定数 $a$ の値を求めよ。", "(2) 他方の解を求めよ。"],
                 has_diagram: false,
                 hint: "$x=0$ を代入し、$a$ についての2次方程式を解け。"
+            },
+            {
+                unit: "関数",
+                text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標は $-2$ である。",
+                sub: ["(1) 定数 $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"],
+                has_diagram: true,
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="20" y1="180" x2="180" y2="20" stroke="#5dade2" stroke-width="2"/></svg>`,
+                hint: "Aのx座標を代入して直線上の座標を求め、放物線の式を決定せよ。"
+            },
+            {
+                unit: "平面図形",
+                text: "半径 $6$ の円Oにおいて、中心からの距離が $2$ であるような弦ABを引く。",
+                sub: ["(1) 弦ABの長さを求めよ。"],
+                has_diagram: true,
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333" stroke-width="2"/><line x1="40" y1="50" x2="160" y2="150" stroke="#5dade2" stroke-width="2"/></svg>`,
+                hint: "中心から弦に垂線を下ろし、三平方の定理を利用せよ。"
+            },
+            {
+                unit: "立体図形",
+                text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
+                sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 頂点Bを含む立体の体積を求めよ。"],
+                has_diagram: true,
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/><path d="M75 35 L155 35 L155 115 L75 115 Z" fill="none" stroke="#333" stroke-dasharray="2"/><path d="M40 70 L75 35 M120 70 L155 35 M120 150 L155 115 M40 150 L75 115" fill="none" stroke="#333"/><path d="M80 70 L137.5 52.5 L155 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/></svg>`,
+                hint: "切り口の辺の長さを調べよ。Bを含む立体は三角錐になる。"
+            },
+            {
+                unit: "確率",
+                text: "2つのサイコロ $a, b$ を同時に投げ、出た目の和を $s$ とする。",
+                sub: ["(1) $s$ が素数になる確率を求めよ。"],
+                has_diagram: false,
+                hint: "和が $2, 3, 5, 7, 11$ になる組み合わせを漏れなく数えよ。"
             }
         ];
 
@@ -140,17 +172,18 @@
             } else { setTimeout(renderMath, 100); }
         }
 
-        // 【最強のテキスト補正】改行、バッククォート削除、不等号の保護をすべて行う
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            // 不等号の前後にスペースを入れることでHTMLタグと誤認されるのを防ぐ
             return t.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
 
         function applyProb(p) {
             if (Array.isArray(p)) p = p[0] || {};
-            
             state.prob = p;
             state.graded = false; 
             
@@ -173,7 +206,7 @@
             
             const qListElem = document.getElementById('q-list');
             if (validSubs.length > 0) {
-                qListElem.innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
+                qListElem.innerHTML = validSubs.map(s => `<li>${escapeHTML(s)}</li>`).join('');
                 qListElem.style.display = 'block';
             } else {
                 qListElem.style.display = 'none';
@@ -199,7 +232,6 @@
             renderMath();
         }
 
-        // 【最終完成版】\frac 等が制御文字として崩れるのを100%防ぐ最強のパーサー
         function robustJSONParse(rawStr) {
             let s = rawStr;
             const startIdx = s.indexOf('{');
@@ -207,32 +239,18 @@
             if (startIdx !== -1 && endIdx !== -1) {
                 s = s.substring(startIdx, endIdx + 1);
             }
-            
-            try {
-                // まずはそのままパースを試みる
-                return JSON.parse(s);
-            } catch (e1) {
+            try { return JSON.parse(s); } catch (e1) {
                 try {
-                    // 【エラー修復プロセス】
-                    // 1. 本来守るべき正しいJSONエスケープを一時退避させる
                     s = s.replace(/\\\\/g, "___DOUBLE___");
                     s = s.replace(/\\"/g, "___QUOTE___");
                     s = s.replace(/\\n/g, "___NEWLINE___");
                     s = s.replace(/\\u([0-9a-fA-F]{4})/g, "___UNICODE_$1___");
-
-                    // 2. この時点で残っている「\」はすべてAIがエスケープを忘れた LaTeX コマンド（\frac, \sin等）
-                    // これらを強制的に二重化してJSONエラーを防ぐ
                     s = s.replace(/\\/g, "\\\\");
-
-                    // 3. 退避させておいた正規のエスケープを元に戻す
                     s = s.replace(/___DOUBLE___/g, "\\\\");
                     s = s.replace(/___QUOTE___/g, "\\\"");
                     s = s.replace(/___NEWLINE___/g, "\\n");
                     s = s.replace(/___UNICODE_([0-9a-fA-F]{4})___/g, "\\u$1");
-
-                    // 4. 生の改行が含まれていた場合の無害化
                     s = s.replace(/\n/g, "\\n").replace(/\r/g, "");
-
                     return JSON.parse(s);
                 } catch (e2) {
                     console.error("Parse Error Details:", s);
@@ -251,8 +269,9 @@
                 adaptive = `現在偏差値${dev}向け。基礎を重視し、計算手順を分割する丁寧な小問を設けよ。`;
             }
 
+            // 【修正】図形や関数も含め、幅広いジャンルからランダムに選ぶよう指示を強化
             let promptText = "最難関高校講師。類題を作成。数値替え禁止。数式はLaTeX($)を使用。バッククォート記号は絶対に使用しないこと。";
-            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる系統の良問を作成。数式はLaTeX($)を使用。バッククォート記号は絶対に使用しないこと。`;
+            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる単元から、全く新しい良問を作成。数式はLaTeX($)を使用。バッククォート記号は絶対に使用しないこと。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
@@ -260,7 +279,8 @@
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
-                        【指示】${adaptive} 方程式は代数、確率は論理重視、循環小数も可。
+                        【指示】${adaptive} 
+                        【出題範囲】代数（数と式、整数、方程式）、解析（関数）、幾何（平面図形、立体図形）、確率から偏りなくランダムに選定すること。
                         【LaTeX記述の絶対ルール】
                         ・不等号「<」「>」を使う際は、必ず前後に半角スペースを入れること（例: $x < y$）。
                         ・インライン数式（$...$）の中での改行やブロック環境は使用禁止。
@@ -269,7 +289,7 @@
                         ・「text」には問題の【前提条件や状況設定のみ】を記述し、「〜を求めよ」などの問いは絶対に含めないこと。
                         ・実際の問いは必ず「sub」配列の中に記述すること。
                         出力は以下のJSONのみを出力せよ。
-                        {"unit":"単元名","text":"前提条件のみ記述","sub":["(1) ...","(2) ..."],"hint":"簡潔な命令形で", "has_diagram": true}` }] }],
+                        {"unit":"単元名","text":"前提条件のみ記述","sub":["(1) ...","(2) ..."],"hint":"簡潔な命令形で", "has_diagram": trueまたはfalse}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
