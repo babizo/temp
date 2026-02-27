@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.5.9</title>
+    <title>最難関突破 AI数学講師 v2.6.0</title>
     
     <script>
         window.MathJax = {
@@ -43,7 +43,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.5.9 loop-breaker</span>
+        <span class="version-tag">ver 2.6.0 Logic-Guard-Plus</span>
     </div>
     
     <div id="debug-output"></div>
@@ -99,15 +99,16 @@
         let currentAbortController = null;
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false, seen_answer: false, prefetched_answer: null };
 
+        // 1問目を計算問題にして起動を速める
         const initDataList = [
-            { unit: "幾何", text: "AB=ACの二等辺三角形ABCにおいて、∠A=40°とする。頂点B, Cから対辺に垂線BD, CEを引き、その交点をPとする。∠BPCを求めよ。", sub: [], has_diagram: true, hint: "四角形ADPEの内角の和に着目せよ。" }
+            { unit: "数と式", text: "x + y = 3, xy = 1 のとき、x^2 + y^2 の値を求めよ。", sub: [], has_diagram: false, hint: "対称式の変形を利用せよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
             applyProb(initDataList[0]);
             refreshStats();
             initZoom();
-            if (initDataList[0].has_diagram !== false) autoDraw(0);
+            if (initDataList[0].has_diagram === true) autoDraw(0);
         });
 
         function logDebug(msg, raw = null) {
@@ -149,12 +150,29 @@
         function applyProb(p) {
             if (Array.isArray(p)) p = p[0] || {};
             if (!p.text && p.problem) p = p.problem;
-            if (!p.text && p.data) p = p.data;
+            
+            const subStr = Array.isArray(p.sub) ? p.sub.join("") : (p.sub || "");
+            const fullContent = (p.text || "") + subStr;
+            const hasMath = /[0-9xyz$]|[\u0370-\u03ff]/.test(fullContent);
+            const hasObjective = /求めよ|示せ|証明せよ|答えよ|作図せよ/.test(fullContent);
+            // 「数学」などの単語しかないゴミデータの検知
+            const isMetaOnly = fullContent.trim() === "数学" || fullContent.length < 5;
+
+            if (fullContent.length > 0 && (!hasMath || !hasObjective || isMetaOnly)) {
+                logDebug("Garbage detected (No math or meta only). Retrying...");
+                generateNext(false); 
+                return;
+            }
 
             state.prob = p;
             state.graded = false; state.seen_answer = false; state.prefetched_answer = null; 
             
-            document.getElementById('u-title').innerText = getUnit(p);
+            const unitName = getUnit(p);
+            document.getElementById('u-title').innerText = unitName;
+            
+            // 関数単元なら強制的に作図をONにする
+            if (unitName.includes("関数") || unitName.includes("グラフ")) state.prob.has_diagram = true;
+
             const pTextElem = document.getElementById('p-text');
             pTextElem.innerText = cleanText(p.text).trim() ? "【問題】\n" + cleanText(p.text).trim() : "";
             
@@ -168,7 +186,7 @@
             document.getElementById('res-box').style.display = 'none';
             
             const layer = document.getElementById('svg-layer');
-            if (p.has_diagram === false) { 
+            if (state.prob.has_diagram === false) { 
                 document.getElementById('zoom-box').style.display = 'none'; 
             } else {
                 document.getElementById('zoom-box').style.display = 'flex';
@@ -183,7 +201,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `解答と解説。数式LaTeX。問題：${state.prob.text}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `解答と詳細な解説を出力せよ。数式LaTeX。問題：${state.prob.text}` }] }] })
                 });
                 const data = await res.json();
                 state.prefetched_answer = cleanText(data.candidates[0].content.parts[0].text);
@@ -192,7 +210,7 @@
 
         async function peekAnswer() {
             if (state.seen_answer) { alert("表示済みだ。"); return; }
-            if (!confirm("解答を見ると得点は0点となります。よろしいですか？")) return;
+            if (!confirm("採点の前に解答を見ると、得点は0点となります。よろしいか？")) return;
             state.seen_answer = true;
             const resBox = document.getElementById('res-box');
             if (state.prefetched_answer) {
@@ -219,6 +237,7 @@
         }
 
         async function generateNext(isOtherUnit = false) {
+            const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
             const units = ["幾何", "関数", "整数", "確率"];
             let targetUnit = units[Math.floor(Math.random() * units.length)];
             if (isOtherUnit && state.prob.unit) {
@@ -233,7 +252,7 @@
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `数学問題エンジン。単元「${targetUnit}」の具体的数値を含む良問。JSON直下にtext, sub, unit, hint, has_diagram。JSONのみ出力せよ。` }] }],
+                        contents: [{ parts: [{ text: `数学問題エンジン。具体的数値と数式を含むこと。「数学」等のメタ発言は厳禁。単元「${targetUnit}」の良問。JSON(text, sub, unit, hint, has_diagram)。偏差値${dev}向け。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -242,19 +261,18 @@
                 const json = robustJSONParse(lastRaw);
                 applyProb(json);
                 hideUI();
-                if (json.has_diagram !== false) autoDraw(0);
+                if (state.prob.has_diagram !== false) autoDraw(0);
             } catch (e) { 
                 if (e.name !== 'AbortError') { logDebug(`Generation Error: ${e.message}`, lastRaw); hideUI(); }
             } finally { currentAbortController = null; }
         }
 
         async function autoDraw(retryCount = 0) {
-            if (!state.prob.text || retryCount > 1) { 
-                if (retryCount > 1) document.getElementById('svg-layer').innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし(タイムアウト)</div>`;
-                return; 
-            }
+            if (!state.prob.text || retryCount > 1) return;
             const layer = document.getElementById('svg-layer');
+            const timerVal = document.getElementById('draw-timer-val');
             let startTime = Date.now();
+            
             clearInterval(state.dt);
             state.dt = setInterval(() => {
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -265,20 +283,14 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化したSVGタグのみ出力せよ。Markdown説明禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した座標平面または図形のSVGのみ。全ラベル配置。viewBox="0 0 200 200"。"&"等の実体参照禁止。` }] }] })
                 });
                 const data = await res.json();
-                const rawText = data.candidates[0].content.parts[0].text;
-                // ルーズな正規表現でSVGのみ抽出
-                const match = rawText.match(/<svg[\s\S]*?<\/svg>/i);
-                if (match) { 
-                    state.prob.svg = match[0]; 
-                    layer.innerHTML = match[0]; 
-                    clearInterval(state.dt);
-                } else {
-                    autoDraw(retryCount + 1);
-                }
+                const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
+                if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
+                else { autoDraw(retryCount + 1); }
             } catch (e) { autoDraw(retryCount + 1); }
+            finally { clearInterval(state.dt); }
         }
 
         async function doGrade(file) {
