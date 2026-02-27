@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.7.1</title>
+    <title>最難関突破 AI数学講師 v2.7.2</title>
     
     <script>
         window.MathJax = {
@@ -16,12 +16,13 @@
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
-        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --ai: #a29bfe; --hard: #e74c3c; }
+        :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; --hard: #e74c3c; }
         body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.5; font-size: 14px; overflow-x: hidden; }
         .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #444; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; background: #333; padding: 2px 6px; border-radius: 4px;}
+        .debug-bar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 0.7rem; color: #888; margin-bottom: 5px; }
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; flex-direction: column; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #444; font-size: 0.8rem; flex-direction: column; }
         .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
@@ -30,30 +31,45 @@
         .btn-hard { background: var(--hard); color: white; font-size: 0.85rem; }
         .btn-camera { background: var(--success); color: white; flex: 1; }
         .btn-answer-only { background: #555; color: white; font-size: 0.85rem; flex: 1; }
-        #dev-val { cursor: pointer; border-bottom: 1px dashed var(--primary); transition: 0.3s; padding: 0 5px; }
+        
+        /* 偏差値表示のサイズを揃える */
+        .stat-val { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        #dev-val { cursor: pointer; border-bottom: 1px dashed var(--primary); padding: 0 5px; }
         #dev-val:focus { background: #333; outline: none; border-bottom: 1px solid var(--success); color: var(--success); }
         .manual-mode { color: var(--success) !important; }
+
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
     </style>
 </head>
 <body>
 
+    <div class="debug-bar">
+        <label><input type="checkbox" id="debug-mode"> DEBUG</label>
+        <span class="version-tag">ver 2.7.2</span>
+    </div>
+
     <div class="card">
-        <div class="header-flex"><h1>分析パネル</h1><span class="version-tag">ver 2.7.1 Adaptive-Edit</span></div>
+        <div class="header-flex"><h1>分析パネル</h1></div>
         <div style="display:flex; justify-content:space-around; text-align:center;">
             <div>
-                <div style="font-size:0.6rem; color:#aaa;">推定偏差値 (タップして編集)</div>
-                <div style="display:flex; align-items:baseline; justify-content:center; gap:5px;">
-                    <span id="dev-val" contenteditable="true" inputmode="decimal">50.0</span>
+                <div style="font-size:0.7rem; color:#aaa;">推定偏差値</div>
+                <div style="display:flex; align-items:baseline; justify-content:center;">
+                    <span id="dev-val" class="stat-val" contenteditable="true" inputmode="decimal">50.0</span>
                 </div>
             </div>
-            <div><div style="font-size:0.7rem; color:#aaa;">累計演習</div><div id="count-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">0</div></div>
+            <div>
+                <div style="font-size:0.7rem; color:#aaa;">累計演習</div>
+                <div id="count-val" class="stat-val">0</div>
+            </div>
         </div>
         <div id="unit-chart" style="margin-top:10px; font-size:0.8rem;"></div>
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>演習 [<span id="u-title"></span>]</h1><button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">他単元 ≫</button></div>
+        <div class="header-flex">
+            <h1>演習 [<span id="u-title"></span>]</h1>
+            <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">他単元 ≫</button>
+        </div>
         <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; margin: 8px 0; color: #ccc;"></p>
@@ -90,7 +106,7 @@
     <script>
         let currentAbortController = null;
         let drawingLock = false;
-        let manualDev = null; // 手動設定された偏差値
+        let manualDev = null;
         let state = { prob: {}, t: null, dt: null, graded: false, seen_answer: false, prefetched_answer: null };
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -103,14 +119,8 @@
             const el = document.getElementById('dev-val');
             el.addEventListener('blur', () => {
                 let val = parseFloat(el.innerText);
-                if (isNaN(val)) {
-                    manualDev = null;
-                    refreshStats(); // 数値でなければ自動計算に戻す
-                } else {
-                    manualDev = Math.min(Math.max(val, 0), 100); // 0-100の範囲に制限
-                    el.innerText = manualDev.toFixed(1);
-                    el.classList.add('manual-mode');
-                }
+                if (isNaN(val)) { manualDev = null; refreshStats(); }
+                else { manualDev = Math.min(Math.max(val, 0), 100); el.innerText = manualDev.toFixed(1); el.classList.add('manual-mode'); }
             });
             el.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); el.blur(); } });
         }
@@ -138,9 +148,8 @@
             document.getElementById('u-title').innerText = p.unit || "総合";
             document.getElementById('p-text').innerText = cleanText(p.text);
             const rawSub = p.sub || p.questions || [];
-            const subArray = Array.isArray(rawSub) ? rawSub : [rawSub];
-            document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
-            document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理に立ち返れ。";
+            document.getElementById('q-list').innerHTML = (Array.isArray(rawSub) ? rawSub : [rawSub]).map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
+            document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理を確認せよ。";
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             
@@ -157,18 +166,16 @@
         async function generateNext(isOther = false, isHardMode = false) {
             let devValue = manualDev !== null ? manualDev : parseFloat(document.getElementById('dev-val').innerText);
             if (isHardMode) devValue = 80;
-
             const units = ["幾何", "関数", "整数", "確率"];
             let target = units[Math.floor(Math.random() * units.length)];
-            
-            showUI(`${target}の問題を構成中... (偏差値${devValue.toFixed(1)}レベル)`);
+            showUI(`${target}の問題を構成中... (偏差値${devValue.toFixed(1)})`);
             currentAbortController = new AbortController();
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: `数学問題生成エンジン。単元「${target}」。偏差値${devValue}向けの良問。JSON(text, sub, unit, hint, has_diagram)形式のみ。数式は$ $。小問は(1)(2)形式。` }] }],
+                        contents: [{ parts: [{ text: `数学問題生成エンジン。単元「${target}」。偏差値${devValue}向け。JSON(text, sub, unit, hint, has_diagram)形式のみ。数式は必ず $ $ で囲む。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -189,11 +196,11 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化したSVGタグのみ。Markdown禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化したSVGタグのみ。関数の場合は座標軸必須。Markdown禁止。` }] }] })
                 });
                 const data = await res.json();
                 const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
-                if (match) { document.getElementById('svg-layer').innerHTML = match[0]; }
+                if (match) document.getElementById('svg-layer').innerHTML = match[0];
                 else throw new Error();
             } catch (e) { setTimeout(() => { drawingLock = false; autoDraw(retry + 1); }, 500); }
             finally { clearInterval(state.dt); drawingLock = false; }
@@ -232,7 +239,6 @@
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             document.getElementById('count-val').innerText = h.length;
             document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><div><span class="score-badge">${x.s}/10</span> ${x.m}</div></div>`).join('');
-            
             if (manualDev === null) {
                 let dev = 50.0;
                 if (h.length >= 1) dev = 40 + ((h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length) * 3.5);
@@ -240,7 +246,6 @@
                 el.innerText = dev.toFixed(1);
                 el.classList.remove('manual-mode');
             }
-
             const units = {};
             h.forEach(x => { const u = x.u || "その他"; if(!units[u]) units[u]={s:0,c:0}; units[u].s+=x.s; units[u].c++; });
             let html = "";
@@ -253,7 +258,7 @@
 
         async function prefetchAnswer() {
             try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答。数式$。問題：${state.prob.text}` }] }] }) });
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答解説。数式$。問題：${state.prob.text}` }] }] }) });
                 const data = await res.json();
                 state.prefetched_answer = cleanText(data.candidates[0].content.parts[0].text);
             } catch (e) {}
@@ -275,7 +280,7 @@
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; renderMath(); }
         function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
         function doSkip() { generateNext(true); }
-        function resetData() { if(confirm("履歴と手動設定を消去しますか？")) { manualDev = null; localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("履歴をリセットしますか？")) { manualDev = null; localStorage.clear(); location.reload(); } }
         document.getElementById('c-input').onchange = (e) => doGrade(e.target.files[0]);
     </script>
 </body>
