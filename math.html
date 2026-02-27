@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.1.7</title>
+    <title>最難関突破 AI数学講師 v2.1.8</title>
     
     <script>
         window.MathJax = {
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.1.7 Format-Fix</span>
+        <span class="version-tag">ver 2.1.8 Hardcore-Tone</span>
     </div>
 
     <div class="card">
@@ -102,28 +102,28 @@
     <script>
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
 
-        // 【修正】初期データの text を「前提条件のみ」に統一し、問いを sub にまとめた
+        // 【修正】初期データのヒントも簡潔な命令形に修正
         const initDataList = [
             {
                 unit: "数と式（循環小数）",
                 text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。",
                 sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"],
                 has_diagram: false,
-                hint: "実際に割り算を行い、循環節（繰り返しの周期）を見つけましょう。"
+                hint: "実際に割り算を行い、循環節（繰り返しの周期）を見つけよ。"
             },
             {
                 unit: "整数問題",
                 text: "自然数 $n$ について、式 $P = n^2 - 12n + 27$ を考える。",
                 sub: ["(1) 式 $P$ を因数分解せよ。", "(2) $P$ が素数となるような自然数 $n$ をすべて求めよ。"],
                 has_diagram: false,
-                hint: "$P$ が素数となるには、因数のどちらかが $1$ か $-1$ になる必要があります。"
+                hint: "因数分解し、一方が $1$ か $-1$ になることを利用せよ。"
             },
             {
                 unit: "方程式",
                 text: "$x$ についての2次方程式 $x^2 - (a-3)x + a^2 - 4a - 5 = 0$ があり、1つの解は $x = 0$ である。",
                 sub: ["(1) 定数 $a$ の値を求めよ。", "(2) 他方の解を求めよ。"],
                 has_diagram: false,
-                hint: "$x=0$ を方程式に代入して、$a$ についての二次方程式を解きます。"
+                hint: "$x=0$ を代入し、$a$ についての2次方程式を解け。"
             }
         ];
 
@@ -153,7 +153,6 @@
             if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
             document.getElementById('u-title').innerText = unitName;
             
-            // 前提条件の表示
             const pTextElem = document.getElementById('p-text');
             pTextElem.innerText = "【前提条件】\n" + cleanText(p.text);
             
@@ -195,24 +194,32 @@
 
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
+            
+            // 【修正】偏差値60以上における小問剥奪ロジックを追加
             let adaptive = `現在偏差値${dev}に最適化せよ。`;
+            if (dev >= 60) {
+                adaptive = `現在偏差値${dev}（最上位層）向け。原則、小問による誘導は禁止し、単一の重い問いにせよ。ただし、法則の推測や補題の証明が必須な「超難問」に限り、戦略的な足場となる小問を設けてもよい。`;
+            } else if (dev < 45) {
+                adaptive = `現在偏差値${dev}向け。基礎を重視し、計算手順を分割する丁寧な小問を設けよ。`;
+            }
 
             let promptText = `最難関高校講師。類題を作成。数値替え禁止。数式はLaTeX($)を使用。`;
             if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる系統の良問を作成。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
-                // 【修正】AIへのプロンプトで text と sub の役割分担を厳格に指示
+                // 【修正】文体（トーン）を命令形に強制する指示を追加
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
                         【指示】${adaptive} 方程式は代数、確率は論理重視、循環小数も可。
+                        【文体ルール】問題文およびヒントは、冗長な表現や丁寧語を避け、短く簡潔な命令形（「〜せよ」「〜を求めよ」等）に統一すること。
                         【最重要ルール】
                         ・「text」には問題の【前提条件や状況設定のみ】を記述し、「〜を求めよ」などの問いは絶対に含めないこと。
-                        ・実際の問いはすべて「sub」配列の中に「(1) 〜を求めよ」「(2) 〜を求めよ」の形式で分割して記述すること。
+                        ・実際の問いはすべて「sub」配列の中に記述すること。問いが1つの場合は「〜を求めよ。」とし、複数の場合は「(1) 〜」「(2) 〜」の形式で分割せよ。
                         出力は以下のJSONのみを出力せよ。
-                        {"unit":"単元名","text":"前提条件のみ記述","sub":["(1) ...","(2) ..."],"hint":"...", "has_diagram": true}` }] }],
+                        {"unit":"単元名","text":"前提条件のみ記述","sub":["..."],"hint":"簡潔な命令形で", "has_diagram": true}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
