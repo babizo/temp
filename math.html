@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.4.9</title>
+    <title>最難関突破 AI数学講師 v2.5.0</title>
     
     <script>
         window.MathJax = {
@@ -26,7 +26,7 @@
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
-        .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 2px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
+        .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
         .btn-camera { background: var(--success); color: white; flex: 1; }
@@ -42,7 +42,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.4.9 Freeze-Deflector</span>
+        <span class="version-tag">ver 2.5.0 Timer-Stability</span>
     </div>
     
     <div id="debug-output"></div>
@@ -109,10 +109,7 @@
         });
 
         function abortGeneration() {
-            if (currentAbortController) {
-                currentAbortController.abort();
-                currentAbortController = null;
-            }
+            if (currentAbortController) { currentAbortController.abort(); currentAbortController = null; }
             hideUI();
         }
 
@@ -146,25 +143,17 @@
             const hasMath = /[0-9xyz$]|[\u0370-\u03ff]/.test(fullContent);
             const hasObjective = /求めよ|示せ|証明せよ|答えよ|作図せよ/.test(fullContent);
 
-            // ゴミ検知時の再帰
-            if (fullContent.length > 0 && (!hasMath || !hasObjective)) {
-                generateNext(false); 
-                return;
-            }
+            if (fullContent.length > 0 && (!hasMath || !hasObjective)) { generateNext(false); return; }
 
             state.prob = p;
-            state.graded = false; 
-            state.seen_answer = false; 
-            state.prefetched_answer = null; 
+            state.graded = false; state.seen_answer = false; state.prefetched_answer = null; 
             
             document.getElementById('u-title').innerText = getUnit(p);
             const pTextElem = document.getElementById('p-text');
             pTextElem.innerText = cleanText(p.text).trim() ? "【問題】\n" + cleanText(p.text).trim() : "";
             
             const rawSub = p.sub || p.questions || p.q || [];
-            const subItems = Array.isArray(rawSub) ? rawSub : [rawSub];
-            const validSubs = subItems.map(cleanText).filter(s => s.trim() !== "");
-            document.getElementById('q-list').innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
+            document.getElementById('q-list').innerHTML = (Array.isArray(rawSub) ? rawSub : [rawSub]).map(cleanText).filter(s => s.trim() !== "").map(s => `<li>${s}</li>`).join('');
             
             let hText = cleanText(p.hint).trim();
             document.getElementById('h-box').innerText = (!hText || hText === "なし") ? "基本原理に立ち返り、論理を構築せよ。" : hText;
@@ -176,7 +165,8 @@
                 document.getElementById('zoom-box').style.display = 'none'; 
             } else {
                 document.getElementById('zoom-box').style.display = 'flex';
-                layer.innerHTML = p.svg || `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div style="font-family:monospace; font-size:1.2rem; color:#aaa;">0.0s</div>`;
+                // 作図開始前にプレースホルダーを表示
+                layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val" style="font-family:monospace; font-size:1.2rem; color:#aaa;">0.0s</div>`;
             }
             renderMath();
             prefetchAnswer();
@@ -200,33 +190,23 @@
             state.seen_answer = true;
             const resBox = document.getElementById('res-box');
             if (state.prefetched_answer) {
-                resBox.innerHTML = state.prefetched_answer;
-                resBox.style.display = 'block';
-                renderMath();
-                saveLog("×", 0);
-                state.graded = true;
+                resBox.innerHTML = state.prefetched_answer; resBox.style.display = 'block'; renderMath(); saveLog("×", 0); state.graded = true;
             } else {
                 showUI("取得中...");
                 try {
                     await prefetchAnswer();
-                    resBox.innerHTML = state.prefetched_answer || "取得失敗。";
-                    resBox.style.display = 'block';
-                    renderMath();
-                    saveLog("×", 0);
-                    state.graded = true;
+                    resBox.innerHTML = state.prefetched_answer || "取得失敗。"; resBox.style.display = 'block'; renderMath(); saveLog("×", 0); state.graded = true;
                 } catch (e) { alert("失敗"); } finally { hideUI(); }
             }
         }
 
         function robustJSONParse(rawStr) {
             let s = rawStr;
-            const startIdx = s.indexOf('{');
-            const endIdx = s.lastIndexOf('}');
+            const startIdx = s.indexOf('{'); const endIdx = s.lastIndexOf('}');
             if (startIdx !== -1 && endIdx !== -1) { s = s.substring(startIdx, endIdx + 1); }
             s = s.replace(/[\r\n]+/g, " "); 
             try { return JSON.parse(s); } catch (e) {
-                s = s.replace(/\\\\/g, "___BS___").replace(/\\"/g, "___QT___").replace(/\\n/g, "___NW___");
-                s = s.replace(/\\/g, "\\\\");
+                s = s.replace(/\\\\/g, "___BS___").replace(/\\"/g, "___QT___").replace(/\\n/g, "___NW___").replace(/\\/g, "\\\\");
                 s = s.replace(/___BS___/g, "\\\\").replace(/___QT___/g, "\\\"").replace(/___NW___/g, "\\n");
                 return JSON.parse(s);
             }
@@ -237,13 +217,12 @@
             const isProof = Math.random() < 0.2;
             showUI(`問題を構成中...`);
             currentAbortController = new AbortController();
-            
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `数学問題エンジン。具体的数値を含むこと。「〜を求めよ」「〜を示せ」と末尾に明記せよ。メタ発言禁止。JSON直下にtext, sub, unit, hint, has_diagramを含めよ。偏差値${dev}向け。${isProof ? "【指示】証明問題を出題せよ。" : ""} 幾何、関数、整数、確率からランダム。立体図形はSVG。JSONのみ。` }] }],
+                        contents: [{ parts: [{ text: `数学問題エンジン。具体的数値を含むこと。「〜を求めよ」「〜を示せ」と末尾に明記せよ。JSON直下にtext, sub, unit, hint, has_diagramを含めよ。偏差値${dev}向け。${isProof ? "【指示】証明問題を出題せよ。" : ""} 幾何、関数、整数、確率からランダム。立体図形はSVG。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -251,35 +230,34 @@
                 const json = robustJSONParse(data.candidates[0].content.parts[0].text);
                 applyProb(json);
                 if (json.has_diagram !== false) autoDraw(0);
-            } catch (e) { 
-                if (e.name !== 'AbortError') alert("生成失敗。やり直してください。"); 
-            } finally {
-                currentAbortController = null;
-                hideUI();
-            }
+            } catch (e) { if (e.name !== 'AbortError') alert("生成失敗。やり直してください。"); }
+            finally { currentAbortController = null; hideUI(); }
         }
 
         async function autoDraw(retryCount = 0) {
             if (!state.prob.text) return;
             const layer = document.getElementById('svg-layer');
+            const timerVal = document.getElementById('draw-timer-val');
             let startTime = Date.now();
+            
             clearInterval(state.dt);
             state.dt = setInterval(() => {
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-                layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div>`;
+                if (timerVal) timerVal.innerText = elapsed + "s";
+                else layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val" style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div>`;
             }, 100);
 
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ。全ラベル配置。viewBox="0 0 200 200"。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ。全ラベル配置。viewBox="0 0 200 200"。"&"等の実体参照禁止。` }] }] })
                 });
                 const data = await res.json();
                 const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
-                else if (retryCount < 1) autoDraw(retryCount + 1);
+                else if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); }
                 else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
-            } catch (e) { if (retryCount < 1) autoDraw(retryCount + 1); }
+            } catch (e) { if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); } }
             finally { clearInterval(state.dt); }
         }
 
@@ -295,13 +273,10 @@
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
-                    document.getElementById('res-box').innerText = fb;
-                    document.getElementById('res-box').style.display = 'block';
-                    renderMath();
+                    document.getElementById('res-box').innerText = fb; document.getElementById('res-box').style.display = 'block'; renderMath();
                     const score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
                     saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), score);
-                    state.graded = true;
-                    hideUI();
+                    state.graded = true; hideUI();
                 };
                 reader.readAsDataURL(file);
             } catch (e) { hideUI(); alert("失敗"); }
@@ -349,18 +324,8 @@
         function doSkip() { if (!state.graded) saveLog("SKIP", 0); generateNext(true); }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; renderMath(); }
         function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
-        function showUI(m) { 
-            document.getElementById('status-ui').style.display='block'; 
-            document.getElementById('msg').innerText=m; 
-            let s=Date.now(); 
-            clearInterval(state.t);
-            state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); 
-        }
-        function hideUI() { 
-            document.getElementById('status-ui').style.display='none'; 
-            clearInterval(state.t); 
-            state.t = null;
-        }
+        function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); clearInterval(state.t); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
+        function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); state.t = null; }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
         document.getElementById('c-input').onchange = (e) => doGrade(e.target.files[0]);
     </script>
