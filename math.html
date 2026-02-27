@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v3.3.5</title>
+    <title>AI数学講師：実力連動型・最難関対策</title>
     
     <script>
         window.MathJax = {
@@ -41,6 +41,7 @@
         .stat-val { font-size: 1.8rem; font-weight: bold; color: var(--primary); font-family: monospace; }
         .target-label { font-size: 0.8rem; color: var(--hint); font-weight: bold; min-width: 140px; text-align: left; }
         
+        .desc-text { font-size: 0.75rem; color: #aaa; margin-top: 5px; text-align: center; }
         .btn-redraw { position: absolute; right: 10px; top: 50px; background: #444; color: #fff; border: 1px solid #666; padding: 3px 10px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; z-index: 10; font-weight: bold; }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.98); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 15%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
@@ -59,12 +60,13 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.3.5 Tsukukoma-76</span>
+        <span class="version-tag">ver 3.4.0 Adaptive</span>
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>志望校目標設定 (SAPIX)</h1></div>
+        <div class="header-flex"><h1>実力相応校・推定レベル設定</h1></div>
         <div class="dev-control-box">
+            <div class="desc-text">※スライダーの偏差値レベルに基づいた問題が生成されます。<br>正解を重ねると自動的に推定偏差値が上昇します。</div>
             <div class="dev-display-row">
                 <span id="dev-val" class="stat-val">60.0</span>
                 <span id="target-school" class="target-label">[日比谷・学芸]</span>
@@ -80,7 +82,7 @@
                 <span style="left: 92%;">76<br>筑駒</span>
             </div>
         </div>
-        <div style="display:flex; justify-content:space-around; border-top:1px solid #444; padding-top:10px; margin-top:20px;">
+        <div style="display:flex; justify-content:space-around; border-top:1px solid #444; padding-top:10px; margin-top:15px;">
             <div><div style="font-size:0.65rem; color:#aaa;">累計演習</div><div id="count-val" class="stat-val" style="font-size:1.2rem; text-align:center;">0</div></div>
         </div>
     </div>
@@ -95,7 +97,7 @@
         
         <div id="canvas-footer" class="canvas-footer" style="display:none;">
             <div class="text-alert">※高品質な構成のため最大1分程かかる場合があります</div>
-            <div class="text-dim">※図は必ずしも正確ではありません（移動・拡大可）</div>
+            <div class="text-dim">※図は必ずしも正確ではありません</div>
         </div>
 
         <div id="math-content-area">
@@ -104,9 +106,9 @@
             <div id="h-box" style="display:none; color:var(--hint); font-size:0.85rem; padding:10px; background:#332b1e; border-radius:5px; margin:10px 0; border-left:4px solid var(--hint);"></div>
         </div>
         <div style="display:flex; gap:10px;">
-            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; font-size:0.8rem; flex:1;">💡 助言を表示</button>
-            <button class="btn-ai-gen" onclick="generateNext(false)" style="flex:1.5;">✨ 類題作成</button>
-            <button class="btn-hard" onclick="generateNext(false, true)" style="background:var(--hard); color:white; flex:1.5;">🔥 最難関へ</button>
+            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; font-size:0.8rem; flex:1;">💡 ヒントを表示</button>
+            <button class="btn-ai-gen" onclick="generateNext(false)" style="flex:1.5;">✨ 推定レベルで出題</button>
+            <button class="btn-hard" onclick="generateNext(false, true)" style="background:var(--hard); color:white; flex:1.5;">🔥 筑駒級に挑む</button>
         </div>
     </div>
 
@@ -120,17 +122,13 @@
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>復習リスト</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">リセット</button></div>
+        <div class="header-flex"><h1>演習履歴と推定推移</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">履歴クリア</button></div>
         <div id="hist-list"></div>
     </div>
 
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
-        <div class="canvas-footer" style="margin-top:15px;">
-            <div class="text-alert">※高品質な構成のため最大1分程かかる場合があります。</div>
-            <div style="color:#888; font-size:0.7rem; font-weight:normal;">AI委員が思考を完結させるまでお待ちください。</div>
-        </div>
         <button onclick="abortGeneration()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; border:none; margin-top:15px; width:60%;">中断</button>
     </div>
 
@@ -207,7 +205,7 @@
                 else subArray = ["与えられた条件に従い答えを導け。"];
             }
             document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
-            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "数理的構造を精査せよ。";
+            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "論理的思考で突破せよ。";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
             const drawKeywords = /三角形|四角形|円|相似|合同|平行|垂直|線分|中点|関数|グラフ|座標|直線|曲線|放物線|立体|見取り図|展開図|三平方|ピタゴラス/;
             const showDiagram = p.has_diagram || /平面図形|幾何|関数|立体|空間/.test(state.current_target_unit) || drawKeywords.test(mainText);
@@ -244,8 +242,8 @@
 
         async function generateNext(isOther = false, isHardMode = false, retryCount = 0) {
             if (retryCount === 0) { if (drawingAbortController) drawingAbortController.abort(); drawingLock = false; }
-            let sapixDev = parseFloat(document.getElementById('dev-val').innerText);
-            let devValue = isHardMode ? 76 : sapixDev;
+            let currentDev = parseFloat(document.getElementById('dev-val').innerText);
+            let devValue = isHardMode ? 76 : currentDev;
             let target = isOther ? (()=>{
                 const allUnits = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率", "データの活用"];
                 const pool = allUnits.filter(u => !state.last_units.includes(u));
@@ -254,10 +252,10 @@
                 return res;
             })() : state.current_target_unit;
             state.current_target_unit = target;
-            showUI(`${target}${isHardMode ? 'の筑駒レベル' : ''}を構成中...${retryCount > 0 ? '(再試行中)' : ''}`);
+            showUI(`${target} (Lv.${devValue.toFixed(1)}) を構成中...`);
             currentAbortController = new AbortController();
             const prompt = `あなたは最難関入試の「数学作問委員」です。
-【使命】受験生の真の思考力を試す厳格な問題を構成せよ。
+【使命】受験生の思考力を試す厳格な問題を構成せよ。
 【遵守】口調は「～を求めよ」「～を証明せよ」に限定。
 【形式】単元「${target}」、SAPIX偏差値${devValue}相当。JSON(text, sub:[], hint)形式。`;
             try {
@@ -292,34 +290,43 @@
         async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解答。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
         function peekAnswer() { 
             if (state.seen_answer) return;
-            if (!confirm("解答を確認すると本問は0点(不正解)として記録される。よろしいか？")) return; 
+            if (!confirm("解答を見ると本問の偏差値加算は行われません。よろしいですか？")) return; 
             state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得失敗。"; 
             document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); 
         }
         function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
         function doSkip() { generateNext(true); }
-        function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("全履歴をリセット？")) { localStorage.clear(); location.reload(); } }
+        
         function refreshStats() { 
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]"); 
             document.getElementById('count-val').innerText = h.length; 
             document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><div><span class="score-badge">${x.s}/10</span></div></div>`).join('');
+            
+            // 重要：正解数に応じて偏差値を自動計算
             if(h.length > 0) {
-                const avgScore = h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length;
-                const autoDev = 35 + (avgScore * 4); 
-                document.getElementById('dev-slider').value = autoDev;
-                document.getElementById('dev-val').innerText = autoDev.toFixed(1);
-                updateTargetSchool(autoDev);
+                const totalScore = h.map(x => x.s).reduce((a,b)=>a+b,0);
+                const avgScore = totalScore / h.length;
+                // 基礎30 + 平均得点に応じた加算 + 演習量による微増
+                const calculatedDev = Math.min(80, 40 + (avgScore * 3.5) + (h.length * 0.1));
+                
+                document.getElementById('dev-slider').value = calculatedDev;
+                document.getElementById('dev-val').innerText = calculatedDev.toFixed(1);
+                updateTargetSchool(calculatedDev);
             }
         }
+
         function saveLog(mark, score) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             const probToSave = JSON.parse(JSON.stringify(state.prob));
             probToSave.unit = state.current_target_unit;
             h.unshift({ d: new Date().toLocaleDateString(), u: state.current_target_unit, m: mark, s: score, p: probToSave });
-            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30))); refreshStats();
+            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); 
+            refreshStats(); // ここでスライダーと難易度が更新される
         }
+
         document.getElementById('c-input').onchange = (e) => {
-            if (state.seen_answer) return; showUI("採点中...");
+            if (state.seen_answer) return; showUI("答案を分析中...");
             const reader = new FileReader();
             reader.onload = async (ev) => {
                 try {
@@ -328,7 +335,8 @@
                     });
                     const fb = cleanText((await res.json()).candidates[0].content.parts[0].text);
                     document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
-                    saveLog(fb.includes("Score: 10") ? "○" : "×", parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
+                    const score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
+                    saveLog(score >= 8 ? "○" : "×", score);
                 } finally { hideUI(); }
             };
             reader.readAsDataURL(e.target.files[0]);
