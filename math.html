@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.9.9</title>
+    <title>最難関突破 AI数学講師 v3.0.0</title>
     
     <script>
         window.MathJax = {
@@ -32,8 +32,9 @@
         .btn-ai-gen { background: var(--ai); color: white; }
         .btn-camera { background: var(--success); color: white; flex: 1; }
         .btn-answer-only { background: #555; color: white; flex: 1; }
-        .important-wait { color: #ffadad; font-weight: bold; font-size: 0.8rem; margin-top: 5px; text-align: center; line-height: 1.3; }
-        .draw-status { text-align: center; color: var(--card); font-weight: bold; }
+        .canvas-footer { font-weight: bold; font-size: 0.75rem; text-align: center; line-height: 1.4; margin-bottom: 10px; }
+        .text-alert { color: #ffadad; }
+        .text-dim { color: #888; font-weight: normal; font-size: 0.65rem; }
         #draw-timer-val { font-family: monospace; font-size: 1.2rem; color: #888; }
     </style>
 </head>
@@ -41,7 +42,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.9.9 Canvas-統一</span>
+        <span class="version-tag">ver 3.0.0 UI-Final</span>
     </div>
 
     <div class="card">
@@ -59,10 +60,15 @@
             <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:6px 12px; font-size:0.85rem; width:auto;">他単元へ ≫</button>
         </div>
         <div class="btn-redraw" onclick="renderMath()">↻ 数式再描画</div>
+        
         <div class="canvas-container" id="zoom-box">
             <div id="svg-layer"></div>
         </div>
-        <div id="canvas-info" class="important-wait" style="display:none;">※高品質な構成のため最大1分程かかる場合があります</div>
+        
+        <div id="canvas-footer" class="canvas-footer" style="display:none;">
+            <div class="text-alert">※高品質な構成のため最大1分程かかる場合があります</div>
+            <div class="text-dim">※図は必ずしも正確ではありません（移動・拡大可）</div>
+        </div>
         
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; margin: 8px 0; color: #ccc; border-bottom: 1px dashed #444; padding-bottom: 8px;"></p>
@@ -88,7 +94,10 @@
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
-        <div class="important-wait">※高品質な構成のため最大1分程かかる場合があります。<br>AIが思考を完結させるまでお待ちください。</div>
+        <div class="canvas-footer" style="margin-top:15px;">
+            <div class="text-alert">※高品質な構成のため最大1分程かかる場合があります。</div>
+            <div style="color:#888; font-size:0.7rem; font-weight:normal;">AIが思考を完結させるまでお待ちください。</div>
+        </div>
         <button onclick="abortGeneration()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; border:none; margin-top:10px; width:60%;">中断</button>
     </div>
 
@@ -96,15 +105,15 @@
         let currentAbortController = null;
         let drawingAbortController = null;
         let drawingLock = false;
+        let manualDev = null;
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false, seen_answer: false, prefetched_answer: null };
 
         window.onload = () => {
-            initZoom();
-            refreshStats();
+            initZoom(); refreshStats();
             applyProb({ 
-                unit: "数と式", text: "次の条件において、問いに答えよ。", 
+                unit: "数と式", text: "次の等式において、指定された値を求めよ。", 
                 sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], 
-                hint: "公式 $(x+y)^2 - 2xy$ を利用せよ。", has_diagram: false 
+                hint: "対称式の基本公式を利用せよ。", has_diagram: false 
             });
             setTimeout(renderMath, 1500);
         };
@@ -141,13 +150,13 @@
             document.getElementById('res-box').style.display = 'none';
             
             const zoomBox = document.getElementById('zoom-box');
-            const canvasInfo = document.getElementById('canvas-info');
+            const footer = document.getElementById('canvas-footer');
             if (p.has_diagram || (p.unit && (p.unit.includes("関数") || p.unit.includes("幾何")))) {
                 zoomBox.style.display = 'flex';
-                canvasInfo.style.display = 'block';
-                document.getElementById('svg-layer').innerHTML = `<div class="draw-status">🎨 作図中...</div><div id="draw-timer-val">0.0s</div>`;
+                footer.style.display = 'block';
+                document.getElementById('svg-layer').innerHTML = `<div style="color:#444; font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val">0.0s</div>`;
                 setTimeout(() => autoDraw(0), 100);
-            } else { zoomBox.style.display = 'none'; canvasInfo.style.display = 'none'; }
+            } else { zoomBox.style.display = 'none'; footer.style.display = 'none'; }
             renderMath(); prefetchAnswer();
         }
 
@@ -160,7 +169,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: drawingAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。文中の全アルファベットを網羅せよ。点名と数値のみ配置。記法$不可。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。文中の全アルファベットを網羅せよ。点名と数値のみ配置。` }] }] })
                 });
                 let svg = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (svg) {
@@ -185,7 +194,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学講師。入試問題調。text=条件、sub=問い。日本語。偏差値${devValue}、単元「${target}」。JSON形式。数式$ $。閉じ$を忘れず1分程かけて構成せよ。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学講師。入試問題調。text=条件、sub=問い。日本語。偏差値${devValue}、単元「${target}」。JSON形式。数式$ $。閉じ$を忘れず最大1分程かけて構成せよ。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 applyProb(JSON.parse(data.candidates[0].content.parts[0].text));
