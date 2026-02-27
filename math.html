@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.3.4</title>
+    <title>最難関突破 AI数学講師 v2.3.5</title>
     
     <script>
         window.MathJax = {
@@ -43,7 +43,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.3.4 Label-Assigned</span>
+        <span class="version-tag">ver 2.3.5 Full-Label</span>
     </div>
     
     <div id="debug-output"></div>
@@ -99,7 +99,7 @@
 
         const initDataList = [
             { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節を見つけよ。" },
-            { unit: "幾何（立体）", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BCの中点をそれぞれM, Nとする。辺AE上に点PをAP=2となるようにとる。なお、図は必ずしも正確とは限らない。", sub: ["(1) 3点M, N, Pを通る平面で切断したときの、切り口の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333" stroke-width="1.5"/><path d="M70 40 L150 40 L150 120 L70 120 Z" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="3"/><path d="M40 70 L70 40 M120 70 L150 40 M120 150 L150 120 M40 150 L70 120" fill="none" stroke="#333" stroke-width="1.5"/><path d="M80 70 L120 110 L55 55 Z" fill="rgba(231,76,60,0.4)" stroke="#e74c3c" stroke-width="2"/><text x="35" y="75" font-size="10">A</text><text x="125" y="75" font-size="10">B</text><text x="35" y="160" font-size="10">E</text></svg>`, hint: "投影図で確認せよ。" }
+            { unit: "幾何（立体）", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BCの中点をそれぞれM, Nとする。辺AE上に点PをAP=2となるようにとる。なお、図は必ずしも正確とは限らない。", sub: ["(1) 3点M, N, Pを通る平面で切断したときの、切り口の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333" stroke-width="1.5"/><path d="M70 40 L150 40 L150 120 L70 120 Z" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="3"/><path d="M40 70 L70 40 M120 70 L150 40 M120 150 L150 120 M40 150 L70 120" fill="none" stroke="#333" stroke-width="1.5"/><path d="M80 70 L120 110 L55 55 Z" fill="rgba(231,76,60,0.4)" stroke="#e74c3c" stroke-width="2"/><text x="35" y="75" font-size="10">A</text><text x="125" y="75" font-size="10">B</text><text x="35" y="160" font-size="10">E</text><text x="80" y="65" font-size="10">M</text><text x="125" y="115" font-size="10">N</text><text x="45" y="60" font-size="10">P</text></svg>`, hint: "投影図で確認せよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -180,7 +180,7 @@
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
             let adaptive = `現在偏差値${dev}。`;
-            if (dev >= 60) adaptive += `（最上位層）。誘導不要。`;
+            if (dev >= 60) adaptive += `（最上位層）。誘導不要。一撃で解かせよ。`;
             const isProof = Math.random() < 0.2;
             const proofInstr = isProof ? "【最優先】証明問題にせよ。「〜を示せ」等の形式。" : "";
 
@@ -199,7 +199,7 @@
                         ・図を伴う場合（has_diagram: true）、text末尾に「なお、図は必ずしも正確とは限らない。」を付与。
                         ・幾何、関数、整数、確率からランダム選定。
                         ・立体図形は必ずSVGで作図。
-                        【構成】textは前提条件。問いはsub。JSONのみ。SVGコード混入厳禁。` }] }],
+                        【構成】textは前提条件。問いはsub。JSONのみ。SVG混入厳禁。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -226,8 +226,9 @@
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力。
                     【絶対条件】
-                    ・各頂点や重要な点（A, B, C, P等）の座標付近に、必ず <text> タグを用いてアルファベットのラベルを配置せよ。
-                    ・ラベルは図形と重ならないよう、頂点から5〜10px程度外側にオフセットせよ。
+                    ・問題文および小問に出現する【すべてのアルファベット】（頂点A,Bや点P, Q, M等）について、必ず図の中にラベルとして配置せよ。
+                    ・ラベルは <text> タグを使い、図形線と重ならないよう数ピクセル外側に置け。
+                    ・問題文で言及された点は、その名称（アルファベット）が図にないと解けないため、漏れは許されない。
                     ・viewBox="0 0 200 200"。Markdown不要。余計な説明禁止。` }] }] })
                 });
                 const data = await res.json();
