@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.7.8</title>
+    <title>最難関突破 AI数学講師 v2.7.9</title>
     
     <script>
         window.MathJax = {
@@ -37,8 +37,6 @@
         #dev-val { cursor: pointer; border-bottom: 1px dashed var(--primary); padding: 0 5px; }
         #dev-val:focus { background: #333; outline: none; border-bottom: 1px solid var(--success); color: var(--success); }
         .manual-mode { color: var(--success) !important; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
-        .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .wait-info { font-size: 0.65rem; color: #888; margin-top: 10px; line-height: 1.4; }
     </style>
@@ -47,7 +45,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.7.8</span>
+        <span class="version-tag">ver 2.7.9 Smart-Sub</span>
     </div>
 
     <div class="card">
@@ -103,7 +101,7 @@
         <p id="msg" style="font-weight:bold;"></p>
         <p id="level-msg" style="font-size:0.75rem; color:var(--primary); margin-top:5px;"></p>
         <div class="wait-info">※高品質な構成のため最大1分かかる場合があります。</div>
-        <button class="btn-cancel" onclick="abortGeneration()" style="background:#444; color:#ccc; padding:8px 20px; border-radius:8px; border:none; margin-top:15px;">中断</button>
+        <button class="btn-cancel" onclick="abortGeneration()" style="background:#444; color:#ccc; padding:8px 20px; border-radius:8px; border:none; margin-top:15px;">作成を中断</button>
     </div>
 
     <script>
@@ -139,22 +137,11 @@
         function cleanText(t, index = null) {
             if (!t) return "";
             let s = (typeof t === 'object') ? (t.text || t.question || JSON.stringify(t)) : String(t);
-            
-            // riangle バグ修正 & LaTeX補完
             s = s.replace(/riangle/g, "\\triangle ");
             if (!s.includes('$')) s = s.replace(/([a-zA-Z0-9]+)\^([a-zA-Z0-9]+)/g, '$$$1^$2$$');
-
             s = s.replace(/^数学$|^講師$|^問題$|^解説$|^・数学$/g, "").replace(/・/g, ""); 
             if (index !== null) { s = s.replace(/^\(\d+\)\s*/, ""); s = `(${index}) ` + s.trim(); }
             return s.trim();
-        }
-
-        function renderMath() {
-            if (window.MathJax && window.MathJax.typesetPromise) {
-                const targets = [document.getElementById('math-content-area'), document.getElementById('res-box')];
-                MathJax.typesetPromise(targets);
-                setTimeout(() => MathJax.typesetPromise(targets), 600);
-            }
         }
 
         function applyProb(p) {
@@ -162,15 +149,32 @@
             state.graded = false; state.seen_answer = false; state.prefetched_answer = null;
             resetView();
             document.getElementById('u-title').innerText = p.unit || "総合";
+            
             const cleanMainText = cleanText(p.text);
             document.getElementById('p-text').innerText = cleanMainText;
+            
+            // 問いがあるかチェック
+            const hasObjectiveInMain = /求めよ|答えよ|示せ|証明せよ/.test(cleanMainText);
             const rawSub = p.sub || p.questions || [];
-            const subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 1);
-            const filteredSubs = subArray.filter(q => !cleanMainText.includes(String(q).replace(/^\(\d+\)\s*/, "").trim()));
-            document.getElementById('q-list').innerHTML = filteredSubs.length === 0 ? "" : filteredSubs.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
+            const subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 2);
+
+            // 重複フィルタ
+            const filteredSubs = subArray.filter(q => {
+                const qBody = String(q).replace(/^\(\d+\)\s*/, "").trim();
+                return !cleanMainText.includes(qBody);
+            });
+
+            // メイン文に目的があり、小問が重複している（または空）なら表示しない
+            if (hasObjectiveInMain && filteredSubs.length === 0) {
+                document.getElementById('q-list').innerHTML = "";
+            } else {
+                document.getElementById('q-list').innerHTML = filteredSubs.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
+            }
+            
             document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理を確認せよ。";
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
+            
             const zoomBox = document.getElementById('zoom-box');
             const disclaimer = document.getElementById('diag-disclaimer');
             if (p.has_diagram || (p.unit && (p.unit.includes("関数") || p.unit.includes("幾何")))) {
@@ -197,7 +201,8 @@
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: `数学問題生成エンジン。単元「${target}」。偏差値${devValue}向け。誘導なし。JSON(text, sub, unit, hint, has_diagram)。数式$ $。` }] }],
+                        contents: [{ parts: [{ text: `数学問題生成エンジン。単元「${target}」。偏差値${devValue}向け。JSON(text, sub, unit, hint, has_diagram)。数式$ $。
+                        【制約】問題文(text)で問いが完結する場合はsubを空配列に。重複は禁止。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -257,7 +262,13 @@
         }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
         function resetView() { state.scale = 1; state.x = 0; state.y = 0; updateView(); }
-
+        function renderMath() {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                const targets = [document.getElementById('math-content-area'), document.getElementById('res-box')];
+                MathJax.typesetPromise(targets);
+                setTimeout(() => MathJax.typesetPromise(targets), 600);
+            }
+        }
         async function doGrade(file) {
             if (state.seen_answer) { alert("解答閲覧済のため採点不可。"); return; }
             showUI("採点中...");
@@ -276,13 +287,11 @@
             };
             reader.readAsDataURL(file);
         }
-
         function saveLog(mark, score) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             h.unshift({ d: new Date().toLocaleDateString(), u: state.prob.unit || "総合", m: mark, s: score, p: state.prob });
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30))); refreshStats();
         }
-
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             document.getElementById('count-val').innerText = h.length;
@@ -295,20 +304,17 @@
             let html = ""; for(let u in units) { const a = units[u].s/units[u].c; html += `<div style="margin-bottom:5px;"><span>${u}</span> <span style="float:right;">${a.toFixed(1)}/10</span><div style="background:#444; height:4px;"><div style="background:var(--success); height:100%; width:${a*10}%;"></div></div></div>`; }
             document.getElementById('unit-chart').innerHTML = html;
         }
-
         async function prefetchAnswer() {
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答。問題：${state.prob.text}` }] }] }) });
                 state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text);
             } catch (e) {}
         }
-
         function peekAnswer() {
-            if (state.seen_answer) return; if (!confirm("解答を見ると0点になります。")) return;
+            if (state.seen_answer) return; if (!confirm("解答を見ると採点が0点になります。")) return;
             state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得中...";
             document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); renderMath();
         }
-
         function showUI(m, dev = null) { 
             document.getElementById('status-ui').style.display='block'; 
             document.getElementById('msg').innerText=m; 
