@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v3.1.7</title>
+    <title>最難関突破 AI数学講師 v3.2.3</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.1.7 Content-Logic</span>
+        <span class="version-tag">ver 3.2.3 Tone-Lock</span>
     </div>
 
     <div class="card">
@@ -117,7 +117,6 @@
         window.onload = () => {
             initZoom(); refreshStats();
             applyProb({ unit: "数と式", text: "次の等式において、指定された値を求めよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"] });
-            
             const devEl = document.getElementById('dev-val');
             devEl.addEventListener('blur', () => {
                 let val = parseFloat(devEl.innerText);
@@ -127,7 +126,6 @@
                 updateTargetSchool(val);
             });
             devEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); devEl.blur(); } });
-            
             setTimeout(renderMath, 1500);
         };
 
@@ -146,6 +144,15 @@
         function cleanText(t, index = null) {
             if (!t) return "";
             let s = (typeof t === 'object') ? (t.text || t.problem || t.body || t.question || JSON.stringify(t)) : String(t);
+            if (s.includes('{') && s.includes('}')) {
+                try {
+                    const match = s.match(/\{[\s\S]*\}/);
+                    if (match) {
+                        const parsed = JSON.parse(match[0]);
+                        s = parsed.question_text || parsed.text || parsed.problem || s;
+                    }
+                } catch(e) {}
+            }
             if (index === null) s = s.replace(/^[\s\S]*?(ヒント|解説|解答)：?/g, "").replace(/^\(\d+\)\s*/, "");
             s = s.replace(/riangle/g, "\\triangle ").replace(/\\triangle(?![ \s])/g, "\\triangle ");
             if (!s.includes('$')) s = s.replace(/([a-z]\s*=\s*[^ 　\n]+|[a-z]\^\d+|[A-Z]\([^\)]+\))/gi, '$$$1$$');
@@ -156,17 +163,14 @@
         }
 
         function applyProb(p) {
-            if (!p) return;
+            if (!p) return false;
+            const mainText = cleanText(p.text || p.problem || p.body);
+            if (!mainText || mainText.length < 5) return false;
             state.prob = p; state.seen_answer = false; state.prefetched_answer = null; resetView();
-            
-            // AIのラベルよりシステム決定単元を優先
             const unitToUse = p.unit_lock || state.current_target_unit || p.unit || "総合";
             state.current_target_unit = unitToUse;
             document.getElementById('u-title').innerText = unitToUse;
-
-            const mainText = cleanText(p.text || p.problem || p.body || "問題データなし");
             document.getElementById('p-text').innerText = mainText;
-
             const rawSub = p.sub || p.questions || p.q || [];
             let subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
             if (subArray.length === 0 || (subArray.length === 1 && subArray[0].length < 5)) {
@@ -180,11 +184,8 @@
             document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
             document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "定義を再確認せよ。";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
-
-            // 【新ロジック】単元名だけでなく、問題文の中身からも作図の必要性を判定
             const drawKeywords = /三角形|四角形|円|相似|合同|平行|垂直|線分|中点|関数|グラフ|座標|直線|曲線|放物線|立体|見取り図|展開図|三平方|ピタゴラス/;
-            const showDiagram = p.has_diagram || /平面図形|幾何|関数|立体|空間/.test(unitToUse) || drawKeywords.test(mainText);
-            
+            const showDiagram = p.has_diagram || /平面図形|幾何|関数|立体|空間/.test(state.current_target_unit) || drawKeywords.test(mainText);
             document.getElementById('zoom-box').style.display = showDiagram ? 'flex' : 'none';
             document.getElementById('canvas-footer').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) {
@@ -192,6 +193,7 @@
                 setTimeout(() => autoDraw(0, mainText), 100);
             }
             renderMath(); prefetchAnswer();
+            return true;
         }
 
         async function autoDraw(retry = 0, sourceText) {
@@ -217,29 +219,24 @@
             finally { clearInterval(state.dt); drawingLock = false; drawingAbortController = null; }
         }
 
-        async function generateNext(isOther = false, isHardMode = false) {
-            if (drawingAbortController) drawingAbortController.abort();
-            drawingLock = false; if (state.dt) clearInterval(state.dt);
+        async function generateNext(isOther = false, isHardMode = false, retryCount = 0) {
+            if (retryCount === 0) { if (drawingAbortController) drawingAbortController.abort(); drawingLock = false; if (state.dt) clearInterval(state.dt); }
             let devValue = isHardMode ? 80 : (parseFloat(document.getElementById('dev-val').innerText) || 50.0);
-            
-            let target = "";
-            if (isOther) {
+            let target = isOther ? (()=>{
                 const allUnits = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率", "データの活用"];
                 const pool = allUnits.filter(u => !state.last_units.includes(u));
-                target = pool[Math.floor(Math.random() * pool.length)];
-                state.last_units.push(target); if(state.last_units.length > 3) state.last_units.shift();
-            } else {
-                target = state.current_target_unit;
-            }
-
+                const res = pool[Math.floor(Math.random() * pool.length)];
+                state.last_units.push(res); if(state.last_units.length > 3) state.last_units.shift();
+                return res;
+            })() : state.current_target_unit;
             state.current_target_unit = target;
-            showUI(`${target}${isHardMode ? 'の最難関問' : ''}を構成中...`);
+            showUI(`${target}${isHardMode ? 'の最難関問' : ''}を構成中...${retryCount > 0 ? '(再試行中)' : ''}`);
             currentAbortController = new AbortController();
-            
-            const prompt = `数学講師。入試問題調。textには状況、subには問いの配列。
-            必ず単元「${target}」の問題を作れ。偏差値${devValue}レベル。JSON。最大1分程。
-            問題に図形や関数が含まれる場合は、図解が容易な条件設定にせよ。`;
-            
+            const prompt = `あなたは最難関私立・国立・都立入試の数学講師です。
+【絶対厳守：口調】
+問題文は必ず「～を求めよ」「～とせよ」「～を証明せよ」という入試問題・模試調で統一すること。「です・ます」「～しましょう」は禁止。
+【内容】
+単元「${target}」、偏差値${devValue}レベル。JSON(text, sub:[])形式。最大1分程かけよ。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
@@ -248,9 +245,12 @@
                 const data = await res.json();
                 const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
                 parsed.unit_lock = target;
-                applyProb(parsed);
-            } catch (e) { if (isOther) generateNext(true, isHardMode); }
-            finally { hideUI(); }
+                if (!applyProb(parsed)) throw new Error("Invalid Data");
+                hideUI();
+            } catch (e) {
+                if (retryCount < 3 && e.name !== 'AbortError') generateNext(isOther, isHardMode, retryCount + 1);
+                else { hideUI(); if (retryCount >= 3) alert("問題の構成に失敗しました。"); }
+            }
         }
 
         function initZoom() {
@@ -267,8 +267,13 @@
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); clearInterval(state.t); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function abortGeneration() { if (currentAbortController) currentAbortController.abort(); hideUI(); }
-        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解説。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
-        function peekAnswer() { if (!confirm("解答を確認しますか？")) return; state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得中..."; document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); renderMath(); }
+        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解説調（だ・である調）。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
+        function peekAnswer() { 
+            if (state.seen_answer) return;
+            if (!confirm("解答を見るとこの問題の得点は0点(不正解)として記録されます。よろしいですか？")) return; 
+            state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "解答を取得できませんでした。"; 
+            document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); renderMath(); 
+        }
         function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
         function doSkip() { generateNext(true); }
         function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
@@ -290,15 +295,13 @@
             h.unshift({ d: new Date().toLocaleDateString(), u: state.current_target_unit, m: mark, s: score, p: probToSave });
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30))); refreshStats();
         }
-
         document.getElementById('c-input').onchange = (e) => {
             if (state.seen_answer) return; showUI("採点中...");
             const reader = new FileReader();
             reader.onload = async (ev) => {
                 try {
-                    const res = await fetch(`/api/chat`, {
-                        method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `入試採点。Score: X/10。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
+                    const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `入試採点官。Score: X/10。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
                     });
                     const fb = cleanText((await res.json()).candidates[0].content.parts[0].text);
                     document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
