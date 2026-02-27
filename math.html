@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.8.7</title>
+    <title>最難関突破 AI数学講師 v2.8.8</title>
     
     <script>
         window.MathJax = {
@@ -36,7 +36,6 @@
         #dev-val { cursor: pointer; border-bottom: 1px dashed var(--primary); padding: 0 5px; }
         #dev-val:focus { background: #333; outline: none; border-bottom: 1px solid var(--success); color: var(--success); }
         .manual-mode { color: var(--success) !important; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .wait-info { font-size: 0.65rem; color: #888; margin-top: 10px; }
     </style>
@@ -45,14 +44,14 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.8.7 Full-Math-Sync</span>
+        <span class="version-tag">ver 2.8.8 Stability-Max</span>
     </div>
 
     <div class="card">
         <div class="header-flex"><h1>分析パネル</h1></div>
         <div style="display:flex; justify-content:space-around; text-align:center;">
             <div>
-                <div style="font-size:0.65rem; color:#aaa;">推定偏差値 <span style="font-size:0.5rem; color:var(--primary);">(タップ編集可)</span></div>
+                <div style="font-size:0.65rem; color:#aaa;">推定偏差値 <span style="font-size:0.5rem; color:var(--primary);">(編集可)</span></div>
                 <div style="display:flex; align-items:baseline; justify-content:center;">
                     <span id="dev-val" class="stat-val" contenteditable="true" inputmode="decimal">50.0</span>
                 </div>
@@ -100,7 +99,6 @@
         <div id="timer" style="font-size:1.8rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold;"></p>
         <p id="level-msg" style="font-size:0.75rem; color:var(--primary); margin-top:5px;"></p>
-        <div class="wait-info">※高品質な構成のため最大1分かかる場合があります。</div>
         <button class="btn-cancel" onclick="abortGeneration()" style="background:#444; color:#ccc; padding:8px 20px; border-radius:8px; border:none; margin-top:15px;">作成を中断</button>
     </div>
 
@@ -111,38 +109,40 @@
         let manualDev = null;
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false, seen_answer: false, prefetched_answer: null };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            refreshStats(); setupDevEdit(); initZoom();
-            MathJax.startup.promise.then(() => {
-                applyProb({ unit: "数と式", text: "次の等式が成り立つとき、条件に従って問いに答えよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], hint: "対称式の変形 $(x+y)^2 - 2xy$ を利用せよ。", has_diagram: false });
+        // DOMが読み込まれたら即実行
+        window.onload = () => {
+            refreshStats(); 
+            setupDevEdit(); 
+            initZoom();
+            // 待たずに1問目を表示
+            applyProb({ 
+                unit: "数と式", 
+                text: "次の条件において、問いに答えよ。", 
+                sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], 
+                hint: "対称式の公式 $(x+y)^2 - 2xy$ を利用せよ。",
+                has_diagram: false 
             });
-        });
+            // 数式描画は非同期で何度も試行する
+            renderMath();
+            setTimeout(renderMath, 1000);
+            setTimeout(renderMath, 2500);
+        };
 
         function renderMath() {
             if (window.MathJax && window.MathJax.typesetPromise) {
                 const targets = [document.getElementById('math-content-area'), document.getElementById('res-box'), document.getElementById('h-box')];
-                MathJax.typesetPromise(targets).catch(e => console.log(e));
-                setTimeout(() => MathJax.typesetPromise(targets), 500); // 遅延補完
+                MathJax.typesetPromise(targets).catch(e => console.log("MathJax Wait..."));
             }
-        }
-
-        function toggleHint() {
-            const b = document.getElementById('h-box');
-            const isShowing = (b.style.display === 'block');
-            b.style.display = isShowing ? 'none' : 'block';
-            if (!isShowing) renderMath(); // 表示した瞬間に数式を描画
         }
 
         function cleanText(t, index = null) {
             if (!t) return "";
             let s = (typeof t === 'object') ? (t.text || t.question || JSON.stringify(t)) : String(t);
             if (index === null) {
-                s = s.replace(/^[\s\S]*?(ヒント|解説|解答)：?/g, "");
-                s = s.replace(/^\(\d+\)\s*/, "");
+                s = s.replace(/^[\s\S]*?(ヒント|解説|解答)：?/g, "").replace(/^\(\d+\)\s*/, "");
             }
             s = s.replace(/riangle/g, "\\triangle ").replace(/\\triangle(?![ \s])/g, "\\triangle ");
             if (!s.includes('$')) s = s.replace(/([a-zA-Z0-9]+)\^([a-zA-Z0-9]+)/g, '$$$1^$2$$');
-            s = s.replace(/^数学$|^講師$|^問題$|^解説$|^・数学$/g, "").replace(/・/g, ""); 
             if (index !== null) { s = s.replace(/^\(\d+\)\s*/, ""); s = `(${index}) ` + s.trim(); }
             return s.trim();
         }
@@ -156,9 +156,10 @@
             const rawSub = p.sub || p.questions || p.q || [];
             const subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
             document.getElementById('q-list').innerHTML = subArray.length === 0 ? "<li>(1) 答えを求めよ。</li>" : subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
-            document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理を再確認せよ。";
+            document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理を確認せよ。";
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
+            
             const zoomBox = document.getElementById('zoom-box');
             const disclaimer = document.getElementById('diag-disclaimer');
             if (p.has_diagram || (p.unit && (p.unit.includes("関数") || p.unit.includes("幾何")))) {
@@ -169,28 +170,6 @@
             renderMath(); prefetchAnswer();
         }
 
-        async function autoDraw(retry = 0) {
-            if (drawingLock || retry > 1) return;
-            drawingLock = true; drawingAbortController = new AbortController();
-            let start = Date.now(); if (state.dt) clearInterval(state.dt);
-            state.dt = setInterval(() => { const el = document.getElementById('draw-timer-val'); if (el) el.innerText = ((Date.now() - start) / 1000).toFixed(1) + "s"; }, 100);
-            try {
-                const res = await fetch(`/api/chat`, {
-                    method: "POST", headers: {"Content-Type": "application/json"}, signal: drawingAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。点名と数値のみ配置。` }] }] })
-                });
-                let svgContent = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
-                if (svgContent) {
-                    let svg = svgContent[0].replace(/<text(.*?)>(.*?)<\/text>/gi, (m, p1, p2) => {
-                        const cl = p2.replace(/\$|\\/g, '').trim();
-                        return (cl.length === 1 || /^\d+(\.\d+)?$/.test(cl)) ? `<text${p1}>${cl}</text>` : '';
-                    });
-                    document.getElementById('svg-layer').innerHTML = svg;
-                } else throw new Error();
-            } catch (e) { if (e.name !== 'AbortError') setTimeout(() => { drawingLock = false; autoDraw(retry + 1); }, 500); }
-            finally { clearInterval(state.dt); drawingLock = false; drawingAbortController = null; }
-        }
-
         async function generateNext(isOther = false, isHardMode = false) {
             if (drawingAbortController) drawingAbortController.abort();
             drawingLock = false; if (state.dt) clearInterval(state.dt);
@@ -198,9 +177,9 @@
             if (isHardMode) devValue = 80;
             const units = ["幾何", "関数", "整数", "確率"];
             let target = units[Math.floor(Math.random() * units.length)];
-            showUI(`${target}を構成中...`, devValue);
+            showUI(`${target}の問題を構成中...`, devValue);
             currentAbortController = new AbortController();
-            const prompt = `数学講師。全て日本語。単元「${target}」。偏差値${devValue}向け。textに設定、subに問いを書け。JSON(text, sub, unit, hint, has_diagram)形式。数式$ $。`;
+            const prompt = `数学講師。全て日本語回答。単元「${target}」。偏差値${devValue}向け。JSON(text, sub, unit, hint, has_diagram)形式。数式$ $。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
@@ -209,6 +188,27 @@
                 applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
                 hideUI();
             } catch (e) { if (e.name !== 'AbortError') hideUI(); }
+        }
+
+        async function autoDraw(retry = 0) {
+            if (drawingLock || retry > 1) return;
+            drawingLock = true; drawingAbortController = new AbortController();
+            let start = Date.now(); if (state.dt) clearInterval(state.dt);
+            state.dt = setInterval(() => { const el = document.getElementById('draw-timer-val'); if (el) el.innerText = ((Date.now() - start) / 1000).toFixed(1) + "s"; }, 100);
+            try {
+                const res = await fetch(`/api/chat`, {
+                    method: "POST", headers: {"Content-Type": "application/json"}, signal: drawingAbortController.signal,
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。点名と数値のみ。日本語禁止。` }] }] })
+                });
+                let svgContent = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
+                if (svgContent) {
+                    document.getElementById('svg-layer').innerHTML = svgContent[0].replace(/<text(.*?)>(.*?)<\/text>/gi, (m, p1, p2) => {
+                        const cl = p2.replace(/\$|\\/g, '').trim();
+                        return (cl.length === 1 || /^\d+(\.\d+)?$/.test(cl)) ? `<text${p1}>${cl}</text>` : '';
+                    });
+                } else throw new Error();
+            } catch (e) { if (e.name !== 'AbortError') setTimeout(() => { drawingLock = false; autoDraw(retry + 1); }, 500); }
+            finally { clearInterval(state.dt); drawingLock = false; drawingAbortController = null; }
         }
 
         function initZoom() {
@@ -224,6 +224,7 @@
         }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
         function resetView() { state.scale = 1; state.x = 0; state.y = 0; updateView(); }
+        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(b.style.display==='block') renderMath(); }
         function setupDevEdit() {
             const el = document.getElementById('dev-val');
             el.addEventListener('blur', () => {
@@ -240,18 +241,14 @@
         }
         async function prefetchAnswer() {
             try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `日本語解答解説。数式は$ $で囲む。問題：${state.prob.text}` }] }] }) });
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `日本語解答解説。数式$ $。問題：${state.prob.text}` }] }] }) });
                 state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text);
             } catch (e) {}
         }
         function peekAnswer() {
             if (state.seen_answer) return; if (!confirm("0点になります。")) return;
-            state.seen_answer = true; 
-            const resBox = document.getElementById('res-box');
-            resBox.innerHTML = state.prefetched_answer || "取得中...";
-            resBox.style.display = 'block'; 
-            saveLog("×", 0); 
-            renderMath();
+            state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得中...";
+            document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); renderMath();
         }
         function showUI(m, dev = null) { 
             document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; 
@@ -278,14 +275,14 @@
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30))); refreshStats();
         }
         document.getElementById('c-input').onchange = (e) => {
-            if (state.seen_answer) { alert("解答閲覧済。"); return; }
+            if (state.seen_answer) return;
             showUI("採点中...");
             const reader = new FileReader();
             reader.onload = async (ev) => {
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `日本語採点。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `日本語採点。Score: X/10末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
                     });
                     const fb = cleanText((await res.json()).candidates[0].content.parts[0].text);
                     document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
