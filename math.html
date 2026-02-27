@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.8.5</title>
+    <title>最難関突破 AI数学講師 v2.8.6</title>
     
     <script>
         window.MathJax = {
@@ -47,7 +47,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.8.5 Strong-Structure</span>
+        <span class="version-tag">ver 2.8.6 First-Load-Fix</span>
     </div>
 
     <div class="card">
@@ -102,7 +102,7 @@
         <div id="timer" style="font-size:1.8rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold;"></p>
         <p id="level-msg" style="font-size:0.75rem; color:var(--primary); margin-top:5px;"></p>
-        <div class="wait-info">※高品質な構成のため最大1分かかる場合があります。<br>中断する場合は下のボタンを押してください。</div>
+        <div class="wait-info">※高品質な構成のため最大1分かかる場合があります。</div>
         <button class="btn-cancel" onclick="abortGeneration()" style="background:#444; color:#ccc; padding:8px 20px; border-radius:8px; border:none; margin-top:15px;">作成を中断</button>
     </div>
 
@@ -114,8 +114,14 @@
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false, seen_answer: false, prefetched_answer: null };
 
         document.addEventListener('DOMContentLoaded', () => {
-            applyProb({ unit: "数と式", text: "次の等式が成り立つとき、条件に従って問いに答えよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], has_diagram: false });
             refreshStats(); setupDevEdit(); initZoom();
+            // MathJaxの起動を待ってから1問目を表示
+            MathJax.startup.promise.then(() => {
+                applyProb({ unit: "数と式", text: "次の等式が成り立つとき、条件に従って問いに答えよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], has_diagram: false });
+            }).catch(() => {
+                // 万が一MathJaxが失敗しても表示だけはする
+                applyProb({ unit: "数と式", text: "次の等式が成り立つとき、条件に従って問いに答えよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], has_diagram: false });
+            });
         });
 
         function cleanText(t, index = null) {
@@ -133,35 +139,24 @@
         }
 
         function applyProb(p) {
-            if (!p || (!p.text && !p.problem)) {
-                document.getElementById('p-text').innerText = "データ取得エラー。再試行してください。";
-                return;
-            }
+            if (!p || (!p.text && !p.problem)) { document.getElementById('p-text').innerText = "取得エラー。"; return; }
             state.prob = p;
             state.graded = false; state.seen_answer = false; state.prefetched_answer = null;
             resetView();
             document.getElementById('u-title').innerText = p.unit || "総合";
             document.getElementById('p-text').innerText = cleanText(p.text);
-            
-            // 【新ルール】小問は必ずリスト表示。重複判定は行わずAIに分離を任せる。
             const rawSub = p.sub || p.questions || p.q || [];
             const subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
-            
-            if (subArray.length === 0) {
-                document.getElementById('q-list').innerHTML = "<li>(1) 問いを特定できませんでした。再生成してください。</li>";
-            } else {
-                document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
-            }
-            
-            document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理を再確認せよ。";
+            if (subArray.length === 0) { document.getElementById('q-list').innerHTML = "<li>(1) 答えを求めよ。</li>"; }
+            else { document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join(''); }
+            document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理を確認せよ。";
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
-            
             const zoomBox = document.getElementById('zoom-box');
             const disclaimer = document.getElementById('diag-disclaimer');
             if (p.has_diagram || (p.unit && (p.unit.includes("関数") || p.unit.includes("幾何")))) {
                 zoomBox.style.display = 'block'; disclaimer.style.display = 'block';
-                document.getElementById('svg-layer').innerHTML = `<div style="color:var(--ai);">🎨 図解を構成中...</div><div id="draw-timer-val" style="font-family:monospace;">0.0s</div>`;
+                document.getElementById('svg-layer').innerHTML = `<div style="color:var(--ai);">🎨 図解構成中...</div><div id="draw-timer-val" style="font-family:monospace;">0.0s</div>`;
                 setTimeout(() => autoDraw(0), 100);
             } else { zoomBox.style.display = 'none'; disclaimer.style.display = 'none'; }
             renderMath(); prefetchAnswer();
@@ -176,7 +171,7 @@
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: drawingAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。点名と数値のみ。日本語文章禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。点名1文字と数値のみ。日本語文章禁止。` }] }] })
                 });
                 let svgContent = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (svgContent) {
@@ -199,25 +194,16 @@
             if (isHardMode) devValue = 80;
             const units = ["幾何", "関数", "整数", "確率"];
             let target = units[Math.floor(Math.random() * units.length)];
-            showUI(`${target}を構成中...`, devValue);
+            showUI(`${target}の問題を構成中...`, devValue);
             currentAbortController = new AbortController();
-            
-            // 【新構成プロンプト】textとsubの役割を完全に分ける
-            const prompt = `あなたは数学講師です。全て日本語で回答。単元は必ず「${target}」。偏差値${devValue}向け。
-            【絶対指示】
-            1. textには「状況設定・数値条件」のみを書け。
-            2. subには「〜を求めよ」という問いを必ず1つ以上書け。
-            3. textの中に問いを書くな。
-            4. JSON(text, sub, unit, hint, has_diagram)のみ。数式$ $。`;
-
+            const prompt = `数学講師です。全て日本語回答。単元「${target}」。偏差値${devValue}向け。textに設定、subに問いを書け。textに問いを書くな。JSON(text, sub, unit, hint, has_diagram)のみ。数式$ $。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
-                const data = await res.json();
-                applyProb(JSON.parse(data.candidates[0].content.parts[0].text));
+                applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
                 hideUI();
             } catch (e) { if (e.name !== 'AbortError') hideUI(); }
         }
@@ -251,14 +237,14 @@
             document.getElementById('target-school').innerText = s;
         }
         async function doGrade(file) {
-            if (state.seen_answer) { alert("解答閲覧済のため不可。"); return; }
+            if (state.seen_answer) { alert("解答閲覧済。"); return; }
             showUI("採点中...");
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `日本語採点。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type, data: e.target.result.split(',')[1] } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `日本語採点。Score: X/10末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type, data: e.target.result.split(',')[1] } }] }] })
                     });
                     const fb = cleanText((await res.json()).candidates[0].content.parts[0].text);
                     document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
@@ -284,7 +270,7 @@
         }
         async function prefetchAnswer() {
             try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `日本語解答解説。問題文の再掲禁止。問題：${state.prob.text}` }] }] }) });
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `日本語解答解説。問題：${state.prob.text}` }] }] }) });
                 state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text);
             } catch (e) {}
         }
