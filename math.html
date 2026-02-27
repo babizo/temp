@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.2.1</title>
+    <title>最難関突破 AI数学講師 v2.2.2</title>
     
     <script>
         window.MathJax = {
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.2.1 Math-Safe</span>
+        <span class="version-tag">ver 2.2.2 Ultimate-Parse</span>
     </div>
 
     <div class="card">
@@ -143,10 +143,9 @@
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            return t.replace(/\\n/g, "\n");
+            return t.replace(/\\n/g, "\n").replace(/`/g, "");
         }
 
-        // 【追加】不等号「<」「>」がHTMLタグとして誤認され、数式が壊れるのを防ぐ
         function escapeHTML(str) {
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
@@ -176,7 +175,6 @@
             
             const qListElem = document.getElementById('q-list');
             if (validSubs.length > 0) {
-                // 【修正】innerHTMLに入れる前に、必ずescapeHTMLを通す
                 qListElem.innerHTML = validSubs.map(s => `<li>${escapeHTML(s)}</li>`).join('');
                 qListElem.style.display = 'block';
             } else {
@@ -203,6 +201,7 @@
             renderMath();
         }
 
+        // 【最終完成版】退避＆復元による最強のJSONサニタイズ
         function robustJSONParse(rawStr) {
             let s = rawStr;
             const startIdx = s.indexOf('{');
@@ -210,12 +209,28 @@
             if (startIdx !== -1 && endIdx !== -1) {
                 s = s.substring(startIdx, endIdx + 1);
             }
+            
+            // 1. 正しいエスケープ（", \, n）を一時退避させる
+            s = s.replace(/\\\\/g, "__D_SLASH__");
+            s = s.replace(/\\"/g, "__E_QUOTE__");
+            s = s.replace(/\\n/g, "__E_NEWLINE__");
+            
+            // 2. 退避後に残っている単一のバックスラッシュ（\sin, \frac等）は全てエスケープ漏れなので強制二重化
+            s = s.replace(/\\/g, "\\\\");
+            
+            // 3. 退避した正しいエスケープを復元
+            s = s.replace(/__D_SLASH__/g, "\\\\");
+            s = s.replace(/__E_QUOTE__/g, "\\\"");
+            s = s.replace(/__E_NEWLINE__/g, "\\n");
+            
+            // 4. 生の改行が混入している場合の無害化
+            s = s.replace(/\n/g, "\\n").replace(/\r/g, "");
+
             try {
-                // 余計な置換をせず、そのままパースするのが最も安全（JSONモードを信頼）
                 return JSON.parse(s);
             } catch (e) {
                 console.error("Parse Error Details:", s);
-                throw new Error("AIの応答が正しく読み取れませんでした。もう一度お試しください。");
+                throw new Error("AIの応答が正しく読み取れませんでした。");
             }
         }
 
