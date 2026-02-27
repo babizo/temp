@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.2.9</title>
+    <title>最難関突破 AI数学講師 v2.3.0</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.2.9 Logic-Fix</span>
+        <span class="version-tag">ver 2.3.0 Draw-Stabilized</span>
     </div>
     
     <div id="debug-output"></div>
@@ -101,8 +101,7 @@
         const initDataList = [
             { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節を見つけよ。" },
             { unit: "幾何（立体）", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BCの中点をそれぞれM, Nとする。辺AE上に点PをAP=2となるようにとる。なお、図は必ずしも正確とは限らない。", sub: ["(1) 3点M, N, Pを通る平面で切断したときの、切り口の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333" stroke-width="1.5"/><path d="M70 40 L150 40 L150 120 L70 120 Z" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="3"/><path d="M40 70 L70 40 M120 70 L150 40 M120 150 L150 120 M40 150 L70 120" fill="none" stroke="#333" stroke-width="1.5"/><path d="M80 70 L120 110 L55 55 Z" fill="rgba(231,76,60,0.4)" stroke="#e74c3c" stroke-width="2"/></svg>`, hint: "投影図で確認せよ。" },
-            { unit: "解析（関数）", text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標は $-2$ である。なお、図は必ずしも正確とは限らない。", sub: ["(1) 定数 $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="20" y1="180" x2="180" y2="20" stroke="#5dade2" stroke-width="2"/></svg>`, hint: "点Aの座標からaを決定せよ。" },
-            { unit: "幾何（平面）", text: "円に内接する四角形ABCDがあり、$AB=3, BC=4, CD=5, DA=6$ である。なお、図は必ずしも正確とは限らない。", sub: ["(1) 四角形ABCDの面積を求めよ。"], has_diagram: true, hint: "余弦定理を用いて対角線を計算せよ。" }
+            { unit: "解析（関数）", text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標は $-2$ である。なお、図は必ずしも正確とは限らない。", sub: ["(1) 定数 $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="20" y1="180" x2="180" y2="20" stroke="#5dade2" stroke-width="2"/></svg>`, hint: "点Aの座標からaを決定せよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -151,13 +150,12 @@
             else {
                 canvasBox.style.display = 'flex';
                 const layer = document.getElementById('svg-layer');
-                layer.innerHTML = p.svg || `<div style="color:#888;">図解待機中</div>`;
+                layer.innerHTML = p.svg || `<div style="color:#888;">図解待機中...</div>`;
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
             renderMath();
         }
 
-        // 【最強のサニタイズ】riangle問題（\t誤認）を完全に封殺
         function robustJSONParse(rawStr) {
             const isDebug = document.getElementById('debug-mode').checked;
             const debugBox = document.getElementById('debug-output');
@@ -166,21 +164,12 @@
             const startIdx = s.indexOf('{');
             const endIdx = s.lastIndexOf('}');
             if (startIdx !== -1 && endIdx !== -1) { s = s.substring(startIdx, endIdx + 1); }
-            
-            // 生の改行コードを消去（JSONフォーマット崩れ対策）
             s = s.replace(/[\r\n]+/g, " "); 
-
             try { return JSON.parse(s); } catch (e1) {
                 try {
-                    // \triangle の \t などが制御文字に化けるのを防ぐため
-                    // 正規のJSONエスケープ以外の \ をすべて強制的に二重化する
-                    // まず正しいやつを退避
                     s = s.replace(/\\\\/g, "___BS___").replace(/\\"/g, "___QT___").replace(/\\n/g, "___NW___");
-                    // 残った \ を \\ に（これが \triangle 等を救う）
                     s = s.replace(/\\/g, "\\\\");
-                    // 戻す
                     s = s.replace(/___BS___/g, "\\\\").replace(/___QT___/g, "\\\"").replace(/___NW___/g, "\\n");
-                    
                     return JSON.parse(s);
                 } catch (e2) { throw new Error("パース失敗"); }
             }
@@ -192,7 +181,7 @@
             if (dev >= 60) adaptive += `（最上位層）。原則小問禁止。`;
 
             let promptText = "最難関高校講師。類題作成。数式LaTeX($)。";
-            if (isOtherUnit) promptText = `最難関高校講師。幾何（立体）、幾何（平面）、解析（関数）、確率、整数のうち、今の「${state.prob.unit}」以外の単元からランダムに選定せよ。`;
+            if (isOtherUnit) promptText = `最難関高校講師。幾何（立体）、幾何（平面）、関数、確率、整数のうち、今の「${state.prob.unit}」以外の単元からランダムに。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
@@ -202,12 +191,9 @@
                         contents: [{ parts: [{ text: `${promptText}
                         【指示】${adaptive} 
                         【重要ルール】
-                        ・図を伴う問題（has_diagram: true）の場合、text（前提条件）の末尾に「なお、図は必ずしも正確とは限らない。」という一文を必ず含めること。
-                        ・幾何（立体切断、体積）、幾何（平面）、解析（関数）、整数、確率からランダムに選定せよ。
-                        ・立体図形の場合、必ずSVGで作図し、見取図を斜め上から見た構図で描くこと。
-                        【数式ルール】
-                        ・三角形を記述する際は \triangle を使用せよ。
-                        ・不等号「<」「>」は前後にスペースを入れる。
+                        ・図を伴う問題（has_diagram: true）の場合、text末尾に「なお、図は必ずしも正確とは限らない。」を含めること。
+                        ・幾何（立体、平面）、関数、整数、確率から選定。
+                        ・立体図形の場合、必ずSVGで作図。
                         【構成】textは前提条件。問いはsub。命令形。JSONのみ。
                         {"unit":"...","text":"...","sub":["..."],"hint":"...","has_diagram":true}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
@@ -218,25 +204,36 @@
                 applyProb(json);
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
-                if (json.has_diagram !== false) autoDraw();
+                // 修正：has_diagramがtrueの場合のみautoDrawを実行
+                if (json.has_diagram !== false) autoDraw(0);
             } catch (e) { hideUI(); alert("失敗"); }
         }
 
-        async function autoDraw() {
+        // 修正：再試行ロジックを追加
+        async function autoDraw(retryCount = 0) {
             const layer = document.getElementById('svg-layer');
-            let st = Date.now();
-            let drawTimer = setInterval(() => { layer.innerHTML = `作図中...${((Date.now()-st)/1000).toFixed(1)}s`; }, 100);
+            if(retryCount === 0) layer.innerHTML = `<div style="color:var(--ai);">🎨 作図中...</div>`;
+            
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。立体図形は斜め上からの見取図。viewBox="0 0 200 200"。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>タグのみ出力せよ。viewBox="0 0 200 200"。Markdownタグは使うな。` }] }] })
                 });
                 const data = await res.json();
-                clearInterval(drawTimer);
                 const text = data.candidates[0].content.parts[0].text;
                 const match = text.match(/<svg[\s\S]*?<\/svg>/);
-                if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
-            } catch (e) { clearInterval(drawTimer); layer.innerHTML = "エラー"; }
+                if (match) { 
+                    state.prob.svg = match[0]; 
+                    layer.innerHTML = match[0]; 
+                } else if (retryCount < 1) {
+                    autoDraw(retryCount + 1); // 1回だけリトライ
+                } else {
+                    layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なしで進行してください</div>`;
+                }
+            } catch (e) { 
+                if (retryCount < 1) autoDraw(retryCount + 1);
+                else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
+            }
         }
 
         async function doGrade(file) {
