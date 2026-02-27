@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.3.3</title>
+    <title>最難関突破 AI数学講師 v2.3.4</title>
     
     <script>
         window.MathJax = {
@@ -26,7 +26,6 @@
         .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; background: #333; padding: 2px 6px; border-radius: 4px;}
         .debug-bar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 0.7rem; color: #888; margin-bottom: 5px; }
         #debug-output { display: none; background: #300; color: #f99; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.7rem; margin-bottom: 10px; white-space: pre-wrap; word-break: break-all; border: 1px solid #600; }
-        #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
@@ -44,7 +43,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.3.3 Core-Hard</span>
+        <span class="version-tag">ver 2.3.4 Label-Assigned</span>
     </div>
     
     <div id="debug-output"></div>
@@ -100,7 +99,7 @@
 
         const initDataList = [
             { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節を見つけよ。" },
-            { unit: "幾何（立体）", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BCの中点をそれぞれM, Nとする。辺AE上に点PをAP=2となるようにとる。なお、図は必ずしも正確とは限らない。", sub: ["(1) 3点M, N, Pを通る平面で切断したときの、切り口の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333" stroke-width="1.5"/><path d="M70 40 L150 40 L150 120 L70 120 Z" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="3"/><path d="M40 70 L70 40 M120 70 L150 40 M120 150 L150 120 M40 150 L70 120" fill="none" stroke="#333" stroke-width="1.5"/><path d="M80 70 L120 110 L55 55 Z" fill="rgba(231,76,60,0.4)" stroke="#e74c3c" stroke-width="2"/></svg>`, hint: "投影図で確認せよ。" }
+            { unit: "幾何（立体）", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BCの中点をそれぞれM, Nとする。辺AE上に点PをAP=2となるようにとる。なお、図は必ずしも正確とは限らない。", sub: ["(1) 3点M, N, Pを通る平面で切断したときの、切り口の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333" stroke-width="1.5"/><path d="M70 40 L150 40 L150 120 L70 120 Z" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="3"/><path d="M40 70 L70 40 M120 70 L150 40 M120 150 L150 120 M40 150 L70 120" fill="none" stroke="#333" stroke-width="1.5"/><path d="M80 70 L120 110 L55 55 Z" fill="rgba(231,76,60,0.4)" stroke="#e74c3c" stroke-width="2"/><text x="35" y="75" font-size="10">A</text><text x="125" y="75" font-size="10">B</text><text x="35" y="160" font-size="10">E</text></svg>`, hint: "投影図で確認せよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -120,7 +119,6 @@
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            // 物理的なSVGタグが混入していたら除去
             let clean = t.replace(/<svg[\s\S]*?<\/svg>/gi, "");
             return clean.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
         }
@@ -182,13 +180,12 @@
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
             let adaptive = `現在偏差値${dev}。`;
-            if (dev >= 60) adaptive += `（最上位層）。誘導を排し、一撃で正答を求める重厚な問いにせよ。`;
-            
-            const isProofRequired = Math.random() < 0.2;
-            const proofInstruction = isProofRequired ? "【最優先】証明問題を出題せよ。「〜を示せ」「〜であることを証明せよ」という形式にせよ。" : "";
+            if (dev >= 60) adaptive += `（最上位層）。誘導不要。`;
+            const isProof = Math.random() < 0.2;
+            const proofInstr = isProof ? "【最優先】証明問題にせよ。「〜を示せ」等の形式。" : "";
 
             let promptText = "数学講師。類題作成。数式LaTeX($)。バッククォート禁止。";
-            if (isOtherUnit) promptText = `数学講師。現在の「${state.prob.unit}」以外の単元からランダムに選定せよ。`;
+            if (isOtherUnit) promptText = `数学講師。現在の「${state.prob.unit}」以外の単元からランダム選定。`;
 
             showUI(`問題を構成中...`);
             try {
@@ -196,13 +193,13 @@
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
-                        【指示】${adaptive} ${proofInstruction}
-                        【口調ルール】優しさや励ましは一切不要。冷徹かつ簡潔な命令形（〜せよ、〜を求めよ、〜を示せ）で統一せよ。冗長な解説も禁止。
+                        【指示】${adaptive} ${proofInstr}
+                        【口調】冷徹な命令形（〜せよ）のみ。
                         【最重要ルール】
-                        ・図を伴う問題（has_diagram: true）の場合、text末尾に「なお、図は必ずしも正確とは限らない。」を含めること。
-                        ・幾何（立体、平面）、関数、整数、確率からランダム選定。
-                        ・立体図形の場合、必ずSVGで作図。
-                        【構成】textは前提条件。問いはsub。JSONのみ出力せよ。SVGコードをtextやsubの中に絶対に入れるな。` }] }],
+                        ・図を伴う場合（has_diagram: true）、text末尾に「なお、図は必ずしも正確とは限らない。」を付与。
+                        ・幾何、関数、整数、確率からランダム選定。
+                        ・立体図形は必ずSVGで作図。
+                        【構成】textは前提条件。問いはsub。JSONのみ。SVGコード混入厳禁。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -212,7 +209,7 @@
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 if (json.has_diagram !== false) autoDraw(0);
-            } catch (e) { hideUI(); alert("通信失敗"); }
+            } catch (e) { hideUI(); alert("失敗"); }
         }
 
         async function autoDraw(retryCount = 0) {
@@ -227,7 +224,11 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力。viewBox="0 0 200 200"。Markdown不要。余計な説明も禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力。
+                    【絶対条件】
+                    ・各頂点や重要な点（A, B, C, P等）の座標付近に、必ず <text> タグを用いてアルファベットのラベルを配置せよ。
+                    ・ラベルは図形と重ならないよう、頂点から5〜10px程度外側にオフセットせよ。
+                    ・viewBox="0 0 200 200"。Markdown不要。余計な説明禁止。` }] }] })
                 });
                 const data = await res.json();
                 const text = data.candidates[0].content.parts[0].text;
