@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v3.0.8</title>
+    <title>最難関突破 AI数学講師 v3.1.1</title>
     
     <script>
         window.MathJax = {
@@ -36,13 +36,15 @@
         .text-alert { color: #ffadad; }
         .text-dim { color: #888; font-weight: normal; font-size: 0.65rem; }
         #draw-timer-val { font-family: monospace; font-size: 1.2rem; color: #888; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
+        .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.0.8 Curriculum-Full</span>
+        <span class="version-tag">ver 3.1.1 Full-UI</span>
     </div>
 
     <div class="card">
@@ -81,11 +83,16 @@
 
     <div class="card">
         <div style="display:flex; gap:10px;">
-            <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 採点</button>
-            <button class="btn-answer-only" onclick="peekAnswer()">🔍 解答</button>
+            <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 撮影して採点</button>
+            <button class="btn-answer-only" onclick="peekAnswer()">🔍 解答を確認</button>
         </div>
         <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
         <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px; font-size:0.85rem;"></div>
+    </div>
+
+    <div class="card">
+        <div class="header-flex"><h1>復習リスト</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">リセット</button></div>
+        <div id="hist-list"></div>
     </div>
 
     <div id="status-ui" class="loading-overlay">
@@ -95,7 +102,7 @@
             <div class="text-alert">※高品質な構成のため最大1分程かかる場合があります。</div>
             <div style="color:#888; font-size:0.7rem; font-weight:normal;">AIが思考を完結させるまでお待ちください。</div>
         </div>
-        <button onclick="abortGeneration()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; border:none; margin-top:10px; width:60%;">中断</button>
+        <button onclick="abortGeneration()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; border:none; margin-top:15px; width:60%;">中断</button>
     </div>
 
     <script>
@@ -104,7 +111,7 @@
 
         window.onload = () => {
             initZoom(); refreshStats();
-            applyProb({ unit: "数と式", text: "次の条件において、指定された値を求めよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"] });
+            applyProb({ unit: "数と式", text: "次の等式において、指定された値を求めよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"] });
             setTimeout(renderMath, 1500);
         };
 
@@ -129,28 +136,27 @@
         function applyProb(p) {
             if (!p) return;
             state.prob = p; state.seen_answer = false; state.prefetched_answer = null; resetView();
-            const unit = p.unit || p.section || "総合";
-            document.getElementById('u-title').innerText = unit;
-            const mainText = p.text || p.problem || p.body || "問題データなし";
-            document.getElementById('p-text').innerText = cleanText(mainText);
+            document.getElementById('u-title').innerText = p.unit || p.section || "総合";
+            const mainText = cleanText(p.text || p.problem || p.body || "問題データなし");
+            document.getElementById('p-text').innerText = mainText;
             const rawSub = p.sub || p.questions || p.q || [];
             let subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
-            subArray = subArray.map(q => {
-                let text = cleanText(q);
-                if (text.length < 8 && /求めよ|答えよ/.test(text)) {
-                    const match = mainText.match(/[^。、]+(求めよ|証明せよ|答えよ|示せ)/);
-                    if (match) return match[0];
+            
+            if (subArray.length === 0 || (subArray.length === 1 && subArray[0].length < 5)) {
+                const lastSentence = mainText.split(/[。？]/).filter(s => s.length > 0).pop();
+                if (lastSentence && (lastSentence.includes("求めよ") || lastSentence.includes("証明せよ") || lastSentence.includes("示せ"))) {
+                    subArray = [lastSentence + "。"];
+                } else {
+                    subArray = ["上記の条件に従って答えを導け。"];
                 }
-                return text;
-            });
-            document.getElementById('q-list').innerHTML = subArray.length === 0 ? "<li>(1) 問いの内容を特定せよ。</li>" : subArray.map((q, i) => `<li>${q}</li>`).join('');
-            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "基本を再確認。";
-            document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
+            }
 
-            const showDiagram = p.has_diagram || /幾何|関数|図形|立体|空間/.test(unit);
+            document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
+            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "定義を再確認せよ。";
+            document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
+            const showDiagram = p.has_diagram || /幾何|関数|図形|立体|空間/.test(p.unit || "");
             document.getElementById('zoom-box').style.display = showDiagram ? 'flex' : 'none';
             document.getElementById('canvas-footer').style.display = showDiagram ? 'block' : 'none';
-            
             if (showDiagram) {
                 document.getElementById('svg-layer').innerHTML = `<div style="color:#444; font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val">0.0s</div>`;
                 setTimeout(() => autoDraw(0, mainText), 100);
@@ -166,7 +172,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: drawingAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${sourceText}」の可視化SVG。点名と数値のみ。SVGタグのみ出力せよ。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${sourceText}」の可視化SVG。点名と数値のみ。日本語禁止。` }] }] })
                 });
                 let svg = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (svg) {
@@ -186,22 +192,19 @@
             drawingLock = false; if (state.dt) clearInterval(state.dt);
             let devValue = parseFloat(document.getElementById('dev-val').innerText) || 50.0;
             if (isHardMode) devValue = 80;
-            
-            // 単元プール（空間図形を独立追加）
             const allUnits = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率", "データの活用"];
             const pool = allUnits.filter(u => !state.last_units.includes(u));
             let target = pool[Math.floor(Math.random() * pool.length)];
             state.last_units.push(target); if(state.last_units.length > 3) state.last_units.shift();
-
             showUI(`${target}を構成中...`);
             currentAbortController = new AbortController();
+            const prompt = `数学講師。入試問題調（～を求めよ、～とせよ、～を証明せよ）。textには状況、subには具体的な問い。単元「${target}」。偏差値${devValue}。JSON。最大1分程かけよ。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学講師。入試問題調。textには状況、subには具体的な問い。日本語。単元「${target}」。偏差値${devValue}。JSON形式。最大1分程かけよ。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
-                const data = await res.json();
-                applyProb(JSON.parse(data.candidates[0].content.parts[0].text));
+                applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
             } catch (e) { if (!isOther) generateNext(isOther, isHardMode); }
             finally { hideUI(); }
         }
@@ -220,11 +223,39 @@
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); clearInterval(state.t); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function abortGeneration() { if (currentAbortController) currentAbortController.abort(); hideUI(); }
-        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解答解説。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
-        function peekAnswer() { if (!confirm("解答を確認しますか？")) return; state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得中..."; document.getElementById('res-box').style.display = 'block'; renderMath(); }
-        function refreshStats() { const h = JSON.parse(localStorage.getItem('m_hist') || "[]"); document.getElementById('count-val').innerText = h.length; }
+        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解説。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
+        function peekAnswer() { if (!confirm("解答を確認しますか？")) return; state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得中..."; document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); renderMath(); }
+        function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
         function doSkip() { generateNext(true); }
         function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
+        function refreshStats() { 
+            const h = JSON.parse(localStorage.getItem('m_hist') || "[]"); 
+            document.getElementById('count-val').innerText = h.length; 
+            document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><div><span class="score-badge">${x.s}/10</span></div></div>`).join('');
+        }
+        function saveLog(mark, score) {
+            let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
+            h.unshift({ d: new Date().toLocaleDateString(), u: state.prob.unit || "総合", m: mark, s: score, p: state.prob });
+            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30))); refreshStats();
+        }
+
+        document.getElementById('c-input').onchange = (e) => {
+            if (state.seen_answer) return; showUI("採点中...");
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const res = await fetch(`/api/chat`, {
+                        method: "POST", headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `入試採点。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
+                    });
+                    const fb = cleanText((await res.json()).candidates[0].content.parts[0].text);
+                    document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
+                    saveLog(fb.includes("Score: 10") ? "○" : "×", parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
+                    renderMath();
+                } finally { hideUI(); }
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        };
     </script>
 </body>
 </html>
