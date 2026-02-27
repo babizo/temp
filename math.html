@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.3.7</title>
+    <title>最難関突破 AI数学講師 v2.3.8</title>
     
     <script>
         window.MathJax = {
@@ -29,6 +29,7 @@
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
+        #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
@@ -43,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.3.7 History-Fix</span>
+        <span class="version-tag">ver 2.3.8 Hint-Failsafe</span>
     </div>
     
     <div id="debug-output"></div>
@@ -98,7 +99,7 @@
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false };
 
         const initDataList = [
-            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節を見つけよ。" }
+            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節（周期性）を見つけよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -123,7 +124,6 @@
             return clean.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
         }
 
-        // 単元名の正規化とフォールバック
         function getUnit(p) {
             const rawUnit = p.unit || p.unit_name || p.category || p.title || "総合演習";
             return cleanText(rawUnit) || "総合演習";
@@ -151,7 +151,12 @@
                 qListElem.style.display = 'block';
             } else { qListElem.style.display = 'none'; }
             
-            document.getElementById('h-box').innerText = cleanText(p.hint);
+            // ヒントのフォールバック処理
+            let hText = cleanText(p.hint).trim();
+            if (!hText || hText === "なし" || hText === "特になし") {
+                hText = `${unitName}の基本原理に立ち返り、論理的矛盾がないか確認せよ。条件を数式化、または図示することが突破口となる。`;
+            }
+            document.getElementById('h-box').innerText = hText;
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             
@@ -190,7 +195,7 @@
             let adaptive = `現在偏差値${dev}に最適化せよ。`;
             if (dev >= 60) adaptive += `（最上位層）。誘導を排せ。`;
             const isProof = Math.random() < 0.2;
-            const proofInstr = isProof ? "【指示】証明問題を出題せよ。「〜を示せ」等の形式。" : "";
+            const proofInstr = isProof ? "【指示】証明問題を出題せよ。" : "";
 
             let promptText = "数学講師。類題作成。数式LaTeX($)。";
             if (isOtherUnit) promptText = `数学講師。現在の「${getUnit(state.prob)}」以外の単元からランダム選定。`;
@@ -202,7 +207,8 @@
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
                         【重要】${adaptive} ${proofInstr}
-                        【禁止】前提条件と問い以外の文言（即座に〜、思考〜など）を一切含めるな。
+                        【ヒント規定】hintプロパティには、難問であっても思考の指針となる一文を必ず記述せよ。空文字は厳禁とする。
+                        【禁止】数学的条件と問い以外のメタ発言を一切含めるな。
                         【ルール】
                         ・図を伴う場合、text末尾に「なお、図は必ずしも正確とは限らない。」を付与。
                         ・幾何、関数、整数、確率からランダム選定。
@@ -233,7 +239,7 @@
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力。
-                    【条件】問題文のアルファベットをすべてラベル配置。viewBox="0 0 200 200"。Markdown禁止。` }] }] })
+                    【条件】全アルファベットをラベル配置。viewBox="0 0 200 200"。Markdown禁止。` }] }] })
                 });
                 const data = await res.json();
                 const text = data.candidates[0].content.parts[0].text;
@@ -272,22 +278,13 @@
             reader.readAsDataURL(file);
         }
 
-        // 保存時に単元名を確定させる
         function saveLog(mark, score) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            const unitName = getUnit(state.prob);
-            h.unshift({ 
-                d: new Date().toLocaleDateString(), 
-                u: unitName, 
-                m: mark, 
-                s: score, 
-                p: JSON.parse(JSON.stringify(state.prob)) 
-            });
+            h.unshift({ d: new Date().toLocaleDateString(), u: getUnit(state.prob), m: mark, s: score, p: JSON.parse(JSON.stringify(state.prob)) });
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30)));
             refreshStats();
         }
 
-        // 表示時にundefinedを補正
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             document.getElementById('count-val').innerText = h.length;
