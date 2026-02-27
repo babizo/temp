@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.0.6</title>
+    <title>最難関突破 AI数学講師 v2.0.7</title>
     
     <script>
         window.MathJax = {
@@ -57,7 +57,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.0.6 Advanced-Algebra</span>
+        <span class="version-tag">ver 2.0.7 Full-Algebra</span>
     </div>
 
     <div class="card">
@@ -123,53 +123,52 @@
                 text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。",
                 sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"],
                 has_diagram: false,
-                hint: "まず実際に割り算をして、何桁の周期で数字が繰り返されるか（循環節）を見つけましょう。"
-            },
-            {
-                unit: "数と式",
-                text: "$x = \\frac{\\sqrt{5} + 1}{2}$ のとき、次の式の値を考えよ。",
-                sub: ["(1) $x^2 - x - 1$ の値を求めよ。", "(2) $x^5$ の値を $a\\sqrt{5} + b$ の形で表せ。"],
-                has_diagram: false,
-                hint: "次数下げを活用してください。"
+                hint: "循環節を見つけ、周期性を利用してください。"
             },
             {
                 unit: "整数問題",
                 text: "自然数 $n$ について、$n^2 - 12n + 27$ が素数となるような $n$ をすべて求めよ。",
                 sub: ["(1) 式を因数分解し、素数の性質を利用して条件を絞り込め。"],
                 has_diagram: false,
-                hint: "$(n-3)(n-9)$ を利用します。"
+                hint: "$(n-3)(n-9)$ が素数となる条件を考えます。"
             },
             {
                 unit: "方程式",
-                text: "A君はP町からQ町へ、B君はQ町からP町へ向かって同時に出発した。2人は途中で出会ってから、A君は $16$ 分後にQ町に到着し、B君は $36$ 分後にP町に到着した。",
-                sub: ["(1) A君とB君の速さの比を求めよ。", "(2) 出発してから2人が出会うまでにかかった時間を求めよ。"],
-                has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="100" x2="180" y2="100" stroke="#333" stroke-width="2"/><circle cx="20" cy="100" r="4" fill="#333"/><circle cx="180" cy="100" r="4" fill="#333"/><text x="20" y="80" font-size="14" font-weight="bold" text-anchor="middle">P</text><text x="180" y="80" font-size="14" font-weight="bold" text-anchor="middle">Q</text><circle cx="110" cy="100" r="4" fill="#e74c3c"/><path d="M 20 120 Q 65 140 110 120" fill="none" stroke="#5dade2" stroke-width="2"/><path d="M 110 160 Q 65 180 20 160" fill="none" stroke="#27ae60" stroke-width="2"/><text x="145" y="145" font-size="10" fill="#5dade2" text-anchor="middle">16分</text><text x="65" y="185" font-size="10" fill="#27ae60" text-anchor="middle">36分</text></svg>`,
-                hint: "出会うまでの時間を $t$ とします。"
+                text: "$x$ についての2次方程式 $x^2 - (a-3)x + a^2 - 4a - 5 = 0$ がある。1つの解が $0$ であるとき、定数 $a$ の値を求めよ。また、そのときのもう1つの解を求めよ。",
+                sub: ["(1) $a$ の値を求めよ。", "(2) 他方の解を求めよ。"],
+                has_diagram: false,
+                hint: "$x=0$ を代入して $a$ についての2次方程式を解きます。"
             },
             {
                 unit: "関数",
-                text: "放物線 $y = x^2$ 上に2点 A, B があり、x座標はそれぞれ $-1, 2$ である。原点をOとする。",
-                sub: ["(1) 直線ABの方程式を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"],
+                text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標が $-2$ であるとき、定数 $a$ を求め、$\\triangle OAB$ の面積を求めよ。",
+                sub: ["(1) $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"],
                 has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><circle cx="70" cy="115" r="4" fill="#e74c3c"/><circle cx="145" cy="70" r="4" fill="#e74c3c"/><line x1="70" y1="115" x2="145" y2="70" stroke="#27ae60" stroke-width="2"/></svg>`,
-                hint: "y切片を活用しましょう。"
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/></svg>`,
+                hint: "交点の座標を求め、y切片を利用して面積を二分割して考えます。"
             },
             {
                 unit: "平面図形",
-                text: "半径 $6$ の円Oの周上に3点 A, B, C があり、$AB = AC = 8$ である。弦BCの中点をMとし、直線AMと円Oの交点の他方をDとする。",
-                sub: ["(1) 線分AMの長さを求めよ。", "(2) $\\triangle ABC$ の面積を求めよ。"],
+                text: "半径 $6$ の円Oにおいて、中心からの距離が $2$ であるような弦ABを引く。弦ABの長さを求めよ。",
+                sub: ["(1) 弦ABの長さを求めよ。"],
                 has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333" stroke-width="2"/><polygon points="100,20 40,140 160,140" fill="rgba(231,76,60,0.2)" stroke="#e74c3c" stroke-width="2"/></svg>`,
-                hint: "方べきの定理を利用します。"
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333"/></svg>`,
+                hint: "中心から弦に垂線を下ろし、三平方の定理を利用します。"
+            },
+            {
+                unit: "立体図形",
+                text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
+                sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
+                has_diagram: true,
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/></svg>`,
+                hint: "切り口は正三角形になります。"
             },
             {
                 unit: "確率",
-                text: "$1$ から $6$ までのサイコロを2回投げ、出た目を $a, b$ とする。座標平面上の点 $\\text{P}(a, b)$ をとる。",
-                sub: ["(1) 点Pが放物線 $y = \\frac{1}{2}x^2$ 上にある確率を求めよ。", "(2) 原点との距離 $OP \\ge 5$ となる確率を求めよ。"],
-                has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="180" x2="180" y2="180" stroke="#333" stroke-width="2"/><circle cx="80" cy="120" r="4" fill="#e74c3c"/><text x="90" y="115" font-size="12" font-weight="bold">P(a,b)</text></svg>`,
-                hint: "全36通りを書き出しましょう。"
+                text: "2つのサイコロ $a, b$ を投げ、出た目の和 $s$ が素数になる確率を求めよ。",
+                sub: ["(1) 和が素数となる事象をすべて挙げ、確率を求めよ。"],
+                has_diagram: false,
+                hint: "和が $2, 3, 5, 7, 11$ になる場合を丁寧に数え上げます。"
             }
         ];
 
@@ -220,13 +219,13 @@
             const currentDevText = document.getElementById('dev-val').innerText;
             const currentDev = parseFloat(currentDevText) || 50;
             let adaptiveInstruction = "標準的な難易度の応用問題にせよ。";
-            if (currentDev >= 60) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}（最上位層）です。ひねりの効いた超難問を作成せよ。`;
-            else if (currentDev < 45) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎を重視した問題にせよ。`;
+            if (currentDev >= 60) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}（最上位層）です。最難関私立・国立レベルの、論理的ひねりのある超難問を作成せよ。`;
+            else if (currentDev < 45) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基本の組み合わせで解ける典型的な難問にせよ。`;
 
-            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。単なる数値の入れ替えは禁止。数式はLaTeX記法（$で囲む）を用い、JSON内ではバックスラッシュを二重（\\\\）にすること。`;
-            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる単元から良問をJSONで作成。`;
+            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。単なる数値替え禁止。数式はLaTeX記法（$で囲む）。JSON内バックスラッシュは二重（\\\\）。`;
+            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる系統の単元から、新傾向の良問をJSONで作成。`;
 
-            showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
+            showUI(`思考力を問う問題を構成中...`);
             
             try {
                 const res = await fetch(`/api/chat`, {
@@ -234,10 +233,11 @@
                     body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
                     【アダプティブ指示】
                     ${adaptiveInstruction}
-                    【出題ルール】
-                    ・単なる数値替えは禁止。設定変更や条件追加を行う。
-                    ・「数と式」の範囲には、循環小数・有限小数の周期性や性質を問う高度な問題を含めること。
-                    ・「確率」は論理的場合分けが必要な思考力問題にすること。
+                    【最難関出題ルール】
+                    ・単なる数値の入れ替えは禁止。設定や問いの順序を変える。
+                    ・「方程式」：算数パズルではなく文字定数や解の条件を扱う代数学とする。
+                    ・「数と式」：循環小数の周期性や、有限小数の条件（分母の性質）を含める。
+                    ・「確率」：書き出しで終わらない、n進法や剰余、図形移動との融合を推奨。
                     {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
                 });
                 const data = await res.json();
@@ -272,7 +272,7 @@
         }
 
         async function doGrade(file) {
-            showUI("採点中...");
+            showUI("解析・採点中...");
             const mimeType = file.type || "image/jpeg";
             const reader = new FileReader();
             reader.onload = async (e) => {
@@ -280,7 +280,7 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として画像採点せよ。数式はLaTeX。最後に必ず【Score: X/10】。問題：${state.prob.text}` }, { inlineData: { mimeType: mimeType, data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として画像採点せよ。数式はLaTeX。最後に必ず【Score: X/10】。問題：${state.prob.text}` }, { inline_data: { mime_type: mimeType, data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = data.candidates[0].content.parts[0].text;
