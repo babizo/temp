@@ -3,12 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v3.2.3</title>
+    <title>最難関突破 AI数学講師 v3.2.7</title>
     
     <script>
         window.MathJax = {
-            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true },
-            startup: { typeset: false }
+            tex: { 
+                inlineMath: [['$', '$'], ['\\(', '\\)']], 
+                displayMath: [['$$', '$$'], ['\\[', '\\]']], 
+                processEscapes: true 
+            },
+            options: {
+                enableMenu: false
+            },
+            startup: {
+                ready: () => {
+                    MathJax.startup.defaultReady();
+                    // MathJax準備完了後に監視を開始
+                    startMathObserver();
+                }
+            }
         };
     </script>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
@@ -16,7 +29,7 @@
 
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; --hard: #e74c3c; }
-        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.5; font-size: 14px; overflow-x: hidden; }
+        body { font-family: sans-serif; background-color: var(--bg); color: var(--text); padding: 10px; max-width: 500px; margin: auto; line-height: 1.6; font-size: 14px; overflow-x: hidden; }
         .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #444; position: relative; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
@@ -44,7 +57,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.2.3 Tone-Lock</span>
+        <span class="version-tag">ver 3.2.7 Observer-Lock</span>
     </div>
 
     <div class="card">
@@ -66,7 +79,7 @@
             <h1>演習 [<span id="u-title"></span>]</h1>
             <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:6px 12px; font-size:0.85rem; width:auto;">他単元へ ≫</button>
         </div>
-        <div class="btn-redraw" onclick="renderMath()">↻ 数式再描画</div>
+        <div class="btn-redraw" onclick="safeRender()">↻ 数式再描画</div>
         <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
         
         <div id="canvas-footer" class="canvas-footer" style="display:none;">
@@ -77,10 +90,10 @@
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; margin: 8px 0; color: #ccc; border-bottom: 1px dashed #444; padding-bottom: 8px;"></p>
             <ul id="q-list" style="padding-left: 20px; margin: 12px 0; list-style:none;"></ul>
-            <div id="h-box" style="display:none; color:var(--hint); font-size:0.85rem; padding:10px; background:#332b1e; border-radius:5px; margin:10px 0;"></div>
+            <div id="h-box" style="display:none; color:var(--hint); font-size:0.85rem; padding:10px; background:#332b1e; border-radius:5px; margin:10px 0; border-left:4px solid var(--hint);"></div>
         </div>
         <div style="display:flex; gap:10px;">
-            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; font-size:0.8rem; flex:1;">💡 ヒント</button>
+            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; font-size:0.8rem; flex:1;">💡 ヒント表示</button>
             <button class="btn-ai-gen" onclick="generateNext(false)" style="flex:1.5;">✨ 類題作成</button>
             <button class="btn-hard" onclick="generateNext(false, true)" style="background:var(--hard); color:white; flex:1.5;">🔥 最難関へ</button>
         </div>
@@ -114,9 +127,25 @@
         let currentAbortController = null, drawingAbortController = null, drawingLock = false;
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, seen_answer: false, prefetched_answer: null, last_units: [], current_target_unit: "数と式" };
 
+        // 【数式鉄壁ガード】常駐監視エンジン
+        function startMathObserver() {
+            const observer = new MutationObserver((mutations) => {
+                let needsRender = false;
+                mutations.forEach(m => { if(m.addedNodes.length > 0) needsRender = true; });
+                if (needsRender) safeRender();
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+
+        function safeRender() {
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise().catch(err => console.log('MathJax typeset failed:', err));
+            }
+        }
+
         window.onload = () => {
             initZoom(); refreshStats();
-            applyProb({ unit: "数と式", text: "次の等式において、指定された値を求めよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"] });
+            applyProb({ unit: "数と式", text: "次の等式において、$x$ の値を求めよ。", sub: ["$2(x-3) = \\frac{x}{2} + 1$"], hint: "分母を払うために、両辺を2倍せよ。" });
             const devEl = document.getElementById('dev-val');
             devEl.addEventListener('blur', () => {
                 let val = parseFloat(devEl.innerText);
@@ -126,19 +155,15 @@
                 updateTargetSchool(val);
             });
             devEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); devEl.blur(); } });
-            setTimeout(renderMath, 1500);
+            // 初期表示用
+            setTimeout(safeRender, 500);
+            setTimeout(safeRender, 2000);
         };
 
         function updateTargetSchool(dev) {
             let s = "[都立中堅]";
             if (dev >= 72) s = "[筑駒]"; else if (dev >= 68) s = "[開成]"; else if (dev >= 62) s = "[日比谷]"; else if (dev >= 55) s = "[上位校]";
             document.getElementById('target-school').innerText = s;
-        }
-
-        function renderMath() {
-            if (window.MathJax && window.MathJax.typesetPromise) {
-                MathJax.typesetPromise([document.getElementById('math-content-area'), document.getElementById('res-box'), document.getElementById('h-box')]).catch(()=>{});
-            }
         }
 
         function cleanText(t, index = null) {
@@ -155,9 +180,11 @@
             }
             if (index === null) s = s.replace(/^[\s\S]*?(ヒント|解説|解答)：?/g, "").replace(/^\(\d+\)\s*/, "");
             s = s.replace(/riangle/g, "\\triangle ").replace(/\\triangle(?![ \s])/g, "\\triangle ");
-            if (!s.includes('$')) s = s.replace(/([a-z]\s*=\s*[^ 　\n]+|[a-z]\^\d+|[A-Z]\([^\)]+\))/gi, '$$$1$$');
+            // 自動補完ロジック
+            if (!s.includes('$')) {
+                s = s.replace(/([a-z]\s*[=<>]\s*[^ 　\n。]+|[a-z]\^\d+|[A-Z]\([^\)]+\)|\\frac\{[^\}]+\}\{[^\}]+\})/gi, '$$$1$$');
+            }
             if ((s.match(/\$/g) || []).length % 2 !== 0) s += "$";
-            s = s.replace(/\$\s*\$/g, '');
             if (index !== null) { s = s.replace(/^\(\d+\)\s*/, ""); s = `(${index}) ` + s.trim(); }
             return s.trim();
         }
@@ -166,11 +193,12 @@
             if (!p) return false;
             const mainText = cleanText(p.text || p.problem || p.body);
             if (!mainText || mainText.length < 5) return false;
+
             state.prob = p; state.seen_answer = false; state.prefetched_answer = null; resetView();
-            const unitToUse = p.unit_lock || state.current_target_unit || p.unit || "総合";
-            state.current_target_unit = unitToUse;
-            document.getElementById('u-title').innerText = unitToUse;
+            state.current_target_unit = p.unit_lock || state.current_target_unit || p.unit || "総合";
+            document.getElementById('u-title').innerText = state.current_target_unit;
             document.getElementById('p-text').innerText = mainText;
+
             const rawSub = p.sub || p.questions || p.q || [];
             let subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
             if (subArray.length === 0 || (subArray.length === 1 && subArray[0].length < 5)) {
@@ -182,8 +210,12 @@
                 }
             }
             document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
-            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "定義を再確認せよ。";
+            
+            let hText = cleanText(p.hint || p.explanation);
+            if (!hText || hText.length < 8) hText = "問題の構造や図形の性質（相似、三平方など）に着目せよ。";
+            document.getElementById('h-box').innerText = hText;
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
+            
             const drawKeywords = /三角形|四角形|円|相似|合同|平行|垂直|線分|中点|関数|グラフ|座標|直線|曲線|放物線|立体|見取り図|展開図|三平方|ピタゴラス/;
             const showDiagram = p.has_diagram || /平面図形|幾何|関数|立体|空間/.test(state.current_target_unit) || drawKeywords.test(mainText);
             document.getElementById('zoom-box').style.display = showDiagram ? 'flex' : 'none';
@@ -192,7 +224,9 @@
                 document.getElementById('svg-layer').innerHTML = `<div style="color:#444; font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val">0.0s</div>`;
                 setTimeout(() => autoDraw(0, mainText), 100);
             }
-            renderMath(); prefetchAnswer();
+            // 変化後の念押しレンダリング
+            setTimeout(safeRender, 50);
+            prefetchAnswer();
             return true;
         }
 
@@ -204,7 +238,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: drawingAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${sourceText}」の可視化SVG。点名と数値のみ。日本語禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${sourceText}」の可視化SVG。点名と数値のみ配置。日本語禁止。` }] }] })
                 });
                 let svg = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (svg) {
@@ -232,24 +266,22 @@
             state.current_target_unit = target;
             showUI(`${target}${isHardMode ? 'の最難関問' : ''}を構成中...${retryCount > 0 ? '(再試行中)' : ''}`);
             currentAbortController = new AbortController();
-            const prompt = `あなたは最難関私立・国立・都立入試の数学講師です。
-【絶対厳守：口調】
-問題文は必ず「～を求めよ」「～とせよ」「～を証明せよ」という入試問題・模試調で統一すること。「です・ます」「～しましょう」は禁止。
-【内容】
-単元「${target}」、偏差値${devValue}レベル。JSON(text, sub:[])形式。最大1分程かけよ。`;
+            const prompt = `あなたは最難関数学講師です。
+【絶対厳守：口調】問題文は必ず「～を求めよ」「～とせよ」の入試調。
+【ヒント】解法の具体的な着眼点や定理を示せ。抽象的な助言は禁止。
+【形式】単元「${target}」、偏差値${devValue}レベル。JSON(text, sub:[], hint)形式。最大1分程。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
-                const data = await res.json();
-                const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
+                const parsed = JSON.parse((await res.json()).candidates[0].content.parts[0].text);
                 parsed.unit_lock = target;
-                if (!applyProb(parsed)) throw new Error("Invalid Data");
+                if (!applyProb(parsed)) throw new Error("Invalid Content");
                 hideUI();
             } catch (e) {
                 if (retryCount < 3 && e.name !== 'AbortError') generateNext(isOther, isHardMode, retryCount + 1);
-                else { hideUI(); if (retryCount >= 3) alert("問題の構成に失敗しました。"); }
+                else { hideUI(); if (retryCount >= 3) alert("問題構成失敗。再試行してください。"); }
             }
         }
 
@@ -263,7 +295,7 @@
         }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
         function resetView() { state.scale = 1; state.x = 0; state.y = 0; updateView(); }
-        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(b.style.display==='block') renderMath(); }
+        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(b.style.display==='block') safeRender(); }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); clearInterval(state.t); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function abortGeneration() { if (currentAbortController) currentAbortController.abort(); hideUI(); }
@@ -271,8 +303,8 @@
         function peekAnswer() { 
             if (state.seen_answer) return;
             if (!confirm("解答を見るとこの問題の得点は0点(不正解)として記録されます。よろしいですか？")) return; 
-            state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "解答を取得できませんでした。"; 
-            document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); renderMath(); 
+            state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得失敗。"; 
+            document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); setTimeout(safeRender, 100); 
         }
         function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
         function doSkip() { generateNext(true); }
@@ -306,7 +338,7 @@
                     const fb = cleanText((await res.json()).candidates[0].content.parts[0].text);
                     document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
                     saveLog(fb.includes("Score: 10") ? "○" : "×", parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
-                    renderMath();
+                    setTimeout(safeRender, 100);
                 } finally { hideUI(); }
             };
             reader.readAsDataURL(e.target.files[0]);
