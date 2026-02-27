@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.4.2</title>
+    <title>最難関突破 AI数学講師 v2.4.3</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.4.2 Prefetch-Enabled</span>
+        <span class="version-tag">ver 2.4.3 Fact-Only</span>
     </div>
     
     <div id="debug-output"></div>
@@ -102,7 +102,7 @@
         };
 
         const initDataList = [
-            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節を見つけよ。" }
+            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節（周期性）を見つけよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -121,7 +121,8 @@
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            let clean = t.replace(/即座に実行せよ|今すぐ実行せよ|直ちに実行せよ|思考を開始せよ|厳密さを追求せよ/gi, "");
+            // 精神論や無駄な煽り文句を強制削除
+            let clean = t.replace(/即座に実行せよ|今すぐ実行せよ|直ちに実行せよ|思考を開始せよ|厳密さを追求せよ|基礎中の基礎である|速やかに処理せよ|処理せよ/gi, "");
             clean = clean.replace(/確認しましょう|解いてみましょう|考えてみてください|頑張りましょう|求めてみましょう/g, "求めよ");
             clean = clean.replace(/<svg[\s\S]*?<\/svg>/gi, "");
             return clean.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
@@ -134,10 +135,19 @@
 
         function applyProb(p) {
             if (Array.isArray(p)) p = p[0] || {};
+            
+            // ★【追加】数値も数式もない「お説教」データなら再生成を指示
+            const content = (p.text || "") + (p.sub ? p.sub.join("") : "");
+            if (content.length > 0 && !/[0-9xyz$]|[\u0370-\u03ff]/.test(content)) {
+                console.warn("Invalid content detected (No math/numbers). Retrying...");
+                generateNext(false); 
+                return;
+            }
+
             state.prob = p;
             state.graded = false; 
             state.seen_answer = false; 
-            state.prefetched_answer = null; // リセット
+            state.prefetched_answer = null; 
             
             document.getElementById('u-title').innerText = getUnit(p);
             const txt = cleanText(p.text).trim();
@@ -169,12 +179,9 @@
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
             renderMath();
-
-            // ★【追加】裏側で解答解説の取得を開始（プリフェッチ）
             prefetchAnswer();
         }
 
-        // 裏側で解答を取得する関数
         async function prefetchAnswer() {
             try {
                 const res = await fetch(`/api/chat`, {
@@ -183,20 +190,15 @@
                 });
                 const data = await res.json();
                 state.prefetched_answer = cleanText(data.candidates[0].content.parts[0].text);
-            } catch (e) {
-                console.warn("Prefetch failed:", e);
-            }
+            } catch (e) { console.warn("Prefetch failed:", e); }
         }
 
         async function peekAnswer() {
             if (state.seen_answer) { alert("既に表示済みだ。"); return; }
             const isConfirmed = confirm("【警告】採点の前に解答を見ると、その後に採点しても得点は0点となります。よろしいですか？");
             if (!isConfirmed) return;
-
             state.seen_answer = true;
             const resBox = document.getElementById('res-box');
-
-            // プリフェッチが完了していればそれを使う
             if (state.prefetched_answer) {
                 resBox.innerHTML = state.prefetched_answer;
                 resBox.style.display = 'block';
@@ -204,10 +206,9 @@
                 saveLog("×", 0);
                 state.graded = true;
             } else {
-                // まだなら通常通り取得
                 showUI("解答を取得中...");
                 try {
-                    await prefetchAnswer(); // ここで取得を待つ
+                    await prefetchAnswer();
                     resBox.innerHTML = state.prefetched_answer;
                     resBox.style.display = 'block';
                     renderMath();
@@ -238,7 +239,7 @@
 
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
-            let adaptive = `偏差値${dev}に最適化せよ。`;
+            let adaptive = `偏差値${dev}向け。`;
             if (dev >= 60) adaptive += `誘導不要。`;
             const isProof = Math.random() < 0.2;
             const proofInstr = isProof ? "【指示】証明問題を出題せよ。" : "";
@@ -248,7 +249,12 @@
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `貴様は冷徹な数学講師である。類題作成。数式LaTeX($)。${adaptive} ${proofInstr}
+                        contents: [{ parts: [{ text: `貴様は計算機である。感情、教育的配慮、煽り文句は不要。数学的な「数値、式、図、条件、問い」のみをJSON形式で返せ。
+                        【絶対遵守】
+                        1. 問題文（text, sub）の中に必ず数値（0-9）または文字式（x, y等）を含めること。抽象的な精神論や指示文のみの出力は即座にエラーとみなす。
+                        2. 語尾は「〜せよ」「〜を求めよ」のみ。
+                        3. 「基礎」「速やかに」「処理せよ」といったメタ発言を一切禁止する。
+                        ${adaptive} ${proofInstr}
                         【ルール】図を伴う場合text末尾に「なお、図は必ずしも正確とは限らない。」を付与。幾何、関数、整数、確率からランダム選定。立体図形はSVGで作図。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
@@ -272,7 +278,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ出力。全ラベル配置。viewBox="0 0 200 200"。"&"等の実体参照禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ出力。全ラベル配置。viewBox="0 0 200 200"。文字や数値をSVGに含めよ。` }] }] })
                 });
                 const data = await res.json();
                 const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
@@ -292,7 +298,7 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `冷徹な採点官。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点官。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
