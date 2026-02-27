@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.1.1</title>
+    <title>最難関突破 AI数学講師 v2.1.2</title>
     
     <script>
         window.MathJax = {
@@ -14,8 +14,8 @@
             startup: { typeset: false }
         };
     </script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="[https://polyfill.io/v3/polyfill.min.js?features=es6](https://polyfill.io/v3/polyfill.min.js?features=es6)"></script>
+    <script id="MathJax-script" async src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js)"></script>
 
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.1.1 Robust-Parse</span>
+        <span class="version-tag">ver 2.1.2 Final-Parse</span>
     </div>
 
     <div class="card">
@@ -168,36 +168,43 @@
             renderMath();
         }
 
-        // 【修正】JSONパース前の高度なサニタイジング
+        // 【修正】不純物除去ロジックを大幅強化
         function robustJSONParse(rawStr) {
-            let s = rawStr.match(/\{[\s\S]*\}/)[0];
-            // 1. 本来のエスケープ（\" や \n）を保護するため一時待避
-            s = s.replace(/\\"/g, "__ESCAPED_QUOTE__");
-            // 2. 数式などで使われる孤立したバックスラッシュを二重化
-            s = s.replace(/\\/g, "\\\\");
-            // 3. 待避したものを戻す（JSONとして正しく解釈させる）
-            s = s.replace(/__ESCAPED_QUOTE__/g, "\\\"");
-            // 4. 改行コードの正規化
-            s = s.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
-            return JSON.parse(s);
+            try {
+                // 1. 文字列の中から { } の範囲を抜き出す
+                const jsonMatch = rawStr.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error("JSON形式のデータが見つかりませんでした。");
+                let s = jsonMatch[0];
+
+                // 2. 特殊エスケープ文字の保護とバックスラッシュ補修
+                s = s.replace(/\\"/g, "__ESCAPED_QUOTE__");
+                s = s.replace(/\\/g, "\\\\");
+                s = s.replace(/__ESCAPED_QUOTE__/g, "\\\"");
+                
+                // 3. 制御文字の正規化
+                s = s.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+                
+                return JSON.parse(s);
+            } catch (e) {
+                console.error("Parse Error Details:", rawStr);
+                throw e;
+            }
         }
 
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
-            let adaptive = "標準的な難易度。";
-            if (dev >= 60) adaptive = `現在偏差値${dev}（最上位）。ひねりのある超難問。`;
-            else if (dev < 45) adaptive = `現在偏差値${dev}。基礎重視。`;
+            let adaptive = `現在偏差値${dev}に最適化。`;
 
             let promptText = `最難関高校講師。類題をJSON作成。数値替え禁止。数式はLaTeX($)。`;
-            if (isOtherUnit) promptText = `最難関高校講師。現在の「${state.prob.unit}」と異なる系統の良問をJSON作成。`;
+            if (isOtherUnit) promptText = `最難関高校講師。異なる系統の良問をJSON作成。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
-                    【アダプティブ指示】${adaptive}
-                    【ルール】数値替え禁止、方程式は代数学、確率は論理重視、循環小数も可。
+                    【指示】${adaptive} 方程式は代数、確率は論理重視、循環小数も可。
+                    【最重要】前置きやMarkdownタグを一切含まず、純粋なJSONオブジェクトのみを出力せよ。
                     {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
                 });
                 const data = await res.json();
@@ -206,7 +213,7 @@
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 if (json.has_diagram !== false) autoDraw();
-            } catch (e) { hideUI(); console.error(e); alert("通信失敗: " + e.message); }
+            } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
         }
 
         async function autoDraw() {
@@ -218,7 +225,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説SVG。解答数値禁止。状況視覚化のみ。viewBox="0 0 200 200"` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況視覚化SVG。viewBox="0 0 200 200"。Markdownタグを使わず<svg>タグのみ出力。` }] }] })
                 });
                 const data = await res.json();
                 clearInterval(drawTimer);
@@ -236,7 +243,7 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師として画像採点せよ。数式はLaTeX。Score: X/10。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師として画像採点。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
@@ -288,30 +295,19 @@
 
         function initZoom() {
             const c = document.getElementById('zoom-box');
-            let isDrag = false, sx = 0, sy = 0, lDist = 0;
+            let isDrag = false, sx = 0, sy = 0;
             c.onwheel = (e) => { e.preventDefault(); state.scale = Math.min(Math.max(0.5, state.scale * (e.deltaY > 0 ? 0.9 : 1.1)), 5); updateView(); };
             c.onmousedown = (e) => { isDrag = true; sx = e.clientX - state.x; sy = e.clientY - state.y; };
             window.onmousemove = (e) => { if(isDrag) { state.x = e.clientX - sx; state.y = e.clientY - sy; updateView(); } };
             window.onmouseup = () => isDrag = false;
-            c.ontouchstart = (e) => {
-                if(e.touches.length === 1) { isDrag = true; sx = e.touches[0].clientX - state.x; sy = e.touches[0].clientY - state.y; }
-                else if(e.touches.length === 2) lDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            };
-            c.ontouchmove = (e) => {
-                e.preventDefault();
-                if(e.touches.length === 1 && isDrag) { state.x = e.clientX - sx; state.y = e.clientY - sy; }
-                else if(e.touches.length === 2) {
-                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    state.scale = Math.min(Math.max(0.5, state.scale * (d / lDist)), 5); lDist = d;
-                }
-                updateView();
-            };
+            c.ontouchstart = (e) => { if(e.touches.length === 1) { isDrag = true; sx = e.touches[0].clientX - state.x; sy = e.touches[0].clientY - state.y; } };
+            c.ontouchmove = (e) => { if(e.touches.length === 1 && isDrag) { state.x = e.touches[0].clientX - sx; state.y = e.touches[0].clientY - sy; updateView(); } };
             c.ontouchend = () => isDrag = false;
         }
         function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); document.getElementById('adaptive-label').style.display = 'none'; }
         function doSkip() { if (!state.graded) saveLog("SKIP", 0); generateNext(true); }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; renderMath(); }
-        function resetData() { if(confirm("履歴を消去？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("履歴消去？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
