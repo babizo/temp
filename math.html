@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.2.2</title>
+    <title>最難関突破 AI数学講師 v2.2.3</title>
     
     <script>
         window.MathJax = {
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.2.2 Ultimate-Parse</span>
+        <span class="version-tag">ver 2.2.3 Final-Fix</span>
     </div>
 
     <div class="card">
@@ -140,14 +140,12 @@
             } else { setTimeout(renderMath, 100); }
         }
 
+        // 【最強のテキスト補正】改行、バッククォート削除、不等号の保護をすべて行う
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            return t.replace(/\\n/g, "\n").replace(/`/g, "");
-        }
-
-        function escapeHTML(str) {
-            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // 不等号の前後にスペースを入れることでHTMLタグと誤認されるのを防ぐ
+            return t.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
         }
 
         function applyProb(p) {
@@ -175,7 +173,7 @@
             
             const qListElem = document.getElementById('q-list');
             if (validSubs.length > 0) {
-                qListElem.innerHTML = validSubs.map(s => `<li>${escapeHTML(s)}</li>`).join('');
+                qListElem.innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
                 qListElem.style.display = 'block';
             } else {
                 qListElem.style.display = 'none';
@@ -201,7 +199,7 @@
             renderMath();
         }
 
-        // 【最終完成版】退避＆復元による最強のJSONサニタイズ
+        // 【最終完成版】\frac 等が制御文字として崩れるのを100%防ぐ最強のパーサー
         function robustJSONParse(rawStr) {
             let s = rawStr;
             const startIdx = s.indexOf('{');
@@ -210,27 +208,36 @@
                 s = s.substring(startIdx, endIdx + 1);
             }
             
-            // 1. 正しいエスケープ（", \, n）を一時退避させる
-            s = s.replace(/\\\\/g, "__D_SLASH__");
-            s = s.replace(/\\"/g, "__E_QUOTE__");
-            s = s.replace(/\\n/g, "__E_NEWLINE__");
-            
-            // 2. 退避後に残っている単一のバックスラッシュ（\sin, \frac等）は全てエスケープ漏れなので強制二重化
-            s = s.replace(/\\/g, "\\\\");
-            
-            // 3. 退避した正しいエスケープを復元
-            s = s.replace(/__D_SLASH__/g, "\\\\");
-            s = s.replace(/__E_QUOTE__/g, "\\\"");
-            s = s.replace(/__E_NEWLINE__/g, "\\n");
-            
-            // 4. 生の改行が混入している場合の無害化
-            s = s.replace(/\n/g, "\\n").replace(/\r/g, "");
-
             try {
+                // まずはそのままパースを試みる
                 return JSON.parse(s);
-            } catch (e) {
-                console.error("Parse Error Details:", s);
-                throw new Error("AIの応答が正しく読み取れませんでした。");
+            } catch (e1) {
+                try {
+                    // 【エラー修復プロセス】
+                    // 1. 本来守るべき正しいJSONエスケープを一時退避させる
+                    s = s.replace(/\\\\/g, "___DOUBLE___");
+                    s = s.replace(/\\"/g, "___QUOTE___");
+                    s = s.replace(/\\n/g, "___NEWLINE___");
+                    s = s.replace(/\\u([0-9a-fA-F]{4})/g, "___UNICODE_$1___");
+
+                    // 2. この時点で残っている「\」はすべてAIがエスケープを忘れた LaTeX コマンド（\frac, \sin等）
+                    // これらを強制的に二重化してJSONエラーを防ぐ
+                    s = s.replace(/\\/g, "\\\\");
+
+                    // 3. 退避させておいた正規のエスケープを元に戻す
+                    s = s.replace(/___DOUBLE___/g, "\\\\");
+                    s = s.replace(/___QUOTE___/g, "\\\"");
+                    s = s.replace(/___NEWLINE___/g, "\\n");
+                    s = s.replace(/___UNICODE_([0-9a-fA-F]{4})___/g, "\\u$1");
+
+                    // 4. 生の改行が含まれていた場合の無害化
+                    s = s.replace(/\n/g, "\\n").replace(/\r/g, "");
+
+                    return JSON.parse(s);
+                } catch (e2) {
+                    console.error("Parse Error Details:", s);
+                    throw new Error("AIの応答が正しく読み取れませんでした。もう一度お試しください。");
+                }
             }
         }
 
@@ -255,8 +262,8 @@
                         contents: [{ parts: [{ text: `${promptText}
                         【指示】${adaptive} 方程式は代数、確率は論理重視、循環小数も可。
                         【LaTeX記述の絶対ルール】
-                        ・インライン数式（$...$）の中で改行（\\\\）やブロック環境（\\begin{align}等）を使用するとクラッシュするため絶対に使用しないこと。
-                        ・独自の特殊マクロ（\\Rなど）は使わず、標準的なコマンドのみを用いること。
+                        ・不等号「<」「>」を使う際は、必ず前後に半角スペースを入れること（例: $x < y$）。
+                        ・インライン数式（$...$）の中での改行やブロック環境は使用禁止。
                         【文体ルール】問題文およびヒントは簡潔な命令形（「〜せよ」等）に統一すること。
                         【最重要構成ルール】
                         ・「text」には問題の【前提条件や状況設定のみ】を記述し、「〜を求めよ」などの問いは絶対に含めないこと。
