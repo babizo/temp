@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.5.0</title>
+    <title>最難関突破 AI数学講師 v2.5.1</title>
     
     <script>
         window.MathJax = {
@@ -42,7 +42,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.5.0 Timer-Stability</span>
+        <span class="version-tag">ver 2.5.1 Debug-Detailed</span>
     </div>
     
     <div id="debug-output"></div>
@@ -108,6 +108,13 @@
             initZoom();
         });
 
+        function logDebug(msg, raw = null) {
+            if (!document.getElementById('debug-mode').checked) return;
+            const box = document.getElementById('debug-output');
+            box.style.display = 'block';
+            box.innerText = `DEBUG INFO:\n${msg}\n\n${raw ? "RAW DATA:\n" + raw : ""}`;
+        }
+
         function abortGeneration() {
             if (currentAbortController) { currentAbortController.abort(); currentAbortController = null; }
             hideUI();
@@ -143,7 +150,11 @@
             const hasMath = /[0-9xyz$]|[\u0370-\u03ff]/.test(fullContent);
             const hasObjective = /求めよ|示せ|証明せよ|答えよ|作図せよ/.test(fullContent);
 
-            if (fullContent.length > 0 && (!hasMath || !hasObjective)) { generateNext(false); return; }
+            if (fullContent.length > 0 && (!hasMath || !hasObjective)) {
+                logDebug("Garbarge Detection Triggered", JSON.stringify(p));
+                generateNext(false); 
+                return;
+            }
 
             state.prob = p;
             state.graded = false; state.seen_answer = false; state.prefetched_answer = null; 
@@ -165,7 +176,6 @@
                 document.getElementById('zoom-box').style.display = 'none'; 
             } else {
                 document.getElementById('zoom-box').style.display = 'flex';
-                // 作図開始前にプレースホルダーを表示
                 layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val" style="font-family:monospace; font-size:1.2rem; color:#aaa;">0.0s</div>`;
             }
             renderMath();
@@ -217,21 +227,31 @@
             const isProof = Math.random() < 0.2;
             showUI(`問題を構成中...`);
             currentAbortController = new AbortController();
+            let rawResponseText = "";
+            
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `数学問題エンジン。具体的数値を含むこと。「〜を求めよ」「〜を示せ」と末尾に明記せよ。JSON直下にtext, sub, unit, hint, has_diagramを含めよ。偏差値${dev}向け。${isProof ? "【指示】証明問題を出題せよ。" : ""} 幾何、関数、整数、確率からランダム。立体図形はSVG。JSONのみ。` }] }],
+                        contents: [{ parts: [{ text: `数学問題エンジン。具体的数値を含むこと。JSON直下にtext, sub, unit, hint, has_diagramを含めよ。偏差値${dev}向け。${isProof ? "【指示】証明問題を出題せよ。" : ""} 幾何、関数、整数、確率からランダム。立体図形はSVG。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
                 const data = await res.json();
-                const json = robustJSONParse(data.candidates[0].content.parts[0].text);
+                rawResponseText = data.candidates[0].content.parts[0].text;
+                const json = robustJSONParse(rawResponseText);
                 applyProb(json);
                 if (json.has_diagram !== false) autoDraw(0);
-            } catch (e) { if (e.name !== 'AbortError') alert("生成失敗。やり直してください。"); }
-            finally { currentAbortController = null; hideUI(); }
+            } catch (e) { 
+                if (e.name === 'AbortError') return;
+                logDebug(`Generation Failed: ${e.message}`, rawResponseText);
+                const errorMsg = document.getElementById('debug-mode').checked ? `生成失敗: ${e.message}` : "生成失敗。やり直してください。";
+                alert(errorMsg); 
+            } finally {
+                currentAbortController = null;
+                hideUI();
+            }
         }
 
         async function autoDraw(retryCount = 0) {
@@ -247,17 +267,25 @@
                 else layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val" style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div>`;
             }, 100);
 
+            let rawDrawText = "";
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ。全ラベル配置。viewBox="0 0 200 200"。"&"等の実体参照禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ。全ラベル配置。viewBox="0 0 200 200"。` }] }] })
                 });
                 const data = await res.json();
-                const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
+                rawDrawText = data.candidates[0].content.parts[0].text;
+                const match = rawDrawText.match(/<svg[\s\S]*?<\/svg>/i);
                 if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
                 else if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); }
-                else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
-            } catch (e) { if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); } }
+                else { 
+                    logDebug("SVG Match Failed", rawDrawText);
+                    layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`; 
+                }
+            } catch (e) { 
+                logDebug(`Draw Error: ${e.message}`, rawDrawText);
+                if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); } 
+            }
             finally { clearInterval(state.dt); }
         }
 
