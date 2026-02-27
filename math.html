@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.1.9</title>
+    <title>最難関突破 AI数学講師 v2.2.0</title>
     
     <script>
         window.MathJax = {
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.1.9 Clean-Text</span>
+        <span class="version-tag">ver 2.2.0 Bulletproof-UI</span>
     </div>
 
     <div class="card">
@@ -140,33 +140,63 @@
             } else { setTimeout(renderMath, 100); }
         }
 
-        // 【修正】バッククォート（`）を強制的に削除する処理を追加
+        // どんな変なデータが来ても安全に文字列化・サニタイズする
         function cleanText(t) {
-            if (typeof t !== 'string') return t;
-            return t.replace(/\\n/g, "\n").replace(/`/g, "");
+            if (t == null) return "";
+            if (typeof t !== 'string') t = String(t);
+            return t.replace(/\\n/g, "\n");
         }
 
+        // UI表示の完全防弾化
         function applyProb(p) {
+            // AIが配列で包んで返してきた場合の救済措置
+            if (Array.isArray(p)) p = p[0] || {};
+            
             state.prob = p;
             state.graded = false; 
+            
             let unitName = cleanText(p.unit) || "総合演習";
             if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
             document.getElementById('u-title').innerText = unitName;
             
             const pTextElem = document.getElementById('p-text');
-            pTextElem.innerText = "【前提条件】\n" + cleanText(p.text);
+            const txt = cleanText(p.text).trim();
+            // 前提条件が空っぽなら、見出しごと隠してスッキリさせる
+            if (txt) {
+                pTextElem.innerText = "【前提条件】\n" + txt;
+                pTextElem.style.display = 'block';
+            } else {
+                pTextElem.style.display = 'none';
+            }
             
-            const subItems = Array.isArray(p.sub) ? p.sub : [p.sub];
-            document.getElementById('q-list').innerHTML = subItems.filter(s=>s).map(s => `<li>${cleanText(s)}</li>`).join('');
+            const rawSub = p.sub || p.questions || p.q || [];
+            const subItems = Array.isArray(rawSub) ? rawSub : [rawSub];
+            const validSubs = subItems.map(cleanText).filter(s => s.trim() !== "");
+            
+            const qListElem = document.getElementById('q-list');
+            if (validSubs.length > 0) {
+                qListElem.innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
+                qListElem.style.display = 'block';
+            } else {
+                qListElem.style.display = 'none';
+                // 万が一、前提条件も小問も両方空っぽだった場合の最強のフォールバック
+                if (!txt) {
+                    pTextElem.innerText = "問題データの抽出に失敗しました。もう一度生成してください。";
+                    pTextElem.style.display = 'block';
+                }
+            }
+
             document.getElementById('h-box').innerText = cleanText(p.hint);
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
+            
             const canvasBox = document.getElementById('zoom-box');
-            if (p.has_diagram === false) { canvasBox.style.display = 'none'; }
-            else {
+            if (p.has_diagram === false) { 
+                canvasBox.style.display = 'none'; 
+            } else {
                 canvasBox.style.display = 'flex';
                 const layer = document.getElementById('svg-layer');
-                if (p.svg) layer.innerHTML = p.svg;
+                layer.innerHTML = p.svg || `<div style="color:#888;">図解データを待機中...</div>`;
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
             renderMath();
@@ -202,9 +232,8 @@
                 adaptive = `現在偏差値${dev}向け。基礎を重視し、計算手順を分割する丁寧な小問を設けよ。`;
             }
 
-            // 【修正】プロンプトでバッククォートの使用を禁止
-            let promptText = `最難関高校講師。類題を作成。数値替え禁止。数式はLaTeX($)を使用。バッククォート(\`)は絶対に使用しないこと。`;
-            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる系統の良問を作成。数式はLaTeX($)を使用。バッククォート(\`)は絶対に使用しないこと。`;
+            let promptText = "最難関高校講師。類題を作成。数値替え禁止。数式はLaTeX($)を使用。バッククォート記号は絶対に使用しないこと。";
+            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる系統の良問を作成。数式はLaTeX($)を使用。バッククォート記号は絶対に使用しないこと。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
@@ -215,8 +244,8 @@
                         【指示】${adaptive} 方程式は代数、確率は論理重視、循環小数も可。
                         【文体ルール】問題文およびヒントは、冗長な表現や丁寧語を避け、短く簡潔な命令形（「〜せよ」「〜を求めよ」等）に統一すること。
                         【最重要ルール】
-                        ・「text」には問題の【前提条件や状況設定のみ】を記述し、「〜を求めよ」などの問いは絶対に含めないこと。
-                        ・実際の問いはすべて「sub」配列の中に記述すること。問いが1つの場合は「〜を求めよ。」とし、複数の場合は「(1) 〜」「(2) 〜」の形式で分割せよ。
+                        ・「text」には問題の【前提条件や状況設定のみ】を記述し、「〜を求めよ」などの問いは絶対に含めないこと。（前提条件がない場合は空文字にせよ）
+                        ・実際の問いは必ず「sub」配列の中に記述すること。問いが1つの場合は「〜を求めよ。」とし、複数の場合は「(1) 〜」「(2) 〜」の形式で分割せよ。
                         出力は以下のJSONのみを出力せよ。
                         {"unit":"単元名","text":"前提条件のみ記述","sub":["..."],"hint":"簡潔な命令形で", "has_diagram": true}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
@@ -332,4 +361,7 @@
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
-        document.getElementById('c-input').
+        document.getElementById('c-input').onchange = (e) => doGrade(e.target.files[0]);
+    </script>
+</body>
+</html>
