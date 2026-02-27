@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.2.5</title>
+    <title>最難関突破 AI数学講師 v2.2.6</title>
     
     <script>
         window.MathJax = {
@@ -24,24 +24,12 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; background: #333; padding: 2px 6px; border-radius: 4px;}
-        
-        /* DEBUG UI */
         .debug-bar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 0.7rem; color: #888; margin-bottom: 5px; }
-        #debug-output { display: none; background: #900; color: #fff; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.7rem; margin-bottom: 10px; white-space: pre-wrap; word-break: break-all; border: 1px solid #f00; }
-
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
-        .stat-label { font-size: 0.7rem; color: #aaa; }
-        .stat-val { font-size: 1.3rem; font-weight: bold; color: var(--primary); }
-        .unit-analysis { font-size: 0.8rem; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
-        .unit-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
-        .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
-
+        #debug-output { display: none; background: #300; color: #f99; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.7rem; margin-bottom: 10px; white-space: pre-wrap; word-break: break-all; border: 1px solid #600; }
+        #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
-        #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
@@ -56,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.2.5 Debug-Ready</span>
+        <span class="version-tag">ver 2.2.6 RAW-Clean</span>
     </div>
     
     <div id="debug-output"></div>
@@ -115,9 +103,7 @@
             { unit: "整数問題", text: "自然数 $n$ について、式 $P = n^2 - 12n + 27$ を考える。", sub: ["(1) 式 $P$ を因数分解せよ。", "(2) $P$ が素数となるような自然数 $n$ をすべて求めよ。"], has_diagram: false, hint: "一方が $1$ か $-1$ になることを利用せよ。" },
             { unit: "方程式", text: "$x$ についての2次方程式 $x^2 - (a-3)x + a^2 - 4a - 5 = 0$ があり、1つの解は $x = 0$ である。", sub: ["(1) 定数 $a$ の値を求めよ。", "(2) 他方の解を求めよ。"], has_diagram: false, hint: "$x=0$ を代入せよ。" },
             { unit: "関数", text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標は $-2$ である。", sub: ["(1) 定数 $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="20" y1="180" x2="180" y2="20" stroke="#5dade2" stroke-width="2"/></svg>`, hint: "交点座標を求めよ。" },
-            { unit: "平面図形", text: "半径 $6$ の円Oにおいて、中心からの距離が $2$ であるような弦ABを引く。", sub: ["(1) 弦ABの長さを求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333" stroke-width="2"/></svg>`, hint: "三平方の定理を利用せよ。" },
-            { unit: "立体図形", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。", sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 頂点Bを含む立体の体積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/></svg>`, hint: "切断面の形状を調べよ。" },
-            { unit: "確率", text: "2つのサイコロ $a, b$ を同時に投げ、出た目の和を $s$ とする。", sub: ["(1) $s$ が素数になる確率を求めよ。"], has_diagram: false, hint: "和が $2, 3, 5, 7, 11$ になる組を数えよ。" }
+            { unit: "幾何（平面）", text: "円に内接する四角形ABCDがあり、$AB=3, BC=4, CD=5, DA=6$ である。", sub: ["(1) 四角形ABCDの面積を求めよ。"], has_diagram: true, hint: "対角線を1本引き、2つの三角形に分けて考えよ。余弦定理や正弦定理の利用を検討せよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -144,20 +130,16 @@
             if (Array.isArray(p)) p = p[0] || {};
             state.prob = p;
             state.graded = false; 
-            
             let unitName = cleanText(p.unit) || "総合演習";
             if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
             document.getElementById('u-title').innerText = unitName;
-            
             const pTextElem = document.getElementById('p-text');
             const txt = cleanText(p.text).trim();
             if (txt) { pTextElem.innerText = "【前提条件】\n" + txt; pTextElem.style.display = 'block'; }
             else { pTextElem.style.display = 'none'; }
-            
             const rawSub = p.sub || p.questions || p.q || [];
             const subItems = Array.isArray(rawSub) ? rawSub : [rawSub];
             const validSubs = subItems.map(cleanText).filter(s => s.trim() !== "");
-            
             const qListElem = document.getElementById('q-list');
             if (validSubs.length > 0) {
                 qListElem.innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
@@ -166,11 +148,9 @@
                 qListElem.style.display = 'none';
                 if (!txt) { pTextElem.innerText = "データ不備。再試行せよ。"; pTextElem.style.display = 'block'; }
             }
-
             document.getElementById('h-box').innerText = cleanText(p.hint);
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
-            
             const canvasBox = document.getElementById('zoom-box');
             if (p.has_diagram === false) { canvasBox.style.display = 'none'; }
             else {
@@ -182,7 +162,7 @@
             renderMath();
         }
 
-        // 【最強のサニタイズ】DEBUGモード対応
+        // 【最強のサニタイズ】RAWデータの改行文字も除去
         function robustJSONParse(rawStr) {
             const debugBox = document.getElementById('debug-output');
             const isDebug = document.getElementById('debug-mode').checked;
@@ -190,20 +170,24 @@
             else { debugBox.style.display = 'none'; }
 
             let s = rawStr;
-            // 最初の { から 最後の } までを切り出して不純物を消す
             const startIdx = s.indexOf('{');
             const endIdx = s.lastIndexOf('}');
             if (startIdx !== -1 && endIdx !== -1) { s = s.substring(startIdx, endIdx + 1); }
             
+            // 【究極のクリーニング】
+            // JSONの文字列値の中に含まれる「本物の改行」を \n に置き換えるのではなく
+            // パースエラーを防ぐためにまず「本物の改行コード」そのものを物理的に消去（または正規化）する
+            s = s.replace(/[\r\n]+/g, " "); 
+
             try { return JSON.parse(s); } catch (e1) {
                 try {
-                    s = s.replace(/\\\\/g, "___D___").replace(/\\"/g, "___Q___").replace(/\\n/g, "___N___");
+                    // バックスラッシュの救済
+                    s = s.replace(/\\\\/g, "___D___").replace(/\\"/g, "___Q___");
                     s = s.replace(/\\/g, "\\\\");
-                    s = s.replace(/___D___/g, "\\\\").replace(/___Q___/g, "\\\"").replace(/___N___/g, "\\n");
-                    s = s.replace(/\n/g, "\\n").replace(/\r/g, "");
+                    s = s.replace(/___D___/g, "\\\\").replace(/___Q___/g, "\\\"");
                     return JSON.parse(s);
                 } catch (e2) {
-                    if (isDebug) debugBox.innerText += "\n\nPARSE FAILED:\n" + s;
+                    if (isDebug) debugBox.innerText += "\n\nCLEANED STR (PARSE FAILED):\n" + s;
                     throw new Error("パース失敗。DEBUGを確認せよ。");
                 }
             }
@@ -211,12 +195,12 @@
 
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
-            let adaptive = `現在偏差値${dev}に最適化せよ。`;
-            if (dev >= 60) adaptive = `偏差値${dev}（最上位）。原則小問禁止。超難問のみ足場となる小問を許可。`;
-            else if (dev < 45) adaptive = `偏差値${dev}。計算手順を分けた丁寧な誘導を設けよ。`;
+            let adaptive = `現在偏差値${dev}。`;
+            if (dev >= 60) adaptive += `（最上位）。原則小問禁止。計算手順の分割は絶対に行うな。真に飛躍が必要な場合のみ補題としての小問を最小限認めよ。`;
+            else if (dev < 45) adaptive += `基礎重視。丁寧な誘導。`;
 
-            let promptText = "最難関高校講師。類題を作成。数値替え禁止。数式はLaTeX($)を使用。バッククォート記号は絶対禁止。";
-            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる単元から、全く新しい良問を作成。数式はLaTeX($)を使用。バッククォート記号禁止。`;
+            let promptText = "最難関高校講師。類題作成。数値替え禁止。数式LaTeX($)。バッククォート記号禁止。";
+            if (isOtherUnit) promptText = `最難関高校講師。単元「${state.prob.unit}」と異なる系統の別単元から、新傾向の良問を。バッククォート禁止。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
@@ -225,16 +209,16 @@
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
                         【指示】${adaptive} 
-                        【範囲】代数（数と式、整数、方程式）、解析（関数）、幾何（平面、立体）、確率からランダムに。
-                        【LaTeXルール】不等号「<」「>」は前後にスペースを入れる。インライン数式内での改行は禁止。
-                        【構成ルール】textは前提条件のみ（問いは含めない）。問いはsub配列。
-                        【最重要】JSON以外のお喋り、前置き、Markdownタグを1文字たりとも出力するな。
+                        【範囲】代数（数と式、整数、方程式）、解析（関数）、幾何（平面、立体）、確率。
+                        【LaTeX】不等号は前後にスペース。
+                        【文体】簡潔な命令形。ですます調、冗長な解説は一切禁止。
+                        【構成】textは前提条件のみ。問いはsub配列。
+                        【重要】JSON文字列の中に、物理的な改行（Enter）を含めず、1行の文字列として出力せよ。
                         {"unit":"...","text":"...","sub":["..."],"hint":"...","has_diagram":true}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
                 const data = await res.json();
-                if (data.error) throw new Error(data.error.message);
                 const json = robustJSONParse(data.candidates[0].content.parts[0].text);
                 applyProb(json);
                 document.getElementById('adaptive-label').style.display = 'inline-block';
@@ -250,7 +234,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況視覚化SVG。<svg>のみ出力。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況視覚化SVG。` }] }] })
                 });
                 const data = await res.json();
                 clearInterval(drawTimer);
@@ -268,7 +252,7 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師として画像採点。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。画像採点。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
@@ -318,7 +302,7 @@
             window.onmousemove = (e) => { if(isDrag) { state.x = e.clientX - sx; state.y = e.clientY - sy; updateView(); } };
             window.onmouseup = () => isDrag = false;
             c.ontouchstart = (e) => { if(e.touches.length === 1) { isDrag = true; sx = e.touches[0].clientX - state.x; sy = e.touches[0].clientY - state.y; } };
-            c.ontouchmove = (e) => { if(e.touches.length === 1 && isDrag) { state.x = e.touches[0].clientX - sx; state.y = e.touches[0].clientY - sy; updateView(); } };
+            c.ontouchmove = (e) => { if(e.touches.length === 1 && isDrag) { state.x = e.touches[0].clientX - sx; state.y = e.touches[0].clientY - sy; } };
             c.ontouchend = () => isDrag = false;
         }
         function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
