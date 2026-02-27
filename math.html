@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v3.0.7</title>
+    <title>最難関突破 AI数学講師 v3.0.8</title>
     
     <script>
         window.MathJax = {
@@ -42,7 +42,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.0.7 Sync+</span>
+        <span class="version-tag">ver 3.0.8 Curriculum-Full</span>
     </div>
 
     <div class="card">
@@ -104,7 +104,7 @@
 
         window.onload = () => {
             initZoom(); refreshStats();
-            applyProb({ unit: "数と式", text: "次の等式において、指定された値を求めよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"] });
+            applyProb({ unit: "数と式", text: "次の条件において、指定された値を求めよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"] });
             setTimeout(renderMath, 1500);
         };
 
@@ -129,35 +129,25 @@
         function applyProb(p) {
             if (!p) return;
             state.prob = p; state.seen_answer = false; state.prefetched_answer = null; resetView();
-            
             const unit = p.unit || p.section || "総合";
             document.getElementById('u-title').innerText = unit;
-
-            // 問題文（状況設定）
             const mainText = p.text || p.problem || p.body || "問題データなし";
             document.getElementById('p-text').innerText = cleanText(mainText);
-
-            // 小問（問い）の具体化ガード
             const rawSub = p.sub || p.questions || p.q || [];
             let subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
-            
             subArray = subArray.map(q => {
                 let text = cleanText(q);
-                // 「答えを求めよ」のような曖昧な表現を、問題文の「〜を求めよ」で置換
                 if (text.length < 8 && /求めよ|答えよ/.test(text)) {
                     const match = mainText.match(/[^。、]+(求めよ|証明せよ|答えよ|示せ)/);
                     if (match) return match[0];
                 }
                 return text;
             });
-
             document.getElementById('q-list').innerHTML = subArray.length === 0 ? "<li>(1) 問いの内容を特定せよ。</li>" : subArray.map((q, i) => `<li>${q}</li>`).join('');
-            
             document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "基本を再確認。";
-            document.getElementById('h-box').style.display = 'none'; 
-            document.getElementById('res-box').style.display = 'none';
+            document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
 
-            const showDiagram = p.has_diagram || /幾何|関数|図形|グラフ/.test(unit);
+            const showDiagram = p.has_diagram || /幾何|関数|図形|立体|空間/.test(unit);
             document.getElementById('zoom-box').style.display = showDiagram ? 'flex' : 'none';
             document.getElementById('canvas-footer').style.display = showDiagram ? 'block' : 'none';
             
@@ -173,22 +163,16 @@
             drawingLock = true; drawingAbortController = new AbortController();
             let start = Date.now(); if(state.dt) clearInterval(state.dt);
             state.dt = setInterval(() => { const el = document.getElementById('draw-timer-val'); if(el) el.innerText = ((Date.now()-start)/1000).toFixed(1)+"s"; }, 100);
-            
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: drawingAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${sourceText}」の可視化SVG。点名と数値のみ配置。SVGタグのみ出力せよ。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${sourceText}」の可視化SVG。点名と数値のみ。SVGタグのみ出力せよ。` }] }] })
                 });
                 let svg = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (svg) {
-                    // 【整合性ガード】問題文に含まれない単独アルファベットを図から消す
                     let cleanSvg = svg[0].replace(/<text(.*?)>(.*?)<\/text>/gi, (m, p1, p2) => {
                         const content = p2.replace(/\$|\\/g, '').trim();
-                        // 1文字のアルファベットの場合、問題文に含まれているかチェック
-                        if (content.length === 1 && /[A-Za-z]/.test(content)) {
-                            return sourceText.includes(content) ? `<text${p1}>${content}</text>` : '';
-                        }
-                        // 数値などはそのまま許可
+                        if (content.length === 1 && /[A-Za-z]/.test(content)) return sourceText.includes(content) ? `<text${p1}>${content}</text>` : '';
                         return /^\d+(\.\d+)?(°|度)?$/.test(content) ? `<text${p1}>${content}</text>` : '';
                     });
                     document.getElementById('svg-layer').innerHTML = cleanSvg;
@@ -202,20 +186,24 @@
             drawingLock = false; if (state.dt) clearInterval(state.dt);
             let devValue = parseFloat(document.getElementById('dev-val').innerText) || 50.0;
             if (isHardMode) devValue = 80;
-            const allUnits = ["幾何", "関数", "整数", "確率", "計算", "方程式"];
+            
+            // 単元プール（空間図形を独立追加）
+            const allUnits = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率", "データの活用"];
             const pool = allUnits.filter(u => !state.last_units.includes(u));
             let target = pool[Math.floor(Math.random() * pool.length)];
             state.last_units.push(target); if(state.last_units.length > 3) state.last_units.shift();
+
             showUI(`${target}を構成中...`);
             currentAbortController = new AbortController();
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学講師。入試問題調。textには状況、subには問い。日本語回答。単元「${target}」。偏差値${devValue}。JSON形式。最大1分程かけて構成せよ。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学講師。入試問題調。textには状況、subには具体的な問い。日本語。単元「${target}」。偏差値${devValue}。JSON形式。最大1分程かけよ。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 applyProb(JSON.parse(data.candidates[0].content.parts[0].text));
-            } catch (e) {} finally { hideUI(); }
+            } catch (e) { if (!isOther) generateNext(isOther, isHardMode); }
+            finally { hideUI(); }
         }
 
         function initZoom() {
@@ -232,11 +220,11 @@
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); clearInterval(state.t); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function abortGeneration() { if (currentAbortController) currentAbortController.abort(); hideUI(); }
-        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答解説。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
+        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解答解説。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
         function peekAnswer() { if (!confirm("解答を確認しますか？")) return; state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得中..."; document.getElementById('res-box').style.display = 'block'; renderMath(); }
         function refreshStats() { const h = JSON.parse(localStorage.getItem('m_hist') || "[]"); document.getElementById('count-val').innerText = h.length; }
         function doSkip() { generateNext(true); }
-        function resetData() { if(confirm("データを消去しますか？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
     </script>
 </body>
 </html>
