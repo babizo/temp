@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.5.6</title>
+    <title>最難関突破 AI数学講師 v2.5.7</title>
     
     <script>
         window.MathJax = {
@@ -43,7 +43,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.5.6 boot-fix</span>
+        <span class="version-tag">ver 2.5.7 loader-isolation</span>
     </div>
     
     <div id="debug-output"></div>
@@ -108,7 +108,6 @@
             applyProb(firstProb);
             refreshStats();
             initZoom();
-            // ★【修正】1問目が図ありなら即座に作図を開始
             if (firstProb.has_diagram !== false) autoDraw(0);
         });
 
@@ -234,6 +233,7 @@
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
             const units = ["幾何", "関数", "整数", "確率"];
             const targetUnit = units[Math.floor(Math.random() * units.length)];
+            
             showUI(`${targetUnit}の問題を構成中...`);
             currentAbortController = new AbortController();
             let lastRaw = "";
@@ -242,7 +242,7 @@
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `数学問題エンジン。単元「${targetUnit}」の具体的数値を含む良問を生成せよ。JSON直下にtext, sub, unit, hint, has_diagram。偏差値${dev}向け。構成はJSONのみ。` }] }],
+                        contents: [{ parts: [{ text: `数学問題エンジン。単元「${targetUnit}」の具体的数値を含む良問。JSON直下にtext, sub, unit, hint, has_diagram。偏差値${dev}向け。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -250,10 +250,15 @@
                 lastRaw = data.candidates[0].content.parts[0].text;
                 const json = robustJSONParse(lastRaw);
                 applyProb(json);
+                // メインUIを閉じるのはここ（作図の終了に依存させない）
+                hideUI();
                 if (json.has_diagram !== false) autoDraw(0);
             } catch (e) { 
-                if (e.name !== 'AbortError') logDebug(`Generation Error: ${e.message}`, lastRaw);
-            } finally { currentAbortController = null; hideUI(); }
+                if (e.name !== 'AbortError') {
+                    logDebug(`Generation Error: ${e.message}`, lastRaw);
+                    hideUI();
+                }
+            } finally { currentAbortController = null; }
         }
 
         async function autoDraw(retryCount = 0) {
@@ -261,25 +266,31 @@
             const layer = document.getElementById('svg-layer');
             const timerVal = document.getElementById('draw-timer-val');
             let startTime = Date.now();
+            
             clearInterval(state.dt);
             state.dt = setInterval(() => {
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-                if (timerVal) timerVal.innerText = elapsed + "s";
-                else layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val" style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div><div class="wait-text">（最大1分程度かかる場合があります）</div>`;
+                const currentTimer = document.getElementById('draw-timer-val');
+                if (currentTimer) currentTimer.innerText = elapsed + "s";
+                else if (layer.innerText.includes("作図中")) layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val" style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div><div class="wait-text">（最大1分程度かかる場合があります）</div>`;
             }, 100);
 
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVGのみ。全ラベル配置。viewBox="0 0 200 200"。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVGのみ。全ラベル配置。viewBox="0 0 200 200"。"&"等の実体参照禁止。` }] }] })
                 });
                 const data = await res.json();
                 const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
-                else if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); }
+                else if (retryCount < 1) { autoDraw(retryCount + 1); }
                 else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
-            } catch (e) { if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); } }
-            finally { clearInterval(state.dt); }
+            } catch (e) { 
+                if (retryCount < 1) { autoDraw(retryCount + 1); } 
+            } finally {
+                // ここで hideUI() を呼ばないように修正（メイン画面を閉じない）
+                clearInterval(state.dt);
+            }
         }
 
         async function doGrade(file) {
