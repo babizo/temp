@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.4.5</title>
+    <title>最難関突破 AI数学講師 v2.4.6</title>
     
     <script>
         window.MathJax = {
@@ -29,7 +29,7 @@
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
-        .loading-overlay { display: none; text-align: center; padding: 20px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
+        .loading-overlay { display: none; text-align: center; padding: 20px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 2px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
         .btn-camera { background: var(--success); color: white; flex: 1; }
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.4.5 Clean-Instruction</span>
+        <span class="version-tag">ver 2.4.6 Auto-Flatten</span>
     </div>
     
     <div id="debug-output"></div>
@@ -99,7 +99,7 @@
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false, seen_answer: false, prefetched_answer: null };
 
         const initDataList = [
-            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。$f(100)$ の値を求めよ。", sub: [], has_diagram: false, hint: "循環節を見つけよ。" }
+            { unit: "幾何", text: "△ABCと△DEFがある。AB=DE=5cm, ∠BAC=∠EDF=60°, AC=DF=7cmであるとき、△ABCと△DEFが合同であることを証明せよ。", sub: [], has_diagram: true, hint: "2組の辺とその間の角に着目せよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -125,20 +125,23 @@
         }
 
         function getUnit(p) {
-            const rawUnit = p.unit || p.unit_name || p.category || "総合演習";
+            const rawUnit = p.unit || p.unit_name || p.category || p.type || "総合演習";
             return cleanText(rawUnit) || "総合演習";
         }
 
         function applyProb(p) {
             if (Array.isArray(p)) p = p[0] || {};
-            
-            // ★【検知強化】数値・数式がなく、かつ「求めよ/示せ」等の目的語もない場合はゴミとみなす
+
+            // ★【追加】階層が深い場合に中身を引き出す (problem, data等の親キー対策)
+            if (!p.text && p.problem) p = p.problem;
+            if (!p.text && p.data) p = p.data;
+
             const fullContent = (p.text || "") + (p.sub ? p.sub.join("") : "");
             const hasMath = /[0-9xyz$]|[\u0370-\u03ff]/.test(fullContent);
-            const hasObjective = /求めよ|示せ|証明せよ|答えよ/.test(fullContent);
+            const hasObjective = /求めよ|示せ|証明せよ|答えよ|作図せよ/.test(fullContent);
 
             if (fullContent.length > 0 && (!hasMath || !hasObjective)) {
-                console.warn("Invalid content. Objective or Math missing. Retrying...");
+                console.warn("Invalid content. Retrying...");
                 generateNext(false); 
                 return;
             }
@@ -182,10 +185,11 @@
         }
 
         async function prefetchAnswer() {
+            if (!state.prob.text) return;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `解答と詳細な解説を出力せよ。数式LaTeX。問題：${state.prob.text} ${state.prob.sub}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `解答と解説を出力せよ。数式LaTeX。問題：${state.prob.text}` }] }] })
                 });
                 const data = await res.json();
                 state.prefetched_answer = cleanText(data.candidates[0].content.parts[0].text);
@@ -193,8 +197,8 @@
         }
 
         async function peekAnswer() {
-            if (state.seen_answer) { alert("既に表示済みだ。"); return; }
-            if (!confirm("採点の前に解答を見ると、得点は0点となります。よろしいですか？")) return;
+            if (state.seen_answer) { alert("表示済みだ。"); return; }
+            if (!confirm("採点の前に解答を見ると、得点は0点となる。よろしいか？")) return;
             state.seen_answer = true;
             const resBox = document.getElementById('res-box');
             if (state.prefetched_answer) {
@@ -204,10 +208,10 @@
                 saveLog("×", 0);
                 state.graded = true;
             } else {
-                showUI("解答を取得中...");
+                showUI("取得中...");
                 try {
                     await prefetchAnswer();
-                    resBox.innerHTML = state.prefetched_answer;
+                    resBox.innerHTML = state.prefetched_answer || "取得失敗した。";
                     resBox.style.display = 'block';
                     renderMath();
                     saveLog("×", 0);
@@ -246,11 +250,11 @@
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `数学問題生成エンジン。余計な文言は一切不要。
+                        contents: [{ parts: [{ text: `数学問題生成エンジン。
                         【絶対ルール】
-                        1. 問題（text, sub）は具体的数値を含むこと。小問(sub)がない場合、textの末尾で必ず何を求めるべきか明記せよ。
-                        2. 語尾は「〜を求めよ」「〜を示せ」等の最短命令形のみ。
-                        3. 数学以外のメタ発言（基礎、処理せよ等）は一切禁止。
+                        1. 問題(text)は具体的数値を含むこと。問いの目的を「〜を求めよ」「〜を示せ」と末尾に明記せよ。
+                        2. 余計な説明、メタ発言は一切禁止。
+                        3. JSON直下にtext, sub, unit, hint, has_diagramを含めよ。
                         ${adaptive} ${proofInstr}
                         【構成】幾何、関数、整数、確率からランダム。立体図形はSVG。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
@@ -265,6 +269,7 @@
         }
 
         async function autoDraw(retryCount = 0) {
+            if (!state.prob.text) return;
             const layer = document.getElementById('svg-layer');
             let startTime = Date.now();
             clearInterval(state.dt);
@@ -357,7 +362,7 @@
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; renderMath(); }
         function resetData() { if(confirm("履歴消去せよ。")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
-        function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
+        function hideUI() { document.getElementById('status-ui').style.none; clearInterval(state.t); }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
         document.getElementById('c-input').onchange = (e) => doGrade(e.target.files[0]);
     </script>
