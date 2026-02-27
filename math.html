@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.0.0</title>
+    <title>最難関突破 AI数学講師 v2.0.4</title>
     
     <script>
         window.MathJax = {
@@ -57,7 +57,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.0.0 Serverless</span>
+        <span class="version-tag">ver 2.0.4 Brain-Teaser</span>
     </div>
 
     <div class="card">
@@ -134,11 +134,11 @@
             },
             {
                 unit: "方程式",
-                text: "ある列車が長さ $1200\\text{m}$ のトンネルに完全に入ってから、先頭が出始めるまでに $60$ 秒かかった。また、長さ $2000\\text{m}$ の鉄橋を渡り始めてから渡り終わるまでに $110$ 秒かかった。",
-                sub: ["(1) この列車の長さと秒速をそれぞれ求めよ。"],
+                text: "A君はP町からQ町へ、B君はQ町からP町へ向かって同時に出発した。2人は途中で出会ってから、A君は $16$ 分後にQ町に到着し、B君は $36$ 分後にP町に到着した。それぞれの速さは一定であるとする。",
+                sub: ["(1) A君とB君の速さの比を求めよ。", "(2) 出発してから2人が出会うまでにかかった時間を求めよ。"],
                 has_diagram: true,
-                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect x="30" y="80" width="100" height="40" fill="none" stroke="#333" stroke-width="2"/><rect x="50" y="90" width="40" height="20" fill="rgba(231,76,60,0.5)" stroke="#e74c3c"/><text x="80" y="70" font-size="12" text-anchor="middle">トンネル 1200m</text><text x="70" y="105" font-size="10" fill="#fff" font-weight="bold">列車 x(m)</text></svg>`,
-                hint: "列車の長さを $x(\\text{m})$、速さを $y(\\text{m/s})$ として、進んだ距離と時間の関係を連立方程式にしましょう。"
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="100" x2="180" y2="100" stroke="#333" stroke-width="2"/><circle cx="20" cy="100" r="4" fill="#333"/><circle cx="180" cy="100" r="4" fill="#333"/><text x="20" y="80" font-size="14" font-weight="bold" text-anchor="middle">P町</text><text x="180" y="80" font-size="14" font-weight="bold" text-anchor="middle">Q町</text><circle cx="110" cy="100" r="4" fill="#e74c3c"/><text x="110" y="80" font-size="12" fill="#e74c3c" text-anchor="middle">出会った地点</text><path d="M 20 120 Q 65 140 110 120" fill="none" stroke="#5dade2" stroke-width="2" marker-end="url(#arrow)"/><path d="M 110 120 Q 145 140 180 120" fill="none" stroke="#5dade2" stroke-width="2" stroke-dasharray="4"/><text x="145" y="145" font-size="10" fill="#5dade2" text-anchor="middle">16分</text><path d="M 180 160 Q 145 180 110 160" fill="none" stroke="#27ae60" stroke-width="2" marker-end="url(#arrow)"/><path d="M 110 160 Q 65 180 20 160" fill="none" stroke="#27ae60" stroke-width="2" stroke-dasharray="4"/><text x="65" y="185" font-size="10" fill="#27ae60" text-anchor="middle">36分</text></svg>`,
+                hint: "出会うまでにかかった時間を $t$ 分とおき、進んだ距離と速さの関係から方程式（2次方程式）を立てるか、比の性質を利用しましょう。"
             },
             {
                 unit: "関数",
@@ -149,12 +149,28 @@
                 hint: "$\\triangle OAB$ の面積は、直線ABのy切片を利用して、2つの三角形の面積の和として計算すると簡単です。"
             },
             {
+                unit: "平面図形",
+                text: "半径 $6$ の円Oの周上に3点 A, B, C があり、$AB = AC = 8$ である。弦BCの中点をMとし、直線AMと円Oの交点のうちAでない方をDとする。",
+                sub: ["(1) 線分AMの長さを求めよ。", "(2) $\\triangle ABC$ の面積を求めよ。"],
+                has_diagram: true,
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="80" fill="none" stroke="#333" stroke-width="2"/><polygon points="100,20 40,140 160,140" fill="rgba(231,76,60,0.2)" stroke="#e74c3c" stroke-width="2"/><line x1="100" y1="20" x2="100" y2="180" stroke="#27ae60" stroke-dasharray="4"/><text x="100" y="15" font-size="12" font-weight="bold">A</text><text x="25" y="150" font-size="12" font-weight="bold">B</text><text x="165" y="150" font-size="12" font-weight="bold">C</text><text x="110" y="145" font-size="12" font-weight="bold">M</text><text x="105" y="195" font-size="12" font-weight="bold">D</text></svg>`,
+                hint: "方べきの定理 ($AM \\times MD = BM \\times MC$) や、直角三角形の三平方の定理を活用しましょう。"
+            },
+            {
                 unit: "立体図形",
                 text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BC, CGの中点をそれぞれP, Q, Rとする。",
                 sub: ["(1) 3点P, Q, Rを通る平面で切断したときの、切り口の形状を答えよ。", "(2) 立方体の頂点Bを含む方の立体の体積を求めよ。"],
                 has_diagram: true,
                 svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333"/><path d="M75 35 L155 35 L155 115 L75 115 Z" fill="none" stroke="#333" stroke-dasharray="2"/><path d="M40 70 L75 35 M120 70 L155 35 M120 150 L155 115 M40 150 L75 115" fill="none" stroke="#333"/><path d="M80 70 L137.5 52.5 L155 75 Z" fill="rgba(231,76,60,0.3)" stroke="#e74c3c" stroke-width="2"/><text x="75" y="65" font-size="12" font-weight="bold">P</text><text x="145" y="50" font-size="12" font-weight="bold">Q</text><text x="160" y="85" font-size="12" font-weight="bold">R</text></svg>`,
                 hint: "切り口は正三角形になります。三角錐として体積を計算しましょう。"
+            },
+            {
+                unit: "確率",
+                text: "$1$ から $6$ までの目が出る大小2つのサイコロを同時に投げる。大きいサイコロの目を $a$、小さいサイコロの目を $b$ とし、座標平面上に点 $\\text{P}(a, b)$ をとる。",
+                sub: ["(1) 点Pが放物線 $y = \\frac{1}{2}x^2$ 上にある確率を求めよ。", "(2) 原点をOとしたとき、線分OPの長さが $5$ 以上になる確率を求めよ。"],
+                has_diagram: true,
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><line x1="20" y1="180" x2="180" y2="180" stroke="#333" stroke-width="2"/><line x1="20" y1="20" x2="20" y2="180" stroke="#333" stroke-width="2"/><circle cx="80" cy="120" r="4" fill="#e74c3c"/><text x="90" y="115" font-size="12" font-weight="bold">P(a,b)</text><line x1="20" y1="180" x2="80" y2="120" stroke="#27ae60" stroke-dasharray="4"/><text x="10" y="195" font-size="12">O</text><text x="170" y="195" font-size="12">x</text><text x="10" y="20" font-size="12">y</text></svg>`,
+                hint: "全事象は $36$ 通りです。(1)は $b = \\frac{1}{2}a^2$ を満たす $(a, b)$ を探します。"
             }
         ];
 
@@ -213,7 +229,7 @@
                 adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎が抜けている可能性があるため、ひねりをなくし、公式の確認ができる標準的な難易度にレベルを下げて作成せよ。`;
             }
 
-            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
+            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSONで作成。単なる数値の入れ替え問題は絶対に行わず、別角度からの問いや条件の追加など、新たな思考プロセスを促す問題にすること。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
             if (isOtherUnit) {
                 promptText = `最難関高校講師。現在の単元「${state.prob.unit || '未定義'}」とは【完全に異なる単元】（数と式、方程式、関数、平面図形、立体図形、確率などのうち、現在と違うもの）の良問を新たにJSONで作成せよ。数式はLaTeX記法（$で囲む）を積極的に用いること。`;
             }
@@ -221,15 +237,19 @@
             showUI(`偏差値 ${currentDev} に合わせて問題を構成中...`);
             
             try {
-                // 【修正】リクエスト先を自作のAPIルート（Serverless Functions）に変更
+                // 【修正】作図・出題ルールに数値替え禁止と確率の高度化指示を追加
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
                     【アダプティブ指示】
                     ${adaptiveInstruction}
                     
+                    【出題ルール】
+                    ・単なる数値の入れ替え問題は禁止。設定を少し変える、逆から問う、条件を増やすなど、必ず新しい思考プロセスを問うこと。
+                    ・もし「確率」の単元を出題する場合は、単なる公式適用ではなく、論理的な場合分けや複雑な条件整理を要する思考力問題（例: ルールが複雑なサイコロゲーム、図形上の点の移動など）にすること。
+
                     【厳守フォーマット】
-                    ・unitには「立体図形」「整数問題」などの『数学の単元名』を必ず入れる。
+                    ・unitには「平面図形」「確率」などの『数学の単元名』を必ず入れる。
                     ・図解が必要な問題（図形、関数など）は has_diagram を true、不要な問題（計算、整数問題など）は false にすること。
                     ・必ず「〜を求めよ」という問いで完結させること。
                     {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
@@ -251,7 +271,7 @@
             } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
         }
 
-        async function autoDraw() { // 【修正】引数のkeyを削除
+        async function autoDraw() {
             const layer = document.getElementById('svg-layer');
             let st = Date.now();
             let drawTimer = setInterval(() => {
@@ -259,7 +279,6 @@
             }, 100);
 
             try {
-                // 【修正】リクエスト先を自作のAPIルートに変更
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説用SVG図を作成せよ。
@@ -294,7 +313,6 @@
             reader.onload = async (e) => {
                 const b64 = e.target.result.split(',')[1];
                 try {
-                    // 【修正】リクエスト先を自作のAPIルートに変更
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
                         body: JSON.stringify({ 
@@ -412,7 +430,7 @@
         function toggleHint() { 
             const b = document.getElementById('h-box'); 
             b.style.display = (b.style.display === 'block') ? 'none' : 'block';
-            renderMath();
+            renderMath(); 
         }
         function resetData() { if(confirm("学習履歴を全消去しますか？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
