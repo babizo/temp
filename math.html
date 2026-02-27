@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.3.8</title>
+    <title>最難関突破 AI数学講師 v2.3.9</title>
     
     <script>
         window.MathJax = {
@@ -29,35 +29,32 @@
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
-        #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
-        .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
+        .loading-overlay { display: none; text-align: center; padding: 20px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 2px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
-        .btn-camera { background: var(--success); color: white; height: 52px; }
+        .btn-camera { background: var(--success); color: white; flex: 1; }
+        .btn-answer-only { background: #555; color: white; font-size: 0.85rem; flex: 1; }
         .hint-box { display: none; color: var(--hint); font-weight: bold; padding: 12px; border-left: 4px solid var(--hint); font-size: 0.85rem; background: rgba(243, 156, 18, 0.08); margin: 10px 0; border-radius: 0 8px 8px 0; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
         .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-        .adaptive-badge { background: #e67e22; color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; margin-left: 5px; vertical-align: middle; }
+        #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
     </style>
 </head>
 <body>
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.3.8 Hint-Failsafe</span>
+        <span class="version-tag">ver 2.3.9 Logic-Guard</span>
     </div>
     
     <div id="debug-output"></div>
 
     <div class="card">
-        <div class="header-flex"><h1>分析パネル</h1><span style="font-size:0.6rem; color:#888;">SAPIX偏差値準拠</span></div>
+        <div class="header-flex"><h1>分析パネル</h1></div>
         <div style="display:flex; justify-content:space-around; text-align:center;">
             <div>
                 <div style="font-size:0.7rem; color:#aaa;">想定偏差値</div>
-                <div id="dev-box" style="display:flex; align-items:baseline; justify-content:center; gap:5px; flex-wrap:wrap;">
-                    <span id="dev-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">50.0</span>
-                    <span id="target-school" style="font-size:0.75rem; color:var(--hint); font-weight:bold;">[都立中堅]</span>
-                </div>
+                <div style="display:flex; align-items:baseline; justify-content:center; gap:5px;"><span id="dev-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">50.0</span><span id="target-school" style="font-size:0.7rem; color:var(--hint);">[都立中堅]</span></div>
             </div>
             <div><div style="font-size:0.7rem; color:#aaa;">累計演習</div><div id="count-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">0</div></div>
         </div>
@@ -65,24 +62,26 @@
     </div>
 
     <div class="card">
-        <div class="header-flex">
-            <h1>演習 [<span id="u-title"></span>]<span id="adaptive-label" class="adaptive-badge" style="display:none;">レベル調整済</span></h1>
-            <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">他の単元へ ≫</button>
-        </div>
+        <div class="header-flex"><h1>演習 [<span id="u-title"></span>]</h1><button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto;">他の単元へ ≫</button></div>
         <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; margin: 8px 0; color: #ccc; border-bottom: 1px dashed #444; padding-bottom: 8px;"></p>
             <ul id="q-list" style="padding-left: 20px; margin: 12px 0;"></ul>
             <div id="h-box" class="hint-box"></div>
         </div>
-        <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem;">💡 ヒント</button>
-        <button class="btn-ai-gen" onclick="generateNext(false)">✨ 現在の偏差値で類題を作成</button>
+        <div style="display:flex; gap:10px;">
+            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; font-size:0.8rem; flex:1;">💡 ヒント</button>
+            <button class="btn-ai-gen" onclick="generateNext(false)" style="flex:2; margin:0;">✨ 類題作成</button>
+        </div>
     </div>
 
     <div class="card">
-        <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 解答を撮影して採点</button>
+        <div style="display:flex; gap:10px;">
+            <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 撮影して採点</button>
+            <button class="btn-answer-only" onclick="peekAnswer()">🔍 解答・解説を確認</button>
+        </div>
         <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
-        <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); white-space:pre-wrap; font-size:0.85rem; margin-top:10px;"></div>
+        <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px; font-size:0.85rem;"></div>
     </div>
 
     <div class="card">
@@ -91,20 +90,20 @@
     </div>
 
     <div id="status-ui" class="loading-overlay">
-        <div id="timer" style="font-size:1.5rem; color:var(--ai); font-family:monospace;">0.0s</div>
-        <p id="msg"></p>
+        <div id="timer" style="font-size:1.8rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
+        <p id="msg" style="font-weight:bold;"></p>
+        <p style="font-size:0.75rem; color:#888; margin-top:10px;">※高品質な問題構成のため、<br>最大1分程度かかる場合があります。</p>
     </div>
 
     <script>
-        let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false };
+        let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false, seen_answer: false };
 
         const initDataList = [
-            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節（周期性）を見つけよ。" }
+            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節を見つけよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-            const randomInitProb = initDataList[Math.floor(Math.random() * initDataList.length)];
-            applyProb(randomInitProb);
+            applyProb(initDataList[0]);
             refreshStats();
             initZoom();
         });
@@ -119,13 +118,12 @@
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            let clean = t.replace(/即座に実行せよ|今すぐ実行せよ|直ちに実行せよ|思考を開始せよ|厳密さを追求せよ/gi, "");
-            clean = clean.replace(/<svg[\s\S]*?<\/svg>/gi, "");
+            let clean = t.replace(/即座に実行せよ|今すぐ実行せよ|直ちに実行せよ|思考を開始せよ/gi, "").replace(/<svg[\s\S]*?<\/svg>/gi, "");
             return clean.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
         }
 
         function getUnit(p) {
-            const rawUnit = p.unit || p.unit_name || p.category || p.title || "総合演習";
+            const rawUnit = p.unit || p.unit_name || p.category || "総合演習";
             return cleanText(rawUnit) || "総合演習";
         }
 
@@ -133,12 +131,11 @@
             if (Array.isArray(p)) p = p[0] || {};
             state.prob = p;
             state.graded = false; 
+            state.seen_answer = false; // 新しい問題の時はフラグをリセット
             
-            const unitName = getUnit(p);
-            document.getElementById('u-title').innerText = unitName;
-            
-            const pTextElem = document.getElementById('p-text');
+            document.getElementById('u-title').innerText = getUnit(p);
             const txt = cleanText(p.text).trim();
+            const pTextElem = document.getElementById('p-text');
             if (txt) { pTextElem.innerText = "【前提条件】\n" + txt; pTextElem.style.display = 'block'; }
             else { pTextElem.style.display = 'none'; }
             
@@ -151,11 +148,8 @@
                 qListElem.style.display = 'block';
             } else { qListElem.style.display = 'none'; }
             
-            // ヒントのフォールバック処理
             let hText = cleanText(p.hint).trim();
-            if (!hText || hText === "なし" || hText === "特になし") {
-                hText = `${unitName}の基本原理に立ち返り、論理的矛盾がないか確認せよ。条件を数式化、または図示することが突破口となる。`;
-            }
+            if (!hText || hText === "なし") hText = "基本原理に立ち返り、論理を構築せよ。";
             document.getElementById('h-box').innerText = hText;
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
@@ -169,6 +163,28 @@
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
             renderMath();
+        }
+
+        // 解答のみを確認するボタン
+        async function peekAnswer() {
+            if (state.seen_answer) { alert("既に解答を表示済みだ。"); return; }
+            state.seen_answer = true;
+            showUI("解答・解説を取得中...");
+            try {
+                const res = await fetch(`/api/chat`, {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学講師。以下の問題の解答と詳細な解説を出力せよ。数式LaTeX。問題：${state.prob.text} ${state.prob.sub}` }] }] })
+                });
+                const data = await res.json();
+                const fb = cleanText(data.candidates[0].content.parts[0].text);
+                const resBox = document.getElementById('res-box');
+                resBox.innerHTML = `<div style="color:var(--error); font-weight:bold; margin-bottom:10px;">【警告】解答を表示した。この問題の得点は0点となる。</div>` + fb;
+                resBox.style.display = 'block';
+                renderMath();
+                // 履歴に0点として保存
+                saveLog("×", 0);
+                state.graded = true;
+            } catch (e) { alert("取得失敗"); } finally { hideUI(); }
         }
 
         function robustJSONParse(rawStr) {
@@ -192,35 +208,24 @@
 
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
-            let adaptive = `現在偏差値${dev}に最適化せよ。`;
-            if (dev >= 60) adaptive += `（最上位層）。誘導を排せ。`;
+            let adaptive = `偏差値${dev}に最適化せよ。`;
+            if (dev >= 60) adaptive += `誘導不要。`;
             const isProof = Math.random() < 0.2;
             const proofInstr = isProof ? "【指示】証明問題を出題せよ。" : "";
-
-            let promptText = "数学講師。類題作成。数式LaTeX($)。";
-            if (isOtherUnit) promptText = `数学講師。現在の「${getUnit(state.prob)}」以外の単元からランダム選定。`;
 
             showUI(`問題を構成中...`);
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `${promptText}
-                        【重要】${adaptive} ${proofInstr}
-                        【ヒント規定】hintプロパティには、難問であっても思考の指針となる一文を必ず記述せよ。空文字は厳禁とする。
-                        【禁止】数学的条件と問い以外のメタ発言を一切含めるな。
-                        【ルール】
-                        ・図を伴う場合、text末尾に「なお、図は必ずしも正確とは限らない。」を付与。
-                        ・幾何、関数、整数、確率からランダム選定。
-                        ・立体図形は必ずSVGで作図。
-                        【構成】textは前提条件。問いはsub。JSONのみ。` }] }],
+                        contents: [{ parts: [{ text: `数学講師。類題作成。数式LaTeX($)。${adaptive} ${proofInstr}
+                        【ルール】図を伴う場合text末尾に「なお、図は必ずしも正確とは限らない。」を付与。幾何、関数、整数、確率からランダム選定。立体図形はSVGで作図。メタ発言厳禁。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
                 const data = await res.json();
                 const json = robustJSONParse(data.candidates[0].content.parts[0].text);
                 applyProb(json);
-                document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 if (json.has_diagram !== false) autoDraw(0);
             } catch (e) { hideUI(); alert("失敗"); }
@@ -234,28 +239,25 @@
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div>`;
             }, 100);
-            
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力。
-                    【条件】全アルファベットをラベル配置。viewBox="0 0 200 200"。Markdown禁止。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ出力。全アルファベットをラベル配置。viewBox="0 0 200 200"。` }] }] })
                 });
                 const data = await res.json();
-                const text = data.candidates[0].content.parts[0].text;
-                const match = text.match(/<svg[\s\S]*?<\/svg>/i);
+                const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 clearInterval(state.dt);
                 if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
                 else if (retryCount < 1) autoDraw(retryCount + 1);
                 else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
-            } catch (e) { 
-                clearInterval(state.dt);
-                if (retryCount < 1) autoDraw(retryCount + 1);
-                else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
-            }
+            } catch (e) { clearInterval(state.dt); if (retryCount < 1) autoDraw(retryCount + 1); }
         }
 
         async function doGrade(file) {
+            if (state.seen_answer) { 
+                alert("もう解答を見てしまったので得点は0点とします。");
+                return; // 既にsaveLog(0)済みのため処理終了
+            }
             showUI("採点中...");
             const reader = new FileReader();
             reader.onload = async (e) => {
@@ -289,26 +291,21 @@
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             document.getElementById('count-val').innerText = h.length;
             document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => {
-                const displayUnit = (x.u === "undefined" || !x.u) ? "（不明な単元）" : x.u;
+                const displayUnit = x.u || "総合演習";
                 return `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${displayUnit}</span><div><span class="score-badge">${x.s}/10</span> ${x.m}</div></div>`;
             }).join('');
-            
             let dev = 50.0;
             if (h.length >= 1) dev = 40 + ((h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length) * 3.5);
             document.getElementById('dev-val').innerText = dev.toFixed(1);
             let s = "[都立中堅]";
-            if (dev >= 68) s = "[筑駒]"; else if (dev >= 66) s = "[開成・灘]"; else if (dev >= 52) s = "[都立共通上位]";
+            if (dev >= 68) s = "[筑駒]"; else if (dev >= 66) s = "[開成]"; else if (dev >= 62) s = "[日比谷]"; else if (dev >= 52) s = "[上位校]";
             document.getElementById('target-school').innerText = s;
             const units = {};
-            h.forEach(x => { 
-                const uKey = (x.u === "undefined" || !x.u) ? "その他" : x.u;
-                if(!units[uKey]) units[uKey]={s:0,c:0}; 
-                units[uKey].s+=x.s; units[uKey].c++; 
-            });
+            h.forEach(x => { const u = x.u || "その他"; if(!units[u]) units[u]={s:0,c:0}; units[u].s+=x.s; units[u].c++; });
             let html = "";
             for(let u in units) {
                 const a = units[u].s/units[u].c;
-                html += `<div style="margin-bottom:5px;"><span>${u}</span> <span style="float:right;">${a.toFixed(1)}/10</span><div style="background:#444; height:4px; width:100%;"><div style="background:var(--success); height:100%; width:${a*10}%;"></div></div></div>`;
+                html += `<div style="margin-bottom:5px;"><span>${u}</span> <span style="float:right;">${a.toFixed(1)}/10</span><div style="background:#444; height:4px;"><div style="background:var(--success); height:100%; width:${a*10}%;"></div></div></div>`;
             }
             document.getElementById('unit-chart').innerHTML = html;
         }
