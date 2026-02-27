@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v3.3.0</title>
+    <title>最難関突破 AI数学講師 v3.3.5</title>
     
     <script>
         window.MathJax = {
@@ -28,16 +28,18 @@
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .debug-bar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 0.7rem; color: #888; margin-bottom: 5px; }
         
-        /* スライダー調整 */
-        .dev-control-box { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; }
-        .dev-display-row { display: flex; align-items: baseline; gap: 10px; }
-        #dev-slider { width: 100%; height: 6px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 10px 0; }
-        #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); cursor: pointer; }
-
+        .dev-control-box { width: 100%; padding: 5px 0; }
+        .dev-display-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 5px; }
+        #dev-slider { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 15px 0 5px 0; }
+        #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid #fff; }
+        
+        .scale-labels { display: flex; justify-content: space-between; padding: 0; margin-top: 8px; position: relative; width: 100%; height: 35px; }
+        .scale-labels span { font-size: 0.52rem; color: #888; text-align: center; line-height: 1.1; position: absolute; transform: translateX(-50%); white-space: nowrap; }
+        
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 5px; overflow: hidden; position: relative; border: 2px solid #333; display: flex; align-items: center; justify-content: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; transition: transform 0.05s ease-out; cursor: grab; flex-direction: column; color: #444; font-size: 0.8rem; }
-        .stat-val { font-size: 1.8rem; font-weight: bold; color: var(--primary); }
-        .target-label { font-size: 0.9rem; color: var(--hint); font-weight: bold; }
+        .stat-val { font-size: 1.8rem; font-weight: bold; color: var(--primary); font-family: monospace; }
+        .target-label { font-size: 0.8rem; color: var(--hint); font-weight: bold; min-width: 140px; text-align: left; }
         
         .btn-redraw { position: absolute; right: 10px; top: 50px; background: #444; color: #fff; border: 1px solid #666; padding: 3px 10px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; z-index: 10; font-weight: bold; }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
@@ -57,29 +59,36 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.3.0 Slider-Sync</span>
+        <span class="version-tag">ver 3.3.5 Tsukukoma-76</span>
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>分析パネル</h1></div>
-        <div style="display:flex; flex-direction:column; align-items:center;">
-            <div class="dev-control-box">
-                <div class="dev-display-row">
-                    <span id="dev-val" class="stat-val">50.0</span>
-                    <span id="target-school" class="target-label">[都立中堅]</span>
-                </div>
-                <input type="range" id="dev-slider" min="30" max="80" step="0.5" value="50">
+        <div class="header-flex"><h1>志望校目標設定 (SAPIX)</h1></div>
+        <div class="dev-control-box">
+            <div class="dev-display-row">
+                <span id="dev-val" class="stat-val">60.0</span>
+                <span id="target-school" class="target-label">[日比谷・学芸]</span>
             </div>
-            <div style="width:100%; display:flex; justify-content:space-around; border-top:1px solid #444; padding-top:10px; margin-top:5px;">
-                <div><div style="font-size:0.65rem; color:#aaa;">累計演習</div><div id="count-val" class="stat-val" style="font-size:1.2rem;">0</div></div>
+            <input type="range" id="dev-slider" min="30" max="80" step="0.5" value="60">
+            <div class="scale-labels">
+                <span style="left: 0%;">30</span>
+                <span style="left: 52%;">56<br>西</span>
+                <span style="left: 60%;">60<br>日比谷</span>
+                <span style="left: 68%;">64<br>早慶/筑付</span>
+                <span style="left: 76%;">68<br>渋幕/志木</span>
+                <span style="left: 84%;">72<br>開成</span>
+                <span style="left: 92%;">76<br>筑駒</span>
             </div>
+        </div>
+        <div style="display:flex; justify-content:space-around; border-top:1px solid #444; padding-top:10px; margin-top:20px;">
+            <div><div style="font-size:0.65rem; color:#aaa;">累計演習</div><div id="count-val" class="stat-val" style="font-size:1.2rem; text-align:center;">0</div></div>
         </div>
     </div>
 
     <div class="card">
         <div class="header-flex">
             <h1>試験問題 [<span id="u-title"></span>]</h1>
-            <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:6px 12px; font-size:0.85rem; width:auto;">他領域へ ≫</button>
+            <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:6px 12px; font-size:0.85rem; width:auto;">他領域 ≫</button>
         </div>
         <div class="btn-redraw" onclick="safeRender()">↻ 再描画</div>
         <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
@@ -120,7 +129,7 @@
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
         <div class="canvas-footer" style="margin-top:15px;">
             <div class="text-alert">※高品質な構成のため最大1分程かかる場合があります。</div>
-            <div style="color:#888; font-size:0.7rem; font-weight:normal;">AIが思考を完結させるまでお待ちください。</div>
+            <div style="color:#888; font-size:0.7rem; font-weight:normal;">AI委員が思考を完結させるまでお待ちください。</div>
         </div>
         <button onclick="abortGeneration()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; border:none; margin-top:15px; width:60%;">中断</button>
     </div>
@@ -145,8 +154,6 @@
 
         window.onload = () => {
             initZoom(); refreshStats();
-            
-            // スライダーイベントの初期化
             const slider = document.getElementById('dev-slider');
             const devVal = document.getElementById('dev-val');
             slider.addEventListener('input', (e) => {
@@ -154,14 +161,20 @@
                 devVal.innerText = val.toFixed(1);
                 updateTargetSchool(val);
             });
-
             applyProb({ unit: "数と式", text: "次の等式において、$x$ の値を求めよ。", sub: ["$2(x-3) = \\frac{x}{2} + 1$"], hint: "分母を払うために、両辺を2倍せよ。" });
             setTimeout(safeRender, 500);
         };
 
         function updateTargetSchool(dev) {
-            let s = "[都立中堅]";
-            if (dev >= 72) s = "[筑駒]"; else if (dev >= 68) s = "[開成]"; else if (dev >= 62) s = "[日比谷]"; else if (dev >= 55) s = "[上位校]";
+            let s = "[標準]";
+            if (dev >= 76) s = "[筑駒]";
+            else if (dev >= 72) s = "[開成]";
+            else if (dev >= 68) s = "[渋幕・慶応志木]";
+            else if (dev >= 64) s = "[筑付・早慶・早実]";
+            else if (dev >= 60) s = "[日比谷・学芸]";
+            else if (dev >= 56) s = "[都立西]";
+            else if (dev >= 50) s = "[都立上位校]";
+            else s = "[基礎固め]";
             document.getElementById('target-school').innerText = s;
         }
 
@@ -194,14 +207,14 @@
                 else subArray = ["与えられた条件に従い答えを導け。"];
             }
             document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
-            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "数理的構造を分析せよ。";
+            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "数理的構造を精査せよ。";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
             const drawKeywords = /三角形|四角形|円|相似|合同|平行|垂直|線分|中点|関数|グラフ|座標|直線|曲線|放物線|立体|見取り図|展開図|三平方|ピタゴラス/;
             const showDiagram = p.has_diagram || /平面図形|幾何|関数|立体|空間/.test(state.current_target_unit) || drawKeywords.test(mainText);
             document.getElementById('zoom-box').style.display = showDiagram ? 'flex' : 'none';
             document.getElementById('canvas-footer').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) {
-                document.getElementById('svg-layer').innerHTML = `<div style="color:#444; font-weight:bold;">🎨 作図中...</div>`;
+                document.getElementById('svg-layer').innerHTML = `<div style="color:#444; font-weight:bold;">🎨 盤面構成中...</div>`;
                 setTimeout(() => autoDraw(0, mainText), 100);
             }
             safeRender(); prefetchAnswer();
@@ -231,7 +244,8 @@
 
         async function generateNext(isOther = false, isHardMode = false, retryCount = 0) {
             if (retryCount === 0) { if (drawingAbortController) drawingAbortController.abort(); drawingLock = false; }
-            let devValue = isHardMode ? 80 : (parseFloat(document.getElementById('dev-val').innerText) || 50.0);
+            let sapixDev = parseFloat(document.getElementById('dev-val').innerText);
+            let devValue = isHardMode ? 76 : sapixDev;
             let target = isOther ? (()=>{
                 const allUnits = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率", "データの活用"];
                 const pool = allUnits.filter(u => !state.last_units.includes(u));
@@ -240,12 +254,12 @@
                 return res;
             })() : state.current_target_unit;
             state.current_target_unit = target;
-            showUI(`${target}${isHardMode ? 'の最難関問' : ''}を構成中...${retryCount > 0 ? '(再試行中)' : ''}`);
+            showUI(`${target}${isHardMode ? 'の筑駒レベル' : ''}を構成中...${retryCount > 0 ? '(再試行中)' : ''}`);
             currentAbortController = new AbortController();
-            const prompt = `あなたは難関入試の「数学作問委員」です。
-【使命】受験生の思考力を測定する問題を構成せよ。
-【絶対遵守：口調】「～を求めよ」「～を証明せよ」という入試問題調のみ。
-【形式】単元「${target}」、偏差値${devValue}レベル。JSON(text, sub:[], hint)形式。`;
+            const prompt = `あなたは最難関入試の「数学作問委員」です。
+【使命】受験生の真の思考力を試す厳格な問題を構成せよ。
+【遵守】口調は「～を求めよ」「～を証明せよ」に限定。
+【形式】単元「${target}」、SAPIX偏差値${devValue}相当。JSON(text, sub:[], hint)形式。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
@@ -257,7 +271,7 @@
                 hideUI();
             } catch (e) {
                 if (retryCount < 3 && e.name !== 'AbortError') generateNext(isOther, isHardMode, retryCount + 1);
-                else { hideUI(); if (retryCount >= 3) alert("問題構成失敗。"); }
+                else { hideUI(); if (retryCount >= 3) alert("構成失敗。"); }
             }
         }
 
@@ -291,8 +305,7 @@
             document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><div><span class="score-badge">${x.s}/10</span></div></div>`).join('');
             if(h.length > 0) {
                 const avgScore = h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length;
-                const autoDev = 40 + (avgScore * 3.5);
-                // スライダーと連動
+                const autoDev = 35 + (avgScore * 4); 
                 document.getElementById('dev-slider').value = autoDev;
                 document.getElementById('dev-val').innerText = autoDev.toFixed(1);
                 updateTargetSchool(autoDev);
