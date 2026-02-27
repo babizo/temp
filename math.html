@@ -53,6 +53,7 @@
         
         .canvas-footer { font-weight: bold; font-size: 0.75rem; text-align: center; line-height: 1.4; margin-bottom: 10px; }
         .text-alert { color: #ffadad; }
+        .text-dim { color: #888; font-weight: normal; font-size: 0.65rem; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
         .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
     </style>
@@ -61,13 +62,13 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.4.5 Restore-Labels</span>
+        <span class="version-tag">ver 3.4.6 Warning-Restored</span>
     </div>
 
     <div class="card">
         <div class="header-flex"><h1>実力相応校・推定レベル設定</h1></div>
         <div class="dev-control-box">
-            <div class="desc-text">※スライダーのレベルに基づいた問題が出題されます。<br>演習結果により自動的に推定偏差値が更新されます。</div>
+            <div class="desc-text">※スライダーのレベルに基づいた問題が出題されます。<br>演習結果により自動的に推定レベルが更新されます。</div>
             <div class="dev-display-row">
                 <span id="dev-val" class="stat-val">60.0</span>
                 <span id="target-school" class="target-label">[日比谷・学芸]</span>
@@ -98,6 +99,7 @@
         
         <div id="canvas-footer" class="canvas-footer" style="display:none;">
             <div class="text-alert">※高品質な構成のため最大1分程かかる場合があります</div>
+            <div class="text-dim">※図は必ずしも正確ではありません（移動・拡大可）</div>
         </div>
 
         <div id="math-content-area">
@@ -122,7 +124,7 @@
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>演習履歴</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">履歴クリア</button></div>
+        <div class="header-flex"><h1>演習履歴</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">リセット</button></div>
         <div id="hist-list"></div>
     </div>
 
@@ -168,7 +170,7 @@
             if (dev >= 76) s = "[筑駒]";
             else if (dev >= 72) s = "[開成]";
             else if (dev >= 68) s = "[渋幕・志木]";
-            else if (dev >= 64) s = "[筑付・早慶]";
+            else if (dev >= 64) s = "[早慶・筑付]";
             else if (dev >= 60) s = "[日比谷・学芸]";
             else if (dev >= 56) s = "[都立西]";
             else if (dev >= 50) s = "[都立上位]";
@@ -246,7 +248,7 @@
             showUI(`${target} (Lv.${devValue.toFixed(1)}) を構成中...`);
             currentAbortController = new AbortController();
             const prompt = `あなたは最難関入試の「数学作問委員」です。
-【使命】受験生の真の思考力を試す厳格な問題を構成せよ。口調は「～を求めよ」。
+【使命】受験生の思考力を試す厳格な問題を構成せよ。口調は「～を求めよ」。
 【形式】単元「${target}」、SAPIX偏差値${devValue}相当。JSON(text, sub:[], hint)形式。`;
             try {
                 const res = await fetch(`/api/chat`, {
@@ -284,8 +286,8 @@
         async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解答。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
         function peekAnswer() { 
             if (state.seen_answer) return;
-            if (!confirm("解答を見ると偏差値加算は行われません。よろしいですか？")) return; 
-            state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得失敗。"; 
+            if (!confirm("解答を確認すると偏差値加算は行われません。よろしいですか？")) return; 
+            state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "解答を取得できませんでした。"; 
             document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); 
         }
         
@@ -296,7 +298,7 @@
         function refreshStats() { 
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]"); 
             document.getElementById('count-val').innerText = h.length; 
-            document.getElementById('hist-list').innerHTML = h.slice(0,5).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.u}</span><span class="score-badge">${x.s}/10</span></div>`).join('');
+            document.getElementById('hist-list').innerHTML = h.slice(0,5).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><span class="score-badge">${x.s}/10</span></div>`).join('');
             if(h.length > 0) {
                 const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length;
                 const dev = Math.min(80, 40 + (avg * 3.5) + (h.length * 0.1));
@@ -307,7 +309,7 @@
         }
         function saveLog(mark, score) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            h.unshift({ u: state.current_target_unit, s: score, p: state.prob });
+            h.unshift({ d: new Date().toLocaleDateString(), u: state.current_target_unit, s: score, p: state.prob });
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats();
         }
 
