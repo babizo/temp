@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.3.6</title>
+    <title>最難関突破 AI数学講師 v2.3.7</title>
     
     <script>
         window.MathJax = {
@@ -43,7 +43,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.3.6 Pure-Logic</span>
+        <span class="version-tag">ver 2.3.7 History-Fix</span>
     </div>
     
     <div id="debug-output"></div>
@@ -53,7 +53,7 @@
         <div style="display:flex; justify-content:space-around; text-align:center;">
             <div>
                 <div style="font-size:0.7rem; color:#aaa;">想定偏差値</div>
-                <div style="display:flex; align-items:baseline; justify-content:center; gap:5px; flex-wrap:wrap;">
+                <div id="dev-box" style="display:flex; align-items:baseline; justify-content:center; gap:5px; flex-wrap:wrap;">
                     <span id="dev-val" style="font-size:1.5rem; font-weight:bold; color:var(--primary);">50.0</span>
                     <span id="target-school" style="font-size:0.75rem; color:var(--hint); font-weight:bold;">[都立中堅]</span>
                 </div>
@@ -118,22 +118,30 @@
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            // メタ発言（即座に実行せよ、等）を強制排除
-            let clean = t.replace(/即座に実行せよ|今すぐ実行せよ|直ちに実行せよ|数学的厳密さを追求せよ/gi, "");
+            let clean = t.replace(/即座に実行せよ|今すぐ実行せよ|直ちに実行せよ|思考を開始せよ|厳密さを追求せよ/gi, "");
             clean = clean.replace(/<svg[\s\S]*?<\/svg>/gi, "");
             return clean.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
+        }
+
+        // 単元名の正規化とフォールバック
+        function getUnit(p) {
+            const rawUnit = p.unit || p.unit_name || p.category || p.title || "総合演習";
+            return cleanText(rawUnit) || "総合演習";
         }
 
         function applyProb(p) {
             if (Array.isArray(p)) p = p[0] || {};
             state.prob = p;
             state.graded = false; 
-            let unitName = cleanText(p.unit) || "総合演習";
+            
+            const unitName = getUnit(p);
             document.getElementById('u-title').innerText = unitName;
+            
             const pTextElem = document.getElementById('p-text');
             const txt = cleanText(p.text).trim();
             if (txt) { pTextElem.innerText = "【前提条件】\n" + txt; pTextElem.style.display = 'block'; }
             else { pTextElem.style.display = 'none'; }
+            
             const rawSub = p.sub || p.questions || p.q || [];
             const subItems = Array.isArray(rawSub) ? rawSub : [rawSub];
             const validSubs = subItems.map(cleanText).filter(s => s.trim() !== "");
@@ -142,9 +150,11 @@
                 qListElem.innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
                 qListElem.style.display = 'block';
             } else { qListElem.style.display = 'none'; }
+            
             document.getElementById('h-box').innerText = cleanText(p.hint);
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
+            
             const canvasBox = document.getElementById('zoom-box');
             if (p.has_diagram === false) { canvasBox.style.display = 'none'; }
             else {
@@ -183,7 +193,7 @@
             const proofInstr = isProof ? "【指示】証明問題を出題せよ。「〜を示せ」等の形式。" : "";
 
             let promptText = "数学講師。類題作成。数式LaTeX($)。";
-            if (isOtherUnit) promptText = `数学講師。現在の「${state.prob.unit}」以外の単元からランダム選定。`;
+            if (isOtherUnit) promptText = `数学講師。現在の「${getUnit(state.prob)}」以外の単元からランダム選定。`;
 
             showUI(`問題を構成中...`);
             try {
@@ -192,12 +202,12 @@
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
                         【重要】${adaptive} ${proofInstr}
-                        【禁止事項】数学的に必要な前提条件と問い以外の文言（例：「即座に実行せよ」「思考を開始せよ」「厳密さを追求せよ」など）を一切出力に含めてはならない。
+                        【禁止】前提条件と問い以外の文言（即座に〜、思考〜など）を一切含めるな。
                         【ルール】
-                        ・図を伴う場合（has_diagram: true）、text末尾に「なお、図は必ずしも正確とは限らない。」を付与。
+                        ・図を伴う場合、text末尾に「なお、図は必ずしも正確とは限らない。」を付与。
                         ・幾何、関数、整数、確率からランダム選定。
                         ・立体図形は必ずSVGで作図。
-                        【構成】textは前提条件。問いはsub。簡潔な命令形。JSONのみ。SVG混入厳禁。` }] }],
+                        【構成】textは前提条件。問いはsub。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -223,7 +233,7 @@
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力。
-                    【条件】問題文に出現するすべてのアルファベットをラベルとして配置せよ。viewBox="0 0 200 200"。Markdownや説明は一切禁止。` }] }] })
+                    【条件】問題文のアルファベットをすべてラベル配置。viewBox="0 0 200 200"。Markdown禁止。` }] }] })
                 });
                 const data = await res.json();
                 const text = data.candidates[0].content.parts[0].text;
@@ -262,17 +272,30 @@
             reader.readAsDataURL(file);
         }
 
+        // 保存時に単元名を確定させる
         function saveLog(mark, score) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            h.unshift({ d: new Date().toLocaleDateString(), u: state.prob.unit, m: mark, s: score, p: JSON.parse(JSON.stringify(state.prob)) });
+            const unitName = getUnit(state.prob);
+            h.unshift({ 
+                d: new Date().toLocaleDateString(), 
+                u: unitName, 
+                m: mark, 
+                s: score, 
+                p: JSON.parse(JSON.stringify(state.prob)) 
+            });
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30)));
             refreshStats();
         }
 
+        // 表示時にundefinedを補正
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             document.getElementById('count-val').innerText = h.length;
-            document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${x.u}</span><div><span class="score-badge">${x.s}/10</span> ${x.m}</div></div>`).join('');
+            document.getElementById('hist-list').innerHTML = h.slice(0,10).map((x, i) => {
+                const displayUnit = (x.u === "undefined" || !x.u) ? "（不明な単元）" : x.u;
+                return `<div class="history-item" onclick="loadHist(${i})"><span>${x.d} ${displayUnit}</span><div><span class="score-badge">${x.s}/10</span> ${x.m}</div></div>`;
+            }).join('');
+            
             let dev = 50.0;
             if (h.length >= 1) dev = 40 + ((h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length) * 3.5);
             document.getElementById('dev-val').innerText = dev.toFixed(1);
@@ -280,7 +303,11 @@
             if (dev >= 68) s = "[筑駒]"; else if (dev >= 66) s = "[開成・灘]"; else if (dev >= 52) s = "[都立共通上位]";
             document.getElementById('target-school').innerText = s;
             const units = {};
-            h.forEach(x => { if(!units[x.u]) units[x.u]={s:0,c:0}; units[x.u].s+=x.s; units[x.u].c++; });
+            h.forEach(x => { 
+                const uKey = (x.u === "undefined" || !x.u) ? "その他" : x.u;
+                if(!units[uKey]) units[uKey]={s:0,c:0}; 
+                units[uKey].s+=x.s; units[uKey].c++; 
+            });
             let html = "";
             for(let u in units) {
                 const a = units[u].s/units[u].c;
