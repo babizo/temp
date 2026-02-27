@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.0.9</title>
+    <title>最難関突破 AI数学講師 v2.1.0</title>
     
     <script>
         window.MathJax = {
@@ -38,7 +38,6 @@
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
 
-        /* 【修正】改行を正しく表示するための設定 */
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
 
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
@@ -55,7 +54,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.0.9 Formatting-Fix</span>
+        <span class="version-tag">ver 2.1.0 Robust-Core</span>
     </div>
 
     <div class="card">
@@ -149,21 +148,26 @@
             }, 50); 
         }
 
-        // 【修正】テキスト内の \n を実際の改行コードに直す関数
+        // 【修正】型チェックを強化し、エラーを未然に防ぐ
         function cleanText(t) {
-            if (!t) return "";
+            if (typeof t !== 'string') return "";
             return t.replace(/\\n/g, "\n");
         }
 
         function applyProb(p) {
             state.prob = p;
             state.graded = false; 
+            
             let unitName = cleanText(p.unit) || "総合演習";
             if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
             
             document.getElementById('u-title').innerText = unitName;
             document.getElementById('p-text').innerText = cleanText(p.text);
-            document.getElementById('q-list').innerHTML = (p.sub || []).map(s => `<li>${cleanText(s)}</li>`).join('');
+            
+            // subが配列か文字列かを確認して安全に処理
+            const subItems = Array.isArray(p.sub) ? p.sub : (typeof p.sub === 'string' ? [p.sub] : []);
+            document.getElementById('q-list').innerHTML = subItems.map(s => `<li>${cleanText(s)}</li>`).join('');
+            
             document.getElementById('h-box').innerText = cleanText(p.hint);
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
@@ -198,8 +202,8 @@
                     【アダプティブ指示】
                     ${adaptiveInstruction}
                     【出題ルール】
-                    ・数値替え禁止。
-                    ・「方程式」：算数パズルを排除し代数学とする。
+                    ・数値替え禁止。設定変更や問いの順序を変える。
+                    ・「方程式」：代数学とし、文字定数や解の条件を扱う。
                     ・「数と式」：循環小数等の性質を含める。
                     ・「確率」：論理的場合分けを必須とする。
                     {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
