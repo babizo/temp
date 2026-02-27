@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.8.6</title>
+    <title>最難関突破 AI数学講師 v2.8.7</title>
     
     <script>
         window.MathJax = {
@@ -26,7 +26,6 @@
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 5px; overflow: hidden; position: relative; touch-action: none; border: 2px solid #333; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; transition: transform 0.05s ease-out; cursor: grab; flex-direction: column; color: #444; font-size: 0.8rem; }
         #svg-layer:active { cursor: grabbing; }
-        .disclaimer { font-size: 0.65rem; color: #888; text-align: center; margin-bottom: 10px; display: none; }
         .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-ai-gen { background: var(--ai); color: white; }
@@ -38,16 +37,15 @@
         #dev-val:focus { background: #333; outline: none; border-bottom: 1px solid var(--success); color: var(--success); }
         .manual-mode { color: var(--success) !important; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
-        .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
-        .wait-info { font-size: 0.65rem; color: #888; margin-top: 10px; line-height: 1.4; }
+        .wait-info { font-size: 0.65rem; color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.8.6 First-Load-Fix</span>
+        <span class="version-tag">ver 2.8.7 Full-Math-Sync</span>
     </div>
 
     <div class="card">
@@ -71,7 +69,7 @@
             <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:6px 12px; font-size:0.85rem; width:auto;">他単元へ ≫</button>
         </div>
         <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
-        <div id="diag-disclaimer" class="disclaimer">※図は必ずしも正確ではありません（移動・拡大可）</div>
+        <div id="diag-disclaimer" style="font-size:0.65rem; color:#888; text-align:center; margin-bottom:10px; display:none;">※図は必ずしも正確ではありません</div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; margin: 8px 0; color: #ccc; border-bottom: 1px dashed #444; padding-bottom: 8px;"></p>
             <ul id="q-list" style="padding-left: 20px; margin: 12px 0; list-style:none;"></ul>
@@ -115,14 +113,25 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             refreshStats(); setupDevEdit(); initZoom();
-            // MathJaxの起動を待ってから1問目を表示
             MathJax.startup.promise.then(() => {
-                applyProb({ unit: "数と式", text: "次の等式が成り立つとき、条件に従って問いに答えよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], has_diagram: false });
-            }).catch(() => {
-                // 万が一MathJaxが失敗しても表示だけはする
-                applyProb({ unit: "数と式", text: "次の等式が成り立つとき、条件に従って問いに答えよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], has_diagram: false });
+                applyProb({ unit: "数と式", text: "次の等式が成り立つとき、条件に従って問いに答えよ。", sub: ["$x + y = 3, xy = 1$ のとき、$x^2 + y^2$ の値を求めよ。"], hint: "対称式の変形 $(x+y)^2 - 2xy$ を利用せよ。", has_diagram: false });
             });
         });
+
+        function renderMath() {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                const targets = [document.getElementById('math-content-area'), document.getElementById('res-box'), document.getElementById('h-box')];
+                MathJax.typesetPromise(targets).catch(e => console.log(e));
+                setTimeout(() => MathJax.typesetPromise(targets), 500); // 遅延補完
+            }
+        }
+
+        function toggleHint() {
+            const b = document.getElementById('h-box');
+            const isShowing = (b.style.display === 'block');
+            b.style.display = isShowing ? 'none' : 'block';
+            if (!isShowing) renderMath(); // 表示した瞬間に数式を描画
+        }
 
         function cleanText(t, index = null) {
             if (!t) return "";
@@ -139,17 +148,15 @@
         }
 
         function applyProb(p) {
-            if (!p || (!p.text && !p.problem)) { document.getElementById('p-text').innerText = "取得エラー。"; return; }
-            state.prob = p;
-            state.graded = false; state.seen_answer = false; state.prefetched_answer = null;
+            if (!p || (!p.text && !p.problem)) return;
+            state.prob = p; state.graded = false; state.seen_answer = false; state.prefetched_answer = null;
             resetView();
             document.getElementById('u-title').innerText = p.unit || "総合";
             document.getElementById('p-text').innerText = cleanText(p.text);
             const rawSub = p.sub || p.questions || p.q || [];
             const subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
-            if (subArray.length === 0) { document.getElementById('q-list').innerHTML = "<li>(1) 答えを求めよ。</li>"; }
-            else { document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join(''); }
-            document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理を確認せよ。";
+            document.getElementById('q-list').innerHTML = subArray.length === 0 ? "<li>(1) 答えを求めよ。</li>" : subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
+            document.getElementById('h-box').innerText = cleanText(p.hint) || "基本原理を再確認せよ。";
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             const zoomBox = document.getElementById('zoom-box');
@@ -169,9 +176,8 @@
             state.dt = setInterval(() => { const el = document.getElementById('draw-timer-val'); if (el) el.innerText = ((Date.now() - start) / 1000).toFixed(1) + "s"; }, 100);
             try {
                 const res = await fetch(`/api/chat`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    signal: drawingAbortController.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。点名1文字と数値のみ。日本語文章禁止。` }] }] })
+                    method: "POST", headers: {"Content-Type": "application/json"}, signal: drawingAbortController.signal,
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。点名と数値のみ配置。` }] }] })
                 });
                 let svgContent = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (svgContent) {
@@ -181,10 +187,8 @@
                     });
                     document.getElementById('svg-layer').innerHTML = svg;
                 } else throw new Error();
-            } catch (e) {
-                if (e.name === 'AbortError') return;
-                setTimeout(() => { drawingLock = false; autoDraw(retry + 1); }, 500);
-            } finally { clearInterval(state.dt); drawingLock = false; drawingAbortController = null; }
+            } catch (e) { if (e.name !== 'AbortError') setTimeout(() => { drawingLock = false; autoDraw(retry + 1); }, 500); }
+            finally { clearInterval(state.dt); drawingLock = false; drawingAbortController = null; }
         }
 
         async function generateNext(isOther = false, isHardMode = false) {
@@ -194,13 +198,12 @@
             if (isHardMode) devValue = 80;
             const units = ["幾何", "関数", "整数", "確率"];
             let target = units[Math.floor(Math.random() * units.length)];
-            showUI(`${target}の問題を構成中...`, devValue);
+            showUI(`${target}を構成中...`, devValue);
             currentAbortController = new AbortController();
-            const prompt = `数学講師です。全て日本語回答。単元「${target}」。偏差値${devValue}向け。textに設定、subに問いを書け。textに問いを書くな。JSON(text, sub, unit, hint, has_diagram)のみ。数式$ $。`;
+            const prompt = `数学講師。全て日本語。単元「${target}」。偏差値${devValue}向け。textに設定、subに問いを書け。JSON(text, sub, unit, hint, has_diagram)形式。数式$ $。`;
             try {
                 const res = await fetch(`/api/chat`, {
-                    method: "POST", headers: {"Content-Type": "application/json"},
-                    signal: currentAbortController.signal,
+                    method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
@@ -221,7 +224,6 @@
         }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
         function resetView() { state.scale = 1; state.x = 0; state.y = 0; updateView(); }
-        function renderMath() { if (window.MathJax && window.MathJax.typesetPromise) { const targets = [document.getElementById('math-content-area'), document.getElementById('res-box')]; MathJax.typesetPromise(targets); setTimeout(() => MathJax.typesetPromise(targets), 500); } }
         function setupDevEdit() {
             const el = document.getElementById('dev-val');
             el.addEventListener('blur', () => {
@@ -236,29 +238,31 @@
             if (dev >= 72) s = "[筑駒]"; else if (dev >= 68) s = "[開成]"; else if (dev >= 62) s = "[日比谷]"; else if (dev >= 55) s = "[上位校]";
             document.getElementById('target-school').innerText = s;
         }
-        async function doGrade(file) {
-            if (state.seen_answer) { alert("解答閲覧済。"); return; }
-            showUI("採点中...");
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const res = await fetch(`/api/chat`, {
-                        method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `日本語採点。Score: X/10末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type, data: e.target.result.split(',')[1] } }] }] })
-                    });
-                    const fb = cleanText((await res.json()).candidates[0].content.parts[0].text);
-                    document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
-                    saveLog(fb.includes("Score: 10") ? "○" : "×", parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
-                    renderMath();
-                } finally { hideUI(); }
-            };
-            reader.readAsDataURL(file);
+        async function prefetchAnswer() {
+            try {
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `日本語解答解説。数式は$ $で囲む。問題：${state.prob.text}` }] }] }) });
+                state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text);
+            } catch (e) {}
         }
-        function saveLog(mark, score) {
-            let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            h.unshift({ d: new Date().toLocaleDateString(), u: state.prob.unit || "総合", m: mark, s: score, p: state.prob });
-            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30))); refreshStats();
+        function peekAnswer() {
+            if (state.seen_answer) return; if (!confirm("0点になります。")) return;
+            state.seen_answer = true; 
+            const resBox = document.getElementById('res-box');
+            resBox.innerHTML = state.prefetched_answer || "取得中...";
+            resBox.style.display = 'block'; 
+            saveLog("×", 0); 
+            renderMath();
         }
+        function showUI(m, dev = null) { 
+            document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; 
+            document.getElementById('level-msg').innerText = dev ? `目標：偏差値 ${dev.toFixed(1)}` : "";
+            let s=Date.now(); clearInterval(state.t); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); 
+        }
+        function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
+        function abortGeneration() { if (currentAbortController) currentAbortController.abort(); if (drawingAbortController) drawingAbortController.abort(); hideUI(); }
+        function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
+        function doSkip() { generateNext(true); }
+        function resetData() { if(confirm("リセット？")) { manualDev = null; localStorage.clear(); location.reload(); } }
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             document.getElementById('count-val').innerText = h.length;
@@ -268,29 +272,29 @@
                 document.getElementById('dev-val').innerText = dev.toFixed(1); updateTargetSchool(dev);
             }
         }
-        async function prefetchAnswer() {
-            try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `日本語解答解説。問題：${state.prob.text}` }] }] }) });
-                state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text);
-            } catch (e) {}
+        function saveLog(mark, score) {
+            let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
+            h.unshift({ d: new Date().toLocaleDateString(), u: state.prob.unit || "総合", m: mark, s: score, p: state.prob });
+            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 30))); refreshStats();
         }
-        function peekAnswer() {
-            if (state.seen_answer) return; if (!confirm("0点になります。")) return;
-            state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得中...";
-            document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); renderMath();
-        }
-        function showUI(m, dev = null) { 
-            document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; 
-            document.getElementById('level-msg').innerText = dev ? `目標：偏差値 ${dev.toFixed(1)}` : "";
-            let s=Date.now(); clearInterval(state.t); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); 
-        }
-        function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
-        function abortGeneration() { if (currentAbortController) currentAbortController.abort(); if (drawingAbortController) drawingAbortController.abort(); hideUI(); }
-        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; renderMath(); }
-        function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
-        function doSkip() { generateNext(true); }
-        function resetData() { if(confirm("リセット？")) { manualDev = null; localStorage.clear(); location.reload(); } }
-        document.getElementById('c-input').onchange = (e) => doGrade(e.target.files[0]);
+        document.getElementById('c-input').onchange = (e) => {
+            if (state.seen_answer) { alert("解答閲覧済。"); return; }
+            showUI("採点中...");
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const res = await fetch(`/api/chat`, {
+                        method: "POST", headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `日本語採点。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
+                    });
+                    const fb = cleanText((await res.json()).candidates[0].content.parts[0].text);
+                    document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
+                    saveLog(fb.includes("Score: 10") ? "○" : "×", parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
+                    renderMath();
+                } finally { hideUI(); }
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        };
     </script>
 </body>
 </html>
