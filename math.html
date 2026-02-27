@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.1.0</title>
+    <title>最難関突破 AI数学講師 v2.1.1</title>
     
     <script>
         window.MathJax = {
@@ -24,7 +24,6 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .version-tag { font-size: 0.6rem; color: #888; font-family: monospace; background: #333; padding: 2px 6px; border-radius: 4px;}
-        
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .stat-box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
         .stat-label { font-size: 0.7rem; color: #aaa; }
@@ -33,13 +32,10 @@
         .unit-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .unit-bar-bg { background: #444; height: 6px; width: 100%; border-radius: 3px; margin-top: 2px; overflow: hidden; }
         .unit-bar-fill { background: var(--success); height: 100%; transition: 0.5s; }
-
         .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 10px; overflow: hidden; position: relative; touch-action: none; display: flex; align-items: center; justify-content: center; border: 2px solid #333; text-align: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; color: #444; font-size: 0.8rem; flex-direction: column; }
         svg { width: 100%; height: 100%; display: block; }
-
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
-
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0,0,0,0.95); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; margin-bottom: 8px; transition: 0.2s; }
         .btn-ai-gen { background: var(--ai); color: white; font-size: 0.9rem; }
@@ -54,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.1.0 Robust-Core</span>
+        <span class="version-tag">ver 2.1.1 Robust-Parse</span>
     </div>
 
     <div class="card">
@@ -137,41 +133,30 @@
             initZoom();
         });
 
-        let mathJaxTimeout = null;
         function renderMath() {
-            clearTimeout(mathJaxTimeout);
-            mathJaxTimeout = setTimeout(() => {
-                if (window.MathJax && window.MathJax.typesetPromise) {
-                    MathJax.typesetClear();
-                    MathJax.typesetPromise().catch(e => console.log('MathJax Error:', e));
-                } else { renderMath(); }
-            }, 50); 
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetClear();
+                MathJax.typesetPromise([document.getElementById('math-content-area'), document.getElementById('res-box')]).catch(e => console.error(e));
+            } else { setTimeout(renderMath, 50); }
         }
 
-        // 【修正】型チェックを強化し、エラーを未然に防ぐ
         function cleanText(t) {
-            if (typeof t !== 'string') return "";
-            return t.replace(/\\n/g, "\n");
+            if (typeof t !== 'string') return t;
+            return t.replace(/\\n/g, "\n").replace(/\\\\/g, "\\");
         }
 
         function applyProb(p) {
             state.prob = p;
             state.graded = false; 
-            
             let unitName = cleanText(p.unit) || "総合演習";
             if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
-            
             document.getElementById('u-title').innerText = unitName;
             document.getElementById('p-text').innerText = cleanText(p.text);
-            
-            // subが配列か文字列かを確認して安全に処理
-            const subItems = Array.isArray(p.sub) ? p.sub : (typeof p.sub === 'string' ? [p.sub] : []);
-            document.getElementById('q-list').innerHTML = subItems.map(s => `<li>${cleanText(s)}</li>`).join('');
-            
+            const subItems = Array.isArray(p.sub) ? p.sub : [p.sub];
+            document.getElementById('q-list').innerHTML = subItems.filter(s=>s).map(s => `<li>${cleanText(s)}</li>`).join('');
             document.getElementById('h-box').innerText = cleanText(p.hint);
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
-            
             const canvasBox = document.getElementById('zoom-box');
             if (p.has_diagram === false) { canvasBox.style.display = 'none'; }
             else {
@@ -183,55 +168,57 @@
             renderMath();
         }
 
-        async function generateNext(isOtherUnit = false) {
-            const currentDevText = document.getElementById('dev-val').innerText;
-            const currentDev = parseFloat(currentDevText) || 50;
-            let adaptiveInstruction = "標準的な難易度の応用問題にせよ。";
-            if (currentDev >= 60) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}（最上位層）です。最難関私立・国立レベルの、論理的ひねりのある超難問を作成せよ。`;
-            else if (currentDev < 45) adaptiveInstruction = `現在の生徒の偏差値は${currentDev}です。基礎を重視した問題にせよ。`;
+        // 【修正】JSONパース前の高度なサニタイジング
+        function robustJSONParse(rawStr) {
+            let s = rawStr.match(/\{[\s\S]*\}/)[0];
+            // 1. 本来のエスケープ（\" や \n）を保護するため一時待避
+            s = s.replace(/\\"/g, "__ESCAPED_QUOTE__");
+            // 2. 数式などで使われる孤立したバックスラッシュを二重化
+            s = s.replace(/\\/g, "\\\\");
+            // 3. 待避したものを戻す（JSONとして正しく解釈させる）
+            s = s.replace(/__ESCAPED_QUOTE__/g, "\\\"");
+            // 4. 改行コードの正規化
+            s = s.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+            return JSON.parse(s);
+        }
 
-            let promptText = `最難関高校講師。問題「${state.prob.text}」の類題をJSON作成。単なる数値替え禁止。数式はLaTeX（$）。JSON内バックスラッシュは必ず二重（\\\\）にせよ。`;
-            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる系統の単元から良問をJSON作成。`;
+        async function generateNext(isOtherUnit = false) {
+            const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
+            let adaptive = "標準的な難易度。";
+            if (dev >= 60) adaptive = `現在偏差値${dev}（最上位）。ひねりのある超難問。`;
+            else if (dev < 45) adaptive = `現在偏差値${dev}。基礎重視。`;
+
+            let promptText = `最難関高校講師。類題をJSON作成。数値替え禁止。数式はLaTeX($)。`;
+            if (isOtherUnit) promptText = `最難関高校講師。現在の「${state.prob.unit}」と異なる系統の良問をJSON作成。`;
 
             showUI(`思考力を問う問題を構成中...`);
-            
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `${promptText}
-                    【アダプティブ指示】
-                    ${adaptiveInstruction}
-                    【出題ルール】
-                    ・数値替え禁止。設定変更や問いの順序を変える。
-                    ・「方程式」：代数学とし、文字定数や解の条件を扱う。
-                    ・「数と式」：循環小数等の性質を含める。
-                    ・「確率」：論理的場合分けを必須とする。
+                    【アダプティブ指示】${adaptive}
+                    【ルール】数値替え禁止、方程式は代数学、確率は論理重視、循環小数も可。
                     {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }] })
                 });
                 const data = await res.json();
-                let jsonText = data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/)[0];
-                
-                // バックスラッシュ補修
-                jsonText = jsonText.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
-
-                const json = JSON.parse(jsonText);
+                const json = robustJSONParse(data.candidates[0].content.parts[0].text);
                 applyProb(json);
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 if (json.has_diagram !== false) autoDraw();
-            } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
+            } catch (e) { hideUI(); console.error(e); alert("通信失敗: " + e.message); }
         }
 
         async function autoDraw() {
             const layer = document.getElementById('svg-layer');
             let st = Date.now();
             let drawTimer = setInterval(() => {
-                layer.innerHTML = `<div style="color:var(--ai); font-weight:bold; margin-bottom:5px;">🎨 作図エンジン稼働中...</div><div style="font-size:1.5rem; font-family:monospace; color:#aaa;">${((Date.now()-st)/1000).toFixed(1)}s</div>`;
+                layer.innerHTML = `<div style="color:var(--ai); font-weight:bold; margin-bottom:5px;">🎨 作図中...</div><div style="font-size:1.5rem; font-family:monospace; color:#aaa;">${((Date.now()-st)/1000).toFixed(1)}s</div>`;
             }, 100);
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説用SVGを作成。解答・途中式・ヒント数値をSVGに書かない。状況視覚化のみ。viewBox="0 0 200 200"指定。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の解説SVG。解答数値禁止。状況視覚化のみ。viewBox="0 0 200 200"` }] }] })
                 });
                 const data = await res.json();
                 clearInterval(drawTimer);
@@ -242,24 +229,21 @@
         }
 
         async function doGrade(file) {
-            showUI("解析・採点中...");
-            const mimeType = file.type || "image/jpeg";
+            showUI("採点中...");
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const b64 = e.target.result.split(',')[1];
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関高校講師として画像採点せよ。数式はLaTeX。最後に必ず【Score: X/10】。問題：${state.prob.text}` }, { inlineData: { mimeType: mimeType, data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師として画像採点せよ。数式はLaTeX。Score: X/10。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
                     const resBox = document.getElementById('res-box');
-                    resBox.innerText = fb;
-                    resBox.style.display = 'block';
+                    resBox.innerText = fb; resBox.style.display = 'block';
                     renderMath();
-                    const scoreMatch = fb.match(/Score:\s*(\d+)/i);
-                    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+                    const score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
                     saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), score);
                     state.graded = true;
                 } catch (e) { alert("採点失敗"); } finally { hideUI(); }
@@ -281,17 +265,17 @@
             let dev = 50.0;
             if (h.length >= 1) dev = 40 + ((h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length) * 3.5);
             document.getElementById('dev-val').innerText = dev.toFixed(1);
-            let schoolLabel = "[都立中堅]";
-            if (dev >= 68) schoolLabel = "[筑駒]";
-            else if (dev >= 66) schoolLabel = "[開成・灘]";
-            else if (dev >= 64) schoolLabel = "[渋幕・学芸大附]";
-            else if (dev >= 62) schoolLabel = "[日比谷・慶應志木・早実]";
-            else if (dev >= 60) schoolLabel = "[西・早大本庄・早大学院・慶應義塾]";
-            else if (dev >= 58) schoolLabel = "[国立・青山・立教新座]";
-            else if (dev >= 56) schoolLabel = "[戸山・ICU]";
-            else if (dev >= 54) schoolLabel = "[新宿・八王子東]";
-            else if (dev >= 52) schoolLabel = "[都立共通上位]";
-            document.getElementById('target-school').innerText = schoolLabel;
+            let school = "[都立中堅]";
+            if (dev >= 68) school = "[筑駒]";
+            else if (dev >= 66) school = "[開成・灘]";
+            else if (dev >= 64) school = "[渋幕・学芸大附]";
+            else if (dev >= 62) school = "[日比谷・慶應志木・早実]";
+            else if (dev >= 60) school = "[西・早大本庄・早大学院・慶應義塾]";
+            else if (dev >= 58) school = "[国立・青山・立教新座]";
+            else if (dev >= 56) school = "[戸山・ICU]";
+            else if (dev >= 54) school = "[新宿・八王子東]";
+            else if (dev >= 52) school = "[都立共通上位]";
+            document.getElementById('target-school').innerText = school;
             const units = {};
             h.forEach(x => { if(!units[x.u]) units[x.u]={s:0,c:0}; units[x.u].s+=x.s; units[x.u].c++; });
             let html = "";
@@ -315,7 +299,7 @@
             };
             c.ontouchmove = (e) => {
                 e.preventDefault();
-                if(e.touches.length === 1 && isDrag) { state.x = e.touches[0].clientX - sx; state.y = e.touches[0].clientY - sy; }
+                if(e.touches.length === 1 && isDrag) { state.x = e.clientX - sx; state.y = e.clientY - sy; }
                 else if(e.touches.length === 2) {
                     const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                     state.scale = Math.min(Math.max(0.5, state.scale * (d / lDist)), 5); lDist = d;
