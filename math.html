@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.5.1</title>
+    <title>最難関突破 AI数学講師 v2.5.2</title>
     
     <script>
         window.MathJax = {
@@ -42,7 +42,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.5.1 Debug-Detailed</span>
+        <span class="version-tag">ver 2.5.2 Array-Guard</span>
     </div>
     
     <div id="debug-output"></div>
@@ -112,7 +112,7 @@
             if (!document.getElementById('debug-mode').checked) return;
             const box = document.getElementById('debug-output');
             box.style.display = 'block';
-            box.innerText = `DEBUG INFO:\n${msg}\n\n${raw ? "RAW DATA:\n" + raw : ""}`;
+            box.innerText = `DEBUG INFO:\n${msg}\n\n${raw ? "RAW DATA:\n" + (typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2)) : ""}`;
         }
 
         function abortGeneration() {
@@ -146,12 +146,15 @@
             if (!p.text && p.problem) p = p.problem;
             if (!p.text && p.data) p = p.data;
 
-            const fullContent = (p.text || "") + (p.sub ? p.sub.join("") : "");
+            // 文字列または配列を安全に結合
+            const subStr = Array.isArray(p.sub) ? p.sub.join("") : (p.sub || "");
+            const fullContent = (p.text || "") + subStr;
+            
             const hasMath = /[0-9xyz$]|[\u0370-\u03ff]/.test(fullContent);
             const hasObjective = /求めよ|示せ|証明せよ|答えよ|作図せよ/.test(fullContent);
 
             if (fullContent.length > 0 && (!hasMath || !hasObjective)) {
-                logDebug("Garbarge Detection Triggered", JSON.stringify(p));
+                logDebug("Invalid problem detected. No math or no objective.", p);
                 generateNext(false); 
                 return;
             }
@@ -163,8 +166,10 @@
             const pTextElem = document.getElementById('p-text');
             pTextElem.innerText = cleanText(p.text).trim() ? "【問題】\n" + cleanText(p.text).trim() : "";
             
+            // subが配列でない場合への対策
             const rawSub = p.sub || p.questions || p.q || [];
-            document.getElementById('q-list').innerHTML = (Array.isArray(rawSub) ? rawSub : [rawSub]).map(cleanText).filter(s => s.trim() !== "").map(s => `<li>${s}</li>`).join('');
+            const subArray = Array.isArray(rawSub) ? rawSub : [rawSub];
+            document.getElementById('q-list').innerHTML = subArray.map(cleanText).filter(s => s.trim() !== "").map(s => `<li>${s}</li>`).join('');
             
             let hText = cleanText(p.hint).trim();
             document.getElementById('h-box').innerText = (!hText || hText === "なし") ? "基本原理に立ち返り、論理を構築せよ。" : hText;
@@ -196,7 +201,7 @@
 
         async function peekAnswer() {
             if (state.seen_answer) { alert("表示済みだ。"); return; }
-            if (!confirm("解答を見ると、得点は0点となる。よろしいか？")) return;
+            if (!confirm("採点の前に解答を見ると、得点は0点となる。よろしいか？")) return;
             state.seen_answer = true;
             const resBox = document.getElementById('res-box');
             if (state.prefetched_answer) {
@@ -227,31 +232,27 @@
             const isProof = Math.random() < 0.2;
             showUI(`問題を構成中...`);
             currentAbortController = new AbortController();
-            let rawResponseText = "";
-            
+            let lastRaw = "";
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     signal: currentAbortController.signal,
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `数学問題エンジン。具体的数値を含むこと。JSON直下にtext, sub, unit, hint, has_diagramを含めよ。偏差値${dev}向け。${isProof ? "【指示】証明問題を出題せよ。" : ""} 幾何、関数、整数、確率からランダム。立体図形はSVG。JSONのみ。` }] }],
+                        contents: [{ parts: [{ text: `数学問題エンジン。具体的数値を含むこと。「〜を求めよ」「〜を示せ」と末尾に明記せよ。JSON直下にtext, sub, unit, hint, has_diagram。偏差値${dev}向け。${isProof ? "【指示】証明問題を出題せよ。" : ""} 幾何、関数、整数、確率からランダム。立体図形はSVG。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
                 const data = await res.json();
-                rawResponseText = data.candidates[0].content.parts[0].text;
-                const json = robustJSONParse(rawResponseText);
+                lastRaw = data.candidates[0].content.parts[0].text;
+                const json = robustJSONParse(lastRaw);
                 applyProb(json);
                 if (json.has_diagram !== false) autoDraw(0);
             } catch (e) { 
-                if (e.name === 'AbortError') return;
-                logDebug(`Generation Failed: ${e.message}`, rawResponseText);
-                const errorMsg = document.getElementById('debug-mode').checked ? `生成失敗: ${e.message}` : "生成失敗。やり直してください。";
-                alert(errorMsg); 
-            } finally {
-                currentAbortController = null;
-                hideUI();
-            }
+                if (e.name !== 'AbortError') {
+                    logDebug(`Generation Error: ${e.message}`, lastRaw);
+                    alert("生成失敗。DEBUGを確認してください。");
+                }
+            } finally { currentAbortController = null; hideUI(); }
         }
 
         async function autoDraw(retryCount = 0) {
@@ -259,7 +260,6 @@
             const layer = document.getElementById('svg-layer');
             const timerVal = document.getElementById('draw-timer-val');
             let startTime = Date.now();
-            
             clearInterval(state.dt);
             state.dt = setInterval(() => {
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -267,25 +267,17 @@
                 else layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val" style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div>`;
             }, 100);
 
-            let rawDrawText = "";
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ。全ラベル配置。viewBox="0 0 200 200"。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVGのみ。全ラベル配置。viewBox="0 0 200 200"。"&"等の実体参照禁止。` }] }] })
                 });
                 const data = await res.json();
-                rawDrawText = data.candidates[0].content.parts[0].text;
-                const match = rawDrawText.match(/<svg[\s\S]*?<\/svg>/i);
+                const match = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
                 else if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); }
-                else { 
-                    logDebug("SVG Match Failed", rawDrawText);
-                    layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`; 
-                }
-            } catch (e) { 
-                logDebug(`Draw Error: ${e.message}`, rawDrawText);
-                if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); } 
-            }
+                else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
+            } catch (e) { if (retryCount < 1) { clearInterval(state.dt); autoDraw(retryCount + 1); } }
             finally { clearInterval(state.dt); }
         }
 
