@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.2.0</title>
+    <title>最難関突破 AI数学講師 v2.2.1</title>
     
     <script>
         window.MathJax = {
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.2.0 Bulletproof-UI</span>
+        <span class="version-tag">ver 2.2.1 Math-Safe</span>
     </div>
 
     <div class="card">
@@ -140,16 +140,18 @@
             } else { setTimeout(renderMath, 100); }
         }
 
-        // どんな変なデータが来ても安全に文字列化・サニタイズする
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
             return t.replace(/\\n/g, "\n");
         }
 
-        // UI表示の完全防弾化
+        // 【追加】不等号「<」「>」がHTMLタグとして誤認され、数式が壊れるのを防ぐ
+        function escapeHTML(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
         function applyProb(p) {
-            // AIが配列で包んで返してきた場合の救済措置
             if (Array.isArray(p)) p = p[0] || {};
             
             state.prob = p;
@@ -161,7 +163,6 @@
             
             const pTextElem = document.getElementById('p-text');
             const txt = cleanText(p.text).trim();
-            // 前提条件が空っぽなら、見出しごと隠してスッキリさせる
             if (txt) {
                 pTextElem.innerText = "【前提条件】\n" + txt;
                 pTextElem.style.display = 'block';
@@ -175,11 +176,11 @@
             
             const qListElem = document.getElementById('q-list');
             if (validSubs.length > 0) {
-                qListElem.innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
+                // 【修正】innerHTMLに入れる前に、必ずescapeHTMLを通す
+                qListElem.innerHTML = validSubs.map(s => `<li>${escapeHTML(s)}</li>`).join('');
                 qListElem.style.display = 'block';
             } else {
                 qListElem.style.display = 'none';
-                // 万が一、前提条件も小問も両方空っぽだった場合の最強のフォールバック
                 if (!txt) {
                     pTextElem.innerText = "問題データの抽出に失敗しました。もう一度生成してください。";
                     pTextElem.style.display = 'block';
@@ -210,15 +211,11 @@
                 s = s.substring(startIdx, endIdx + 1);
             }
             try {
+                // 余計な置換をせず、そのままパースするのが最も安全（JSONモードを信頼）
                 return JSON.parse(s);
-            } catch (e1) {
-                try {
-                    s = s.replace(/\\([^"\\])/g, "\\\\$1");
-                    return JSON.parse(s);
-                } catch (e2) {
-                    console.error("Parse Error Details:", s);
-                    throw new Error("AIの応答が正しく読み取れませんでした。もう一度お試しください。");
-                }
+            } catch (e) {
+                console.error("Parse Error Details:", s);
+                throw new Error("AIの応答が正しく読み取れませんでした。もう一度お試しください。");
             }
         }
 
@@ -242,12 +239,15 @@
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
                         【指示】${adaptive} 方程式は代数、確率は論理重視、循環小数も可。
-                        【文体ルール】問題文およびヒントは、冗長な表現や丁寧語を避け、短く簡潔な命令形（「〜せよ」「〜を求めよ」等）に統一すること。
-                        【最重要ルール】
-                        ・「text」には問題の【前提条件や状況設定のみ】を記述し、「〜を求めよ」などの問いは絶対に含めないこと。（前提条件がない場合は空文字にせよ）
-                        ・実際の問いは必ず「sub」配列の中に記述すること。問いが1つの場合は「〜を求めよ。」とし、複数の場合は「(1) 〜」「(2) 〜」の形式で分割せよ。
+                        【LaTeX記述の絶対ルール】
+                        ・インライン数式（$...$）の中で改行（\\\\）やブロック環境（\\begin{align}等）を使用するとクラッシュするため絶対に使用しないこと。
+                        ・独自の特殊マクロ（\\Rなど）は使わず、標準的なコマンドのみを用いること。
+                        【文体ルール】問題文およびヒントは簡潔な命令形（「〜せよ」等）に統一すること。
+                        【最重要構成ルール】
+                        ・「text」には問題の【前提条件や状況設定のみ】を記述し、「〜を求めよ」などの問いは絶対に含めないこと。
+                        ・実際の問いは必ず「sub」配列の中に記述すること。
                         出力は以下のJSONのみを出力せよ。
-                        {"unit":"単元名","text":"前提条件のみ記述","sub":["..."],"hint":"簡潔な命令形で", "has_diagram": true}` }] }],
+                        {"unit":"単元名","text":"前提条件のみ記述","sub":["(1) ...","(2) ..."],"hint":"簡潔な命令形で", "has_diagram": true}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
