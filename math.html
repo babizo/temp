@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.3.2</title>
+    <title>最難関突破 AI数学講師 v2.3.3</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.3.2 Proof-Reinforced</span>
+        <span class="version-tag">ver 2.3.3 Core-Hard</span>
     </div>
     
     <div id="debug-output"></div>
@@ -120,7 +120,9 @@
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            return t.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
+            // 物理的なSVGタグが混入していたら除去
+            let clean = t.replace(/<svg[\s\S]*?<\/svg>/gi, "");
+            return clean.replace(/\\n/g, "\n").replace(/`/g, "").replace(/</g, ' < ').replace(/>/g, ' > ');
         }
 
         function applyProb(p) {
@@ -133,6 +135,7 @@
             const txt = cleanText(p.text).trim();
             if (txt) { pTextElem.innerText = "【前提条件】\n" + txt; pTextElem.style.display = 'block'; }
             else { pTextElem.style.display = 'none'; }
+            
             const rawSub = p.sub || p.questions || p.q || [];
             const subItems = Array.isArray(rawSub) ? rawSub : [rawSub];
             const validSubs = subItems.map(cleanText).filter(s => s.trim() !== "");
@@ -141,9 +144,11 @@
                 qListElem.innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
                 qListElem.style.display = 'block';
             } else { qListElem.style.display = 'none'; }
+            
             document.getElementById('h-box').innerText = cleanText(p.hint);
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
+            
             const canvasBox = document.getElementById('zoom-box');
             if (p.has_diagram === false) { canvasBox.style.display = 'none'; }
             else {
@@ -176,15 +181,14 @@
 
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
-            let adaptive = `現在偏差値${dev}に最適化せよ。`;
-            if (dev >= 60) adaptive += `（最上位層）。原則、小問による誘導は禁止し、単一の重い問いにせよ。ただし、法則の推測や補題の証明が必須な「超難問」に限り、戦略的な足場となる小問を設けてもよい。`;
+            let adaptive = `現在偏差値${dev}。`;
+            if (dev >= 60) adaptive += `（最上位層）。誘導を排し、一撃で正答を求める重厚な問いにせよ。`;
             
-            // 20%の確率で証明問題を要求
             const isProofRequired = Math.random() < 0.2;
-            const proofInstruction = isProofRequired ? "【最優先事項】今回は「証明問題」を出題せよ。「〜であることを証明せよ」「〜であることを示せ」という形式の問いを必ず含めること。" : "";
+            const proofInstruction = isProofRequired ? "【最優先】証明問題を出題せよ。「〜を示せ」「〜であることを証明せよ」という形式にせよ。" : "";
 
-            let promptText = "最難関高校講師。類題を作成。数式LaTeX($)。バッククォート記号禁止。";
-            if (isOtherUnit) promptText = `最難関高校講師。幾何（立体）、幾何（平面）、関数、確率、整数のうち、今の「${state.prob.unit}」以外の単元からランダムに選定せよ。`;
+            let promptText = "数学講師。類題作成。数式LaTeX($)。バッククォート禁止。";
+            if (isOtherUnit) promptText = `数学講師。現在の「${state.prob.unit}」以外の単元からランダムに選定せよ。`;
 
             showUI(`問題を構成中...`);
             try {
@@ -193,12 +197,12 @@
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
                         【指示】${adaptive} ${proofInstruction}
-                        【重要ルール】
+                        【口調ルール】優しさや励ましは一切不要。冷徹かつ簡潔な命令形（〜せよ、〜を求めよ、〜を示せ）で統一せよ。冗長な解説も禁止。
+                        【最重要ルール】
                         ・図を伴う問題（has_diagram: true）の場合、text末尾に「なお、図は必ずしも正確とは限らない。」を含めること。
-                        ・幾何（立体、平面）、関数、整数、確率から選定。
-                        ・立体図形の場合、必ずSVGで作図し、見取図を斜め上から見た構図で描くこと。
-                        【構成】textは前提条件。問いはsub。命令形。JSONのみ。
-                        {"unit":"...","text":"...","sub":["..."],"hint":"...","has_diagram":true}` }] }],
+                        ・幾何（立体、平面）、関数、整数、確率からランダム選定。
+                        ・立体図形の場合、必ずSVGで作図。
+                        【構成】textは前提条件。問いはsub。JSONのみ出力せよ。SVGコードをtextやsubの中に絶対に入れるな。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -208,7 +212,7 @@
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 if (json.has_diagram !== false) autoDraw(0);
-            } catch (e) { hideUI(); alert("失敗"); }
+            } catch (e) { hideUI(); alert("通信失敗"); }
         }
 
         async function autoDraw(retryCount = 0) {
@@ -223,11 +227,12 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力せよ。viewBox="0 0 200 200"。Markdown不要。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力。viewBox="0 0 200 200"。Markdown不要。余計な説明も禁止。` }] }] })
                 });
                 const data = await res.json();
                 const text = data.candidates[0].content.parts[0].text;
-                const match = text.match(/<svg[\s\S]*?<\/svg>/);
+                const match = text.match(/<svg[\s\S]*?<\/svg>/i);
+                
                 clearInterval(state.dt);
                 if (match) { 
                     state.prob.svg = match[0]; 
@@ -252,7 +257,7 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点せよ。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `冷徹な採点官。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
@@ -308,7 +313,7 @@
         function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
         function doSkip() { if (!state.graded) saveLog("SKIP", 0); generateNext(true); }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; renderMath(); }
-        function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("履歴消去せよ。")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
