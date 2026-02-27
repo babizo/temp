@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v3.2.8</title>
+    <title>最難関突破 AI数学講師 v3.2.9</title>
     
     <script>
         window.MathJax = {
@@ -12,7 +12,7 @@
             startup: {
                 ready: () => {
                     MathJax.startup.defaultReady();
-                    startMathObserver(); // 準備完了後に監視開始
+                    startMathObserver();
                 }
             }
         };
@@ -50,7 +50,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.2.8 Safe-Engine</span>
+        <span class="version-tag">ver 3.2.9 Examiner-Mode</span>
     </div>
 
     <div class="card">
@@ -69,10 +69,10 @@
 
     <div class="card">
         <div class="header-flex">
-            <h1>演習 [<span id="u-title"></span>]</h1>
-            <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:6px 12px; font-size:0.85rem; width:auto;">他単元へ ≫</button>
+            <h1>試験問題 [<span id="u-title"></span>]</h1>
+            <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:6px 12px; font-size:0.85rem; width:auto;">他領域へ ≫</button>
         </div>
-        <div class="btn-redraw" onclick="safeRender()">↻ 数式再描画</div>
+        <div class="btn-redraw" onclick="safeRender()">↻ 再描画</div>
         <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
         
         <div id="canvas-footer" class="canvas-footer" style="display:none;">
@@ -86,7 +86,7 @@
             <div id="h-box" style="display:none; color:var(--hint); font-size:0.85rem; padding:10px; background:#332b1e; border-radius:5px; margin:10px 0; border-left:4px solid var(--hint);"></div>
         </div>
         <div style="display:flex; gap:10px;">
-            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; font-size:0.8rem; flex:1;">💡 ヒント表示</button>
+            <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; font-size:0.8rem; flex:1;">💡 助言を表示</button>
             <button class="btn-ai-gen" onclick="generateNext(false)" style="flex:1.5;">✨ 類題作成</button>
             <button class="btn-hard" onclick="generateNext(false, true)" style="background:var(--hard); color:white; flex:1.5;">🔥 最難関へ</button>
         </div>
@@ -118,15 +118,11 @@
 
     <script>
         let currentAbortController = null, drawingAbortController = null, drawingLock = false;
-        let isRendering = false; // 無限ループ防止フラグ
+        let isRendering = false;
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, seen_answer: false, prefetched_answer: null, last_units: [], current_target_unit: "数と式" };
 
         function startMathObserver() {
-            const observer = new MutationObserver((mutations) => {
-                if (isRendering) return; // 自分が変換中なら無視
-                safeRender();
-            });
-            // 監視範囲を絞って負荷軽減
+            const observer = new MutationObserver(() => { if (!isRendering) safeRender(); });
             observer.observe(document.getElementById('math-content-area'), { childList: true, subtree: true });
             observer.observe(document.getElementById('res-box'), { childList: true, subtree: true });
         }
@@ -134,26 +130,18 @@
         async function safeRender() {
             if (isRendering || !window.MathJax || !MathJax.typesetPromise) return;
             isRendering = true;
-            try {
-                await MathJax.typesetPromise();
-            } catch (e) {
-                console.error("MathJax Render Error:", e);
-            } finally {
-                // DOMの変化が落ち着くまで少し待ってからフラグ解除
-                setTimeout(() => { isRendering = false; }, 100);
-            }
+            try { await MathJax.typesetPromise(); } catch (e) { }
+            finally { setTimeout(() => { isRendering = false; }, 100); }
         }
 
         window.onload = () => {
             initZoom(); refreshStats();
-            applyProb({ unit: "数と式", text: "次の等式において、$x$ の値を求めよ。", sub: ["$2(x-3) = \\frac{x}{2} + 1$"], hint: "分母を払うために、両辺を2倍せよ。" });
+            applyProb({ unit: "数と式", text: "次の等式において、$x$ の値を求めよ。", sub: ["$2(x-3) = \\frac{x}{2} + 1$"], hint: "両辺を2倍し、分母を払って整理せよ。" });
             const devEl = document.getElementById('dev-val');
             devEl.addEventListener('blur', () => {
                 let val = parseFloat(devEl.innerText);
-                if (isNaN(val)) val = 50.0;
-                val = Math.min(Math.max(val, 0), 100);
-                devEl.innerText = val.toFixed(1);
-                updateTargetSchool(val);
+                if (isNaN(val)) val = 50.0; val = Math.min(Math.max(val, 0), 100);
+                devEl.innerText = val.toFixed(1); updateTargetSchool(val);
             });
             devEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); devEl.blur(); } });
             setTimeout(safeRender, 500);
@@ -168,20 +156,10 @@
         function cleanText(t, index = null) {
             if (!t) return "";
             let s = (typeof t === 'object') ? (t.text || t.problem || t.body || t.question || JSON.stringify(t)) : String(t);
-            if (s.includes('{') && s.includes('}')) {
-                try {
-                    const match = s.match(/\{[\s\S]*\}/);
-                    if (match) {
-                        const parsed = JSON.parse(match[0]);
-                        s = parsed.question_text || parsed.text || parsed.problem || s;
-                    }
-                } catch(e) {}
-            }
+            if (s.includes('{') && s.includes('}')) { try { const m = s.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); s = p.question_text || p.text || p.problem || s; } } catch(e) {} }
             if (index === null) s = s.replace(/^[\s\S]*?(ヒント|解説|解答)：?/g, "").replace(/^\(\d+\)\s*/, "");
             s = s.replace(/riangle/g, "\\triangle ").replace(/\\triangle(?![ \s])/g, "\\triangle ");
-            if (!s.includes('$')) {
-                s = s.replace(/([a-z]\s*[=<>]\s*[^ 　\n。]+|[a-z]\^\d+|[A-Z]\([^\)]+\)|\\frac\{[^\}]+\}\{[^\}]+\})/gi, '$$$1$$');
-            }
+            if (!s.includes('$')) s = s.replace(/([a-z]\s*[=<>]\s*[^ 　\n。]+|[a-z]\^\d+|[A-Z]\([^\)]+\)|\\frac\{[^\}]+\}\{[^\}]+\})/gi, '$$$1$$');
             if ((s.match(/\$/g) || []).length % 2 !== 0) s += "$";
             if (index !== null) { s = s.replace(/^\(\d+\)\s*/, ""); s = `(${index}) ` + s.trim(); }
             return s.trim();
@@ -192,21 +170,19 @@
             const mainText = cleanText(p.text || p.problem || p.body);
             if (!mainText || mainText.length < 5) return false;
             state.prob = p; state.seen_answer = false; state.prefetched_answer = null; resetView();
-            state.current_target_unit = p.unit_lock || state.current_target_unit || p.unit || "総合";
-            document.getElementById('u-title').innerText = state.current_target_unit;
+            const unitToUse = p.unit_lock || state.current_target_unit || p.unit || "総合";
+            state.current_target_unit = unitToUse;
+            document.getElementById('u-title').innerText = unitToUse;
             document.getElementById('p-text').innerText = mainText;
             const rawSub = p.sub || p.questions || p.q || [];
             let subArray = (Array.isArray(rawSub) ? rawSub : [rawSub]).filter(q => q && String(q).length > 0);
             if (subArray.length === 0 || (subArray.length === 1 && subArray[0].length < 5)) {
                 const lastSentence = mainText.split(/[。？]/).filter(s => s.length > 0).pop();
-                if (lastSentence && (lastSentence.includes("求めよ") || lastSentence.includes("証明せよ") || lastSentence.includes("示せ"))) {
-                    subArray = [lastSentence + "。"];
-                } else {
-                    subArray = ["上記の条件に従って答えを導け。"];
-                }
+                if (lastSentence && (lastSentence.includes("求めよ") || lastSentence.includes("証明せよ"))) subArray = [lastSentence + "。"];
+                else subArray = ["与えられた条件に従い答えを導け。"];
             }
             document.getElementById('q-list').innerHTML = subArray.map((q, i) => `<li>${cleanText(q, i+1)}</li>`).join('');
-            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "解法の構造を分析せよ。";
+            document.getElementById('h-box').innerText = cleanText(p.hint || p.explanation) || "数理的構造を分析せよ。";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
             const drawKeywords = /三角形|四角形|円|相似|合同|平行|垂直|線分|中点|関数|グラフ|座標|直線|曲線|放物線|立体|見取り図|展開図|三平方|ピタゴラス/;
             const showDiagram = p.has_diagram || /平面図形|幾何|関数|立体|空間/.test(state.current_target_unit) || drawKeywords.test(mainText);
@@ -216,8 +192,7 @@
                 document.getElementById('svg-layer').innerHTML = `<div style="color:#444; font-weight:bold;">🎨 作図中...</div><div id="draw-timer-val">0.0s</div>`;
                 setTimeout(() => autoDraw(0, mainText), 100);
             }
-            safeRender();
-            prefetchAnswer();
+            safeRender(); prefetchAnswer();
             return true;
         }
 
@@ -257,7 +232,10 @@
             state.current_target_unit = target;
             showUI(`${target}${isHardMode ? 'の最難関問' : ''}を構成中...${retryCount > 0 ? '(再試行中)' : ''}`);
             currentAbortController = new AbortController();
-            const prompt = `数学講師。入試問題調。text=状況、sub=問いの配列、hint=具体的助言。単元「${target}」。偏差値${devValue}。JSON。最大1分程。`;
+            const prompt = `あなたは難関私立・国立・都立入試の「数学作問委員」です。
+【使命】受験生の思考力を厳格に測定する問題を構成せよ。
+【絶対遵守：口調】「～を求めよ」「～とせよ」「～を証明せよ」という入試問題・模試調のみを許可する。「です・ます」「～しましょう」等の教示・語りかけは一切禁止する。
+【形式】単元「${target}」、偏差値${devValue}レベル。JSON(text, sub:[], hint)形式。最大1分程。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
@@ -265,7 +243,7 @@
                 });
                 const parsed = JSON.parse((await res.json()).candidates[0].content.parts[0].text);
                 parsed.unit_lock = target;
-                if (!applyProb(parsed)) throw new Error("Invalid Data");
+                if (!applyProb(parsed)) throw new Error("Invalid");
                 hideUI();
             } catch (e) {
                 if (retryCount < 3 && e.name !== 'AbortError') generateNext(isOther, isHardMode, retryCount + 1);
@@ -287,10 +265,10 @@
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); clearInterval(state.t); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function abortGeneration() { if (currentAbortController) currentAbortController.abort(); hideUI(); }
-        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解説調（だ・である）。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
+        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試解答。問題：${state.prob.text||state.prob.problem}` }] }] }) }); state.prefetched_answer = cleanText((await res.json()).candidates[0].content.parts[0].text); } catch (e) {} }
         function peekAnswer() { 
             if (state.seen_answer) return;
-            if (!confirm("解答を見るとこの問題の得点は0点(不正解)として記録されます。よろしいですか？")) return; 
+            if (!confirm("解答を確認すると本問は0点(不正解)として記録される。よろしいか？")) return; 
             state.seen_answer = true; document.getElementById('res-box').innerHTML = state.prefetched_answer || "取得失敗。"; 
             document.getElementById('res-box').style.display = 'block'; saveLog("×", 0); 
         }
@@ -304,8 +282,7 @@
             if(h.length > 0) {
                 const avgScore = h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length;
                 const autoDev = 40 + (avgScore * 3.5);
-                document.getElementById('dev-val').innerText = autoDev.toFixed(1);
-                updateTargetSchool(autoDev);
+                document.getElementById('dev-val').innerText = autoDev.toFixed(1); updateTargetSchool(autoDev);
             }
         }
         function saveLog(mark, score) {
