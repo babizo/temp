@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.2.6</title>
+    <title>最難関突破 AI数学講師 v2.2.9</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.2.6 RAW-Clean</span>
+        <span class="version-tag">ver 2.2.9 Logic-Fix</span>
     </div>
     
     <div id="debug-output"></div>
@@ -100,10 +100,9 @@
 
         const initDataList = [
             { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節を見つけよ。" },
-            { unit: "整数問題", text: "自然数 $n$ について、式 $P = n^2 - 12n + 27$ を考える。", sub: ["(1) 式 $P$ を因数分解せよ。", "(2) $P$ が素数となるような自然数 $n$ をすべて求めよ。"], has_diagram: false, hint: "一方が $1$ か $-1$ になることを利用せよ。" },
-            { unit: "方程式", text: "$x$ についての2次方程式 $x^2 - (a-3)x + a^2 - 4a - 5 = 0$ があり、1つの解は $x = 0$ である。", sub: ["(1) 定数 $a$ の値を求めよ。", "(2) 他方の解を求めよ。"], has_diagram: false, hint: "$x=0$ を代入せよ。" },
-            { unit: "関数", text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標は $-2$ である。", sub: ["(1) 定数 $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="20" y1="180" x2="180" y2="20" stroke="#5dade2" stroke-width="2"/></svg>`, hint: "交点座標を求めよ。" },
-            { unit: "幾何（平面）", text: "円に内接する四角形ABCDがあり、$AB=3, BC=4, CD=5, DA=6$ である。", sub: ["(1) 四角形ABCDの面積を求めよ。"], has_diagram: true, hint: "対角線を1本引き、2つの三角形に分けて考えよ。余弦定理や正弦定理の利用を検討せよ。" }
+            { unit: "幾何（立体）", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BCの中点をそれぞれM, Nとする。辺AE上に点PをAP=2となるようにとる。なお、図は必ずしも正確とは限らない。", sub: ["(1) 3点M, N, Pを通る平面で切断したときの、切り口の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333" stroke-width="1.5"/><path d="M70 40 L150 40 L150 120 L70 120 Z" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="3"/><path d="M40 70 L70 40 M120 70 L150 40 M120 150 L150 120 M40 150 L70 120" fill="none" stroke="#333" stroke-width="1.5"/><path d="M80 70 L120 110 L55 55 Z" fill="rgba(231,76,60,0.4)" stroke="#e74c3c" stroke-width="2"/></svg>`, hint: "投影図で確認せよ。" },
+            { unit: "解析（関数）", text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標は $-2$ である。なお、図は必ずしも正確とは限らない。", sub: ["(1) 定数 $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="20" y1="180" x2="180" y2="20" stroke="#5dade2" stroke-width="2"/></svg>`, hint: "点Aの座標からaを決定せよ。" },
+            { unit: "幾何（平面）", text: "円に内接する四角形ABCDがあり、$AB=3, BC=4, CD=5, DA=6$ である。なお、図は必ずしも正確とは限らない。", sub: ["(1) 四角形ABCDの面積を求めよ。"], has_diagram: true, hint: "余弦定理を用いて対角線を計算せよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -131,7 +130,6 @@
             state.prob = p;
             state.graded = false; 
             let unitName = cleanText(p.unit) || "総合演習";
-            if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
             document.getElementById('u-title').innerText = unitName;
             const pTextElem = document.getElementById('p-text');
             const txt = cleanText(p.text).trim();
@@ -144,10 +142,7 @@
             if (validSubs.length > 0) {
                 qListElem.innerHTML = validSubs.map(s => `<li>${s}</li>`).join('');
                 qListElem.style.display = 'block';
-            } else {
-                qListElem.style.display = 'none';
-                if (!txt) { pTextElem.innerText = "データ不備。再試行せよ。"; pTextElem.style.display = 'block'; }
-            }
+            } else { qListElem.style.display = 'none'; }
             document.getElementById('h-box').innerText = cleanText(p.hint);
             document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
@@ -156,51 +151,48 @@
             else {
                 canvasBox.style.display = 'flex';
                 const layer = document.getElementById('svg-layer');
-                layer.innerHTML = p.svg || `<div style="color:#888;">図解データを待機中...</div>`;
+                layer.innerHTML = p.svg || `<div style="color:#888;">図解待機中</div>`;
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
             renderMath();
         }
 
-        // 【最強のサニタイズ】RAWデータの改行文字も除去
+        // 【最強のサニタイズ】riangle問題（\t誤認）を完全に封殺
         function robustJSONParse(rawStr) {
-            const debugBox = document.getElementById('debug-output');
             const isDebug = document.getElementById('debug-mode').checked;
-            if (isDebug) { debugBox.innerText = "RAW RESPONSE:\n" + rawStr; debugBox.style.display = 'block'; }
-            else { debugBox.style.display = 'none'; }
-
+            const debugBox = document.getElementById('debug-output');
+            if (isDebug) { debugBox.innerText = "RAW:\n" + rawStr; debugBox.style.display = 'block'; }
             let s = rawStr;
             const startIdx = s.indexOf('{');
             const endIdx = s.lastIndexOf('}');
             if (startIdx !== -1 && endIdx !== -1) { s = s.substring(startIdx, endIdx + 1); }
             
-            // 【究極のクリーニング】
-            // JSONの文字列値の中に含まれる「本物の改行」を \n に置き換えるのではなく
-            // パースエラーを防ぐためにまず「本物の改行コード」そのものを物理的に消去（または正規化）する
+            // 生の改行コードを消去（JSONフォーマット崩れ対策）
             s = s.replace(/[\r\n]+/g, " "); 
 
             try { return JSON.parse(s); } catch (e1) {
                 try {
-                    // バックスラッシュの救済
-                    s = s.replace(/\\\\/g, "___D___").replace(/\\"/g, "___Q___");
+                    // \triangle の \t などが制御文字に化けるのを防ぐため
+                    // 正規のJSONエスケープ以外の \ をすべて強制的に二重化する
+                    // まず正しいやつを退避
+                    s = s.replace(/\\\\/g, "___BS___").replace(/\\"/g, "___QT___").replace(/\\n/g, "___NW___");
+                    // 残った \ を \\ に（これが \triangle 等を救う）
                     s = s.replace(/\\/g, "\\\\");
-                    s = s.replace(/___D___/g, "\\\\").replace(/___Q___/g, "\\\"");
+                    // 戻す
+                    s = s.replace(/___BS___/g, "\\\\").replace(/___QT___/g, "\\\"").replace(/___NW___/g, "\\n");
+                    
                     return JSON.parse(s);
-                } catch (e2) {
-                    if (isDebug) debugBox.innerText += "\n\nCLEANED STR (PARSE FAILED):\n" + s;
-                    throw new Error("パース失敗。DEBUGを確認せよ。");
-                }
+                } catch (e2) { throw new Error("パース失敗"); }
             }
         }
 
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
             let adaptive = `現在偏差値${dev}。`;
-            if (dev >= 60) adaptive += `（最上位）。原則小問禁止。計算手順の分割は絶対に行うな。真に飛躍が必要な場合のみ補題としての小問を最小限認めよ。`;
-            else if (dev < 45) adaptive += `基礎重視。丁寧な誘導。`;
+            if (dev >= 60) adaptive += `（最上位層）。原則小問禁止。`;
 
-            let promptText = "最難関高校講師。類題作成。数値替え禁止。数式LaTeX($)。バッククォート記号禁止。";
-            if (isOtherUnit) promptText = `最難関高校講師。単元「${state.prob.unit}」と異なる系統の別単元から、新傾向の良問を。バッククォート禁止。`;
+            let promptText = "最難関高校講師。類題作成。数式LaTeX($)。";
+            if (isOtherUnit) promptText = `最難関高校講師。幾何（立体）、幾何（平面）、解析（関数）、確率、整数のうち、今の「${state.prob.unit}」以外の単元からランダムに選定せよ。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
@@ -209,11 +201,14 @@
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
                         【指示】${adaptive} 
-                        【範囲】代数（数と式、整数、方程式）、解析（関数）、幾何（平面、立体）、確率。
-                        【LaTeX】不等号は前後にスペース。
-                        【文体】簡潔な命令形。ですます調、冗長な解説は一切禁止。
-                        【構成】textは前提条件のみ。問いはsub配列。
-                        【重要】JSON文字列の中に、物理的な改行（Enter）を含めず、1行の文字列として出力せよ。
+                        【重要ルール】
+                        ・図を伴う問題（has_diagram: true）の場合、text（前提条件）の末尾に「なお、図は必ずしも正確とは限らない。」という一文を必ず含めること。
+                        ・幾何（立体切断、体積）、幾何（平面）、解析（関数）、整数、確率からランダムに選定せよ。
+                        ・立体図形の場合、必ずSVGで作図し、見取図を斜め上から見た構図で描くこと。
+                        【数式ルール】
+                        ・三角形を記述する際は \triangle を使用せよ。
+                        ・不等号「<」「>」は前後にスペースを入れる。
+                        【構成】textは前提条件。問いはsub。命令形。JSONのみ。
                         {"unit":"...","text":"...","sub":["..."],"hint":"...","has_diagram":true}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
@@ -224,24 +219,24 @@
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
                 if (json.has_diagram !== false) autoDraw();
-            } catch (e) { hideUI(); alert("通信失敗: " + e.message); }
+            } catch (e) { hideUI(); alert("失敗"); }
         }
 
         async function autoDraw() {
             const layer = document.getElementById('svg-layer');
             let st = Date.now();
-            let drawTimer = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div>${((Date.now()-st)/1000).toFixed(1)}s</div>`; }, 100);
+            let drawTimer = setInterval(() => { layer.innerHTML = `作図中...${((Date.now()-st)/1000).toFixed(1)}s`; }, 100);
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況視覚化SVG。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の可視化SVG。立体図形は斜め上からの見取図。viewBox="0 0 200 200"。` }] }] })
                 });
                 const data = await res.json();
                 clearInterval(drawTimer);
                 const text = data.candidates[0].content.parts[0].text;
                 const match = text.match(/<svg[\s\S]*?<\/svg>/);
                 if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
-            } catch (e) { clearInterval(drawTimer); layer.innerHTML = "作図エラー"; }
+            } catch (e) { clearInterval(drawTimer); layer.innerHTML = "エラー"; }
         }
 
         async function doGrade(file) {
@@ -252,7 +247,7 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師。画像採点。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
@@ -262,7 +257,7 @@
                     const score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
                     saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), score);
                     state.graded = true;
-                } catch (e) { alert("採点失敗"); } finally { hideUI(); }
+                } catch (e) { alert("失敗"); } finally { hideUI(); }
             };
             reader.readAsDataURL(file);
         }
@@ -282,7 +277,7 @@
             if (h.length >= 1) dev = 40 + ((h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length) * 3.5);
             document.getElementById('dev-val').innerText = dev.toFixed(1);
             let s = "[都立中堅]";
-            if (dev >= 68) s = "[筑駒]"; else if (dev >= 66) s = "[開成・灘]"; else if (dev >= 64) s = "[渋幕・学芸]"; else if (dev >= 62) s = "[日比谷・慶應]"; else if (dev >= 60) s = "[西・早実]"; else if (dev >= 58) s = "[国立・青山]"; else if (dev >= 52) s = "[都立共通上位]";
+            if (dev >= 68) s = "[筑駒]"; else if (dev >= 66) s = "[開成・灘]"; else if (dev >= 64) s = "[渋幕・学芸]"; else if (dev >= 52) s = "[都立共通上位]";
             document.getElementById('target-school').innerText = s;
             const units = {};
             h.forEach(x => { if(!units[x.u]) units[x.u]={s:0,c:0}; units[x.u].s+=x.s; units[x.u].c++; });
@@ -308,7 +303,7 @@
         function loadHist(i) { applyProb(JSON.parse(localStorage.getItem('m_hist'))[i].p); }
         function doSkip() { if (!state.graded) saveLog("SKIP", 0); generateNext(true); }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display === 'block') ? 'none' : 'block'; renderMath(); }
-        function resetData() { if(confirm("履歴消去？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("消去？")) { localStorage.clear(); location.reload(); } }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s=Date.now(); state.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
         function updateView() { document.getElementById('svg-layer').style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
