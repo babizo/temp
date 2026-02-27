@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.4.4</title>
+    <title>最難関突破 AI数学講師 v2.4.5</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.4.4 No-Trash-Logic</span>
+        <span class="version-tag">ver 2.4.5 Clean-Instruction</span>
     </div>
     
     <div id="debug-output"></div>
@@ -96,13 +96,10 @@
     </div>
 
     <script>
-        let state = { 
-            prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, 
-            graded: false, seen_answer: false, prefetched_answer: null 
-        };
+        let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false, seen_answer: false, prefetched_answer: null };
 
         const initDataList = [
-            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節（周期性）を見つけよ。" }
+            { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。$f(100)$ の値を求めよ。", sub: [], has_diagram: false, hint: "循環節を見つけよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -121,7 +118,6 @@
         function cleanText(t) {
             if (t == null) return "";
             if (typeof t !== 'string') t = String(t);
-            // 手抜き・お説教ワードの強制削除
             let clean = t.replace(/即座に実行せよ|今すぐ実行せよ|直ちに実行せよ|思考を開始せよ|厳密さを追求せよ|基礎中の基礎|速やかに処理|処理せよ/gi, "");
             clean = clean.replace(/確認しましょう|解いてみましょう|考えてみてください|頑張りましょう|求めてみましょう/g, "求めよ");
             clean = clean.replace(/<svg[\s\S]*?<\/svg>/gi, "");
@@ -136,10 +132,13 @@
         function applyProb(p) {
             if (Array.isArray(p)) p = p[0] || {};
             
-            // ★【究極のゴミ検知】数値も数式もないデータなら再生成
+            // ★【検知強化】数値・数式がなく、かつ「求めよ/示せ」等の目的語もない場合はゴミとみなす
             const fullContent = (p.text || "") + (p.sub ? p.sub.join("") : "");
-            if (fullContent.length > 0 && !/[0-9xyz$]|[\u0370-\u03ff]/.test(fullContent)) {
-                console.warn("Garbage detected (No math/numbers). Retrying...");
+            const hasMath = /[0-9xyz$]|[\u0370-\u03ff]/.test(fullContent);
+            const hasObjective = /求めよ|示せ|証明せよ|答えよ/.test(fullContent);
+
+            if (fullContent.length > 0 && (!hasMath || !hasObjective)) {
+                console.warn("Invalid content. Objective or Math missing. Retrying...");
                 generateNext(false); 
                 return;
             }
@@ -152,7 +151,7 @@
             document.getElementById('u-title').innerText = getUnit(p);
             const txt = cleanText(p.text).trim();
             const pTextElem = document.getElementById('p-text');
-            if (txt) { pTextElem.innerText = "【前提条件】\n" + txt; pTextElem.style.display = 'block'; }
+            if (txt) { pTextElem.innerText = "【問題】\n" + txt; pTextElem.style.display = 'block'; }
             else { pTextElem.style.display = 'none'; }
             
             const rawSub = p.sub || p.questions || p.q || [];
@@ -186,7 +185,7 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `解答と解説を出力せよ。数式LaTeX。問題：${state.prob.text} ${state.prob.sub}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `解答と詳細な解説を出力せよ。数式LaTeX。問題：${state.prob.text} ${state.prob.sub}` }] }] })
                 });
                 const data = await res.json();
                 state.prefetched_answer = cleanText(data.candidates[0].content.parts[0].text);
@@ -195,8 +194,7 @@
 
         async function peekAnswer() {
             if (state.seen_answer) { alert("既に表示済みだ。"); return; }
-            const isConfirmed = confirm("【警告】採点の前に解答を見ると、その後に採点しても得点は0点となります。よろしいですか？");
-            if (!isConfirmed) return;
+            if (!confirm("採点の前に解答を見ると、得点は0点となります。よろしいですか？")) return;
             state.seen_answer = true;
             const resBox = document.getElementById('res-box');
             if (state.prefetched_answer) {
@@ -240,7 +238,6 @@
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
             let adaptive = `偏差値${dev}向け。`;
-            if (dev >= 60) adaptive += `誘導不要。`;
             const isProof = Math.random() < 0.2;
             const proofInstr = isProof ? "【指示】証明問題を出題せよ。" : "";
 
@@ -249,13 +246,13 @@
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `貴様は計算機である。感情、煽り文句は一切不要。数学的な「定義、数値、式、図、条件、問い」のみをJSON形式で返せ。
+                        contents: [{ parts: [{ text: `数学問題生成エンジン。余計な文言は一切不要。
                         【絶対ルール】
-                        1. 問題文（text, sub）の中に必ず具体的な数値（0-9）または文字式（x, y等）を含めよ。数値のない精神論的メッセージはエラーとみなす。
-                        2. 「基礎」「速やかに」「処理せよ」といったメタ発言を一切禁止する。
-                        3. 語尾は「〜せよ」「〜を求めよ」のみ。
+                        1. 問題（text, sub）は具体的数値を含むこと。小問(sub)がない場合、textの末尾で必ず何を求めるべきか明記せよ。
+                        2. 語尾は「〜を求めよ」「〜を示せ」等の最短命令形のみ。
+                        3. 数学以外のメタ発言（基礎、処理せよ等）は一切禁止。
                         ${adaptive} ${proofInstr}
-                        【ルール】図を伴う場合text末尾に「なお、図は必ずしも正確とは限らない。」を付与。幾何、関数、整数、確率からランダム。立体図形はSVGで作図。JSONのみ。` }] }],
+                        【構成】幾何、関数、整数、確率からランダム。立体図形はSVG。JSONのみ。` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -278,32 +275,21 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>タグのみ出力。全ラベル配置。viewBox="0 0 200 200"。undefinedという文字列は絶対に出力するな。座標を計算せよ。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」を可視化した<svg>のみ出力。全ラベル配置。viewBox="0 0 200 200"。` }] }] })
                 });
                 const data = await res.json();
                 const rawText = data.candidates[0].content.parts[0].text;
-                // undefinedが含まれていたらリトライ
-                if (rawText.includes("undefined")) throw new Error("undefined drawing");
-
+                if (rawText.includes("undefined")) throw new Error("drawing error");
                 const match = rawText.match(/<svg[\s\S]*?<\/svg>/i);
                 clearInterval(state.dt);
-                if (match) { 
-                    state.prob.svg = match[0]; 
-                    layer.innerHTML = match[0]; 
-                } else if (retryCount < 1) {
-                    autoDraw(retryCount + 1);
-                } else {
-                    layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
-                }
-            } catch (e) { 
-                clearInterval(state.dt); 
-                if (retryCount < 1) autoDraw(retryCount + 1); 
-                else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解生成失敗</div>`;
-            }
+                if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
+                else if (retryCount < 1) autoDraw(retryCount + 1);
+                else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
+            } catch (e) { clearInterval(state.dt); if (retryCount < 1) autoDraw(retryCount + 1); }
         }
 
         async function doGrade(file) {
-            if (state.seen_answer) { alert("解答閲覧済のため得点は0点だ。"); return; }
+            if (state.seen_answer) { alert("解答閲覧済のため0点だ。"); return; }
             showUI("採点中...");
             const reader = new FileReader();
             reader.onload = async (e) => {
@@ -311,7 +297,7 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点官。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
