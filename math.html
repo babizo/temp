@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.1.5</title>
+    <title>最難関突破 AI数学講師 v2.1.7</title>
     
     <script>
         window.MathJax = {
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.1.5 Native-JSON</span>
+        <span class="version-tag">ver 2.1.7 Format-Fix</span>
     </div>
 
     <div class="card">
@@ -75,8 +75,8 @@
         </div>
         <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
         <div id="math-content-area">
-            <p id="p-text" style="font-weight:bold; margin: 8px 0;"></p>
-            <ul id="q-list" style="padding-left: 20px; margin: 8px 0;"></ul>
+            <p id="p-text" style="font-weight:bold; margin: 8px 0; color: #ccc; border-bottom: 1px dashed #444; padding-bottom: 8px;"></p>
+            <ul id="q-list" style="padding-left: 20px; margin: 12px 0;"></ul>
             <div id="h-box" class="hint-box"></div>
         </div>
         <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); padding:6px; width:auto; font-size:0.8rem;">💡 ヒント</button>
@@ -102,6 +102,7 @@
     <script>
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
 
+        // 【修正】初期データの text を「前提条件のみ」に統一し、問いを sub にまとめた
         const initDataList = [
             {
                 unit: "数と式（循環小数）",
@@ -112,15 +113,15 @@
             },
             {
                 unit: "整数問題",
-                text: "自然数 $n$ について、$n^2 - 12n + 27$ が素数となるような $n$ をすべて求めよ。",
-                sub: ["(1) 式を因数分解し、素数の性質を利用して条件を絞り込め。"],
+                text: "自然数 $n$ について、式 $P = n^2 - 12n + 27$ を考える。",
+                sub: ["(1) 式 $P$ を因数分解せよ。", "(2) $P$ が素数となるような自然数 $n$ をすべて求めよ。"],
                 has_diagram: false,
-                hint: "$(n-3)(n-9)$ が素数となるには、一方が $1$ か $-1$ になる必要があります。"
+                hint: "$P$ が素数となるには、因数のどちらかが $1$ か $-1$ になる必要があります。"
             },
             {
                 unit: "方程式",
-                text: "$x$ についての2次方程式 $x^2 - (a-3)x + a^2 - 4a - 5 = 0$ がある。1つの解が $0$ であるとき、定数 $a$ の値を求めよ。",
-                sub: ["(1) $a$ の値を求めよ。", "(2) 他方の解を求めよ。"],
+                text: "$x$ についての2次方程式 $x^2 - (a-3)x + a^2 - 4a - 5 = 0$ があり、1つの解は $x = 0$ である。",
+                sub: ["(1) 定数 $a$ の値を求めよ。", "(2) 他方の解を求めよ。"],
                 has_diagram: false,
                 hint: "$x=0$ を方程式に代入して、$a$ についての二次方程式を解きます。"
             }
@@ -151,7 +152,11 @@
             let unitName = cleanText(p.unit) || "総合演習";
             if(unitName.match(/cm|m|kg|度/)) unitName = "図形・計量"; 
             document.getElementById('u-title').innerText = unitName;
-            document.getElementById('p-text').innerText = cleanText(p.text);
+            
+            // 前提条件の表示
+            const pTextElem = document.getElementById('p-text');
+            pTextElem.innerText = "【前提条件】\n" + cleanText(p.text);
+            
             const subItems = Array.isArray(p.sub) ? p.sub : [p.sub];
             document.getElementById('q-list').innerHTML = subItems.filter(s=>s).map(s => `<li>${cleanText(s)}</li>`).join('');
             document.getElementById('h-box').innerText = cleanText(p.hint);
@@ -168,21 +173,21 @@
             renderMath();
         }
 
-        // 【修正】JSONネイティブ出力に対する、安全かつシンプルなパースロジック
         function robustJSONParse(rawStr) {
+            let s = rawStr;
+            const startIdx = s.indexOf('{');
+            const endIdx = s.lastIndexOf('}');
+            if (startIdx !== -1 && endIdx !== -1) {
+                s = s.substring(startIdx, endIdx + 1);
+            }
             try {
-                // Geminiが完全なJSONを出力しているはずなので、まずは素直にパースする
-                return JSON.parse(rawStr);
+                return JSON.parse(s);
             } catch (e1) {
                 try {
-                    // まれに生じる「数式のバックスラッシュがエスケープされていない」ケースだけを補修
-                    // 有効なJSONエスケープ (" \ / b f n r t ) 以外の単独の \ を \\ に変換
-                    let s = rawStr.replace(/\\(?!["\\/bfnrt])/g, "\\\\");
-                    // 途中の改行が残っていたらエスケープ
-                    s = s.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+                    s = s.replace(/\\([^"\\])/g, "\\\\$1");
                     return JSON.parse(s);
                 } catch (e2) {
-                    console.error("Parse Error Details:", rawStr);
+                    console.error("Parse Error Details:", s);
                     throw new Error("AIの応答が正しく読み取れませんでした。もう一度お試しください。");
                 }
             }
@@ -192,19 +197,22 @@
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
             let adaptive = `現在偏差値${dev}に最適化せよ。`;
 
-            let promptText = `最難関高校講師。類題を作成。数値替え禁止。数式はLaTeX($)。`;
+            let promptText = `最難関高校講師。類題を作成。数値替え禁止。数式はLaTeX($)を使用。`;
             if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」とは異なる系統の良問を作成。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
+                // 【修正】AIへのプロンプトで text と sub の役割分担を厳格に指示
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
                         【指示】${adaptive} 方程式は代数、確率は論理重視、循環小数も可。
-                        出力は以下のJSONスキーマに従うこと。
-                        {"unit":"単元名","text":"...","sub":["..."],"hint":"...", "has_diagram": true}` }] }],
-                        // 【超重要】Gemini APIにJSON出力強制モードを指定
+                        【最重要ルール】
+                        ・「text」には問題の【前提条件や状況設定のみ】を記述し、「〜を求めよ」などの問いは絶対に含めないこと。
+                        ・実際の問いはすべて「sub」配列の中に「(1) 〜を求めよ」「(2) 〜を求めよ」の形式で分割して記述すること。
+                        出力は以下のJSONのみを出力せよ。
+                        {"unit":"単元名","text":"前提条件のみ記述","sub":["(1) ...","(2) ..."],"hint":"...", "has_diagram": true}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
@@ -228,10 +236,13 @@
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況視覚化SVG。<svg>タグのみ出力せよ。viewBox="0 0 200 200"` }] }] })
+                    body: JSON.stringify({ 
+                        contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況視覚化SVG。<svg>タグのみ出力。viewBox="0 0 200 200"` }] }]
+                    })
                 });
                 const data = await res.json();
                 clearInterval(drawTimer);
+                if (data.error) throw new Error();
                 const text = data.candidates[0].content.parts[0].text;
                 const match = text.match(/<svg[\s\S]*?<\/svg>/);
                 if (match) { state.prob.svg = match[0]; layer.innerHTML = match[0]; }
@@ -249,6 +260,7 @@
                         body: JSON.stringify({ contents: [{ parts: [{ text: `最難関講師として画像採点。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
+                    if (data.error) throw new Error();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
                     const resBox = document.getElementById('res-box');
                     resBox.innerText = fb; resBox.style.display = 'block';
