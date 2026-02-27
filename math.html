@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.3.0</title>
+    <title>最難関突破 AI数学講師 v2.3.2</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 2.3.0 Draw-Stabilized</span>
+        <span class="version-tag">ver 2.3.2 Proof-Reinforced</span>
     </div>
     
     <div id="debug-output"></div>
@@ -96,12 +96,11 @@
     </div>
 
     <script>
-        let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
+        let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, dt: null, graded: false };
 
         const initDataList = [
             { unit: "数と式", text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。", sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"], has_diagram: false, hint: "循環節を見つけよ。" },
-            { unit: "幾何（立体）", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BCの中点をそれぞれM, Nとする。辺AE上に点PをAP=2となるようにとる。なお、図は必ずしも正確とは限らない。", sub: ["(1) 3点M, N, Pを通る平面で切断したときの、切り口の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333" stroke-width="1.5"/><path d="M70 40 L150 40 L150 120 L70 120 Z" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="3"/><path d="M40 70 L70 40 M120 70 L150 40 M120 150 L150 120 M40 150 L70 120" fill="none" stroke="#333" stroke-width="1.5"/><path d="M80 70 L120 110 L55 55 Z" fill="rgba(231,76,60,0.4)" stroke="#e74c3c" stroke-width="2"/></svg>`, hint: "投影図で確認せよ。" },
-            { unit: "解析（関数）", text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標は $-2$ である。なお、図は必ずしも正確とは限らない。", sub: ["(1) 定数 $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="20" y1="180" x2="180" y2="20" stroke="#5dade2" stroke-width="2"/></svg>`, hint: "点Aの座標からaを決定せよ。" }
+            { unit: "幾何（立体）", text: "一辺 $6$ の立方体ABCD-EFGHがある。辺AB, BCの中点をそれぞれM, Nとする。辺AE上に点PをAP=2となるようにとる。なお、図は必ずしも正確とは限らない。", sub: ["(1) 3点M, N, Pを通る平面で切断したときの、切り口の面積を求めよ。"], has_diagram: true, svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M40 70 L120 70 L120 150 L40 150 Z" fill="none" stroke="#333" stroke-width="1.5"/><path d="M70 40 L150 40 L150 120 L70 120 Z" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="3"/><path d="M40 70 L70 40 M120 70 L150 40 M120 150 L150 120 M40 150 L70 120" fill="none" stroke="#333" stroke-width="1.5"/><path d="M80 70 L120 110 L55 55 Z" fill="rgba(231,76,60,0.4)" stroke="#e74c3c" stroke-width="2"/></svg>`, hint: "投影図で確認せよ。" }
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -177,23 +176,27 @@
 
         async function generateNext(isOtherUnit = false) {
             const dev = parseFloat(document.getElementById('dev-val').innerText) || 50;
-            let adaptive = `現在偏差値${dev}。`;
-            if (dev >= 60) adaptive += `（最上位層）。原則小問禁止。`;
+            let adaptive = `現在偏差値${dev}に最適化せよ。`;
+            if (dev >= 60) adaptive += `（最上位層）。原則、小問による誘導は禁止し、単一の重い問いにせよ。ただし、法則の推測や補題の証明が必須な「超難問」に限り、戦略的な足場となる小問を設けてもよい。`;
+            
+            // 20%の確率で証明問題を要求
+            const isProofRequired = Math.random() < 0.2;
+            const proofInstruction = isProofRequired ? "【最優先事項】今回は「証明問題」を出題せよ。「〜であることを証明せよ」「〜であることを示せ」という形式の問いを必ず含めること。" : "";
 
-            let promptText = "最難関高校講師。類題作成。数式LaTeX($)。";
-            if (isOtherUnit) promptText = `最難関高校講師。幾何（立体）、幾何（平面）、関数、確率、整数のうち、今の「${state.prob.unit}」以外の単元からランダムに。`;
+            let promptText = "最難関高校講師。類題を作成。数式LaTeX($)。バッククォート記号禁止。";
+            if (isOtherUnit) promptText = `最難関高校講師。幾何（立体）、幾何（平面）、関数、確率、整数のうち、今の「${state.prob.unit}」以外の単元からランダムに選定せよ。`;
 
-            showUI(`思考力を問う問題を構成中...`);
+            showUI(`問題を構成中...`);
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ 
                         contents: [{ parts: [{ text: `${promptText}
-                        【指示】${adaptive} 
+                        【指示】${adaptive} ${proofInstruction}
                         【重要ルール】
                         ・図を伴う問題（has_diagram: true）の場合、text末尾に「なお、図は必ずしも正確とは限らない。」を含めること。
                         ・幾何（立体、平面）、関数、整数、確率から選定。
-                        ・立体図形の場合、必ずSVGで作図。
+                        ・立体図形の場合、必ずSVGで作図し、見取図を斜め上から見た構図で描くこと。
                         【構成】textは前提条件。問いはsub。命令形。JSONのみ。
                         {"unit":"...","text":"...","sub":["..."],"hint":"...","has_diagram":true}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
@@ -204,33 +207,38 @@
                 applyProb(json);
                 document.getElementById('adaptive-label').style.display = 'inline-block';
                 hideUI();
-                // 修正：has_diagramがtrueの場合のみautoDrawを実行
                 if (json.has_diagram !== false) autoDraw(0);
             } catch (e) { hideUI(); alert("失敗"); }
         }
 
-        // 修正：再試行ロジックを追加
         async function autoDraw(retryCount = 0) {
             const layer = document.getElementById('svg-layer');
-            if(retryCount === 0) layer.innerHTML = `<div style="color:var(--ai);">🎨 作図中...</div>`;
+            let startTime = Date.now();
+            clearInterval(state.dt);
+            state.dt = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                layer.innerHTML = `<div style="color:var(--ai); font-weight:bold;">🎨 作図中...</div><div style="font-family:monospace; font-size:1.2rem; color:#aaa;">${elapsed}s</div>`;
+            }, 100);
             
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>タグのみ出力せよ。viewBox="0 0 200 200"。Markdownタグは使うな。` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${state.prob.text}」の状況を可視化した<svg>のみ出力せよ。viewBox="0 0 200 200"。Markdown不要。` }] }] })
                 });
                 const data = await res.json();
                 const text = data.candidates[0].content.parts[0].text;
                 const match = text.match(/<svg[\s\S]*?<\/svg>/);
+                clearInterval(state.dt);
                 if (match) { 
                     state.prob.svg = match[0]; 
                     layer.innerHTML = match[0]; 
                 } else if (retryCount < 1) {
-                    autoDraw(retryCount + 1); // 1回だけリトライ
+                    autoDraw(retryCount + 1);
                 } else {
-                    layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なしで進行してください</div>`;
+                    layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
                 }
             } catch (e) { 
+                clearInterval(state.dt);
                 if (retryCount < 1) autoDraw(retryCount + 1);
                 else layer.innerHTML = `<div style="color:#888; font-size:0.7rem;">図解なし</div>`;
             }
@@ -244,12 +252,12 @@
                 try {
                     const res = await fetch(`/api/chat`, {
                         method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `採点せよ。数式LaTeX。Score: X/10を末尾に。問題：${state.prob.text}` }, { inlineData: { mimeType: file.type || "image/jpeg", data: b64 } }] }] })
                     });
                     const data = await res.json();
                     const fb = cleanText(data.candidates[0].content.parts[0].text);
-                    const resBox = document.getElementById('res-box');
-                    resBox.innerText = fb; resBox.style.display = 'block';
+                    document.getElementById('res-box').innerText = fb;
+                    document.getElementById('res-box').style.display = 'block';
                     renderMath();
                     const score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
                     saveLog(score >= 8 ? "○" : (score >= 4 ? "△" : "×"), score);
@@ -274,7 +282,7 @@
             if (h.length >= 1) dev = 40 + ((h.map(x => x.s).reduce((a,b)=>a+b,0)/h.length) * 3.5);
             document.getElementById('dev-val').innerText = dev.toFixed(1);
             let s = "[都立中堅]";
-            if (dev >= 68) s = "[筑駒]"; else if (dev >= 66) s = "[開成・灘]"; else if (dev >= 64) s = "[渋幕・学芸]"; else if (dev >= 52) s = "[都立共通上位]";
+            if (dev >= 68) s = "[筑駒]"; else if (dev >= 66) s = "[開成・灘]"; else if (dev >= 52) s = "[都立共通上位]";
             document.getElementById('target-school').innerText = s;
             const units = {};
             h.forEach(x => { if(!units[x.u]) units[x.u]={s:0,c:0}; units[x.u].s+=x.s; units[x.u].c++; });
