@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>最難関突破 AI数学講師 v2.1.2</title>
+    <title>最難関突破 AI数学講師 v2.1.3</title>
     
     <script>
         window.MathJax = {
@@ -14,8 +14,8 @@
             startup: { typeset: false }
         };
     </script>
-    <script src="[https://polyfill.io/v3/polyfill.min.js?features=es6](https://polyfill.io/v3/polyfill.min.js?features=es6)"></script>
-    <script id="MathJax-script" async src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js)"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; }
@@ -50,7 +50,7 @@
 
     <div class="header-flex" style="margin-top: 5px; border-bottom: none;">
         <h1 style="color: #aaa; font-size: 0.9rem;">塾生用演習システム</h1>
-        <span class="version-tag">ver 2.1.2 Final-Parse</span>
+        <span class="version-tag">ver 2.1.3 LaTeX-Fix</span>
     </div>
 
     <div class="card">
@@ -102,27 +102,43 @@
     <script>
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, graded: false };
 
+        // 【修正】初期データのバックスラッシュを二重（\\）にしてMathJaxが認識できるように改善
         const initDataList = [
             {
                 unit: "数と式（循環小数）",
                 text: "分数 $\\frac{5}{13}$ を小数で表したとき、小数第 $n$ 位の数字を $f(n)$ とする。",
                 sub: ["(1) $f(100)$ の値を求めよ。", "(2) $f(1) + f(2) + \\dots + f(60)$ の値を求めよ。"],
                 has_diagram: false,
-                hint: "循環節を見つけ、周期性を利用してください。"
+                hint: "実際に割り算を行い、循環節（繰り返しの周期）を見つけましょう。"
             },
             {
                 unit: "整数問題",
                 text: "自然数 $n$ について、$n^2 - 12n + 27$ が素数となるような $n$ をすべて求めよ。",
                 sub: ["(1) 式を因数分解し、素数の性質を利用して条件を絞り込め。"],
                 has_diagram: false,
-                hint: "$(n-3)(n-9)$ が素数となる条件を考えます。"
+                hint: "$(n-3)(n-9)$ が素数となるには、一方が $1$ か $-1$ になる必要があります。"
             },
             {
                 unit: "方程式",
-                text: "$x$ についての2次方程式 $x^2 - (a-3)x + a^2 - 4a - 5 = 0$ がある。1つの解が $0$ であるとき、定数 $a$ の値を求めよ。",
+                text: "$x$ についての2次方程式 $x^2 - (a-3)x + a^2 - 4a - 5 = 0$ がある。1つの解が $0$ であるとき、定数 $a$ の値を求めよ。また、そのときのもう1つの解を求めよ。",
                 sub: ["(1) $a$ の値を求めよ。", "(2) 他方の解を求めよ。"],
                 has_diagram: false,
-                hint: "$x=0$ を代入します。"
+                hint: "$x=0$ を方程式に代入して、$a$ についての二次方程式を解きます。"
+            },
+            {
+                unit: "関数",
+                text: "放物線 $y = ax^2$ と直線 $y = x + 2$ が2点 A, B で交わっている。Aのx座標が $-2$ であるとき、定数 $a$ を求めよ。また $\\triangle OAB$ の面積を求めよ。",
+                sub: ["(1) $a$ の値を求めよ。", "(2) $\\triangle OAB$ の面積を求めよ。"],
+                has_diagram: true,
+                svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M 20 40 Q 100 240 180 40" fill="none" stroke="#333" stroke-width="2"/><line x1="20" y1="180" x2="180" y2="20" stroke="#5dade2" stroke-width="2"/></svg>`,
+                hint: "Aのx座標を代入して直線上の座標を求め、次に放物線の式を決定します。"
+            },
+            {
+                unit: "確率",
+                text: "2つのサイコロ $a, b$ を同時に投げ、出た目の和を $s$ とする。$s$ が素数になる確率を求めよ。",
+                sub: ["(1) 和が素数となる場合の数をすべて挙げよ。", "(2) その確率を求めよ。"],
+                has_diagram: false,
+                hint: "和が $2, 3, 5, 7, 11$ になる組み合わせを漏れなく数えます。"
             }
         ];
 
@@ -137,12 +153,12 @@
             if (window.MathJax && window.MathJax.typesetPromise) {
                 MathJax.typesetClear();
                 MathJax.typesetPromise([document.getElementById('math-content-area'), document.getElementById('res-box')]).catch(e => console.error(e));
-            } else { setTimeout(renderMath, 50); }
+            } else { setTimeout(renderMath, 100); }
         }
 
         function cleanText(t) {
             if (typeof t !== 'string') return t;
-            return t.replace(/\\n/g, "\n").replace(/\\\\/g, "\\");
+            return t.replace(/\\n/g, "\n");
         }
 
         function applyProb(p) {
@@ -165,25 +181,19 @@
                 if (p.svg) layer.innerHTML = p.svg;
                 state.scale = 1; state.x = 0; state.y = 0; updateView();
             }
+            // 表示直後にMathJaxを実行
             renderMath();
         }
 
-        // 【修正】不純物除去ロジックを大幅強化
         function robustJSONParse(rawStr) {
             try {
-                // 1. 文字列の中から { } の範囲を抜き出す
                 const jsonMatch = rawStr.match(/\{[\s\S]*\}/);
                 if (!jsonMatch) throw new Error("JSON形式のデータが見つかりませんでした。");
                 let s = jsonMatch[0];
-
-                // 2. 特殊エスケープ文字の保護とバックスラッシュ補修
                 s = s.replace(/\\"/g, "__ESCAPED_QUOTE__");
                 s = s.replace(/\\/g, "\\\\");
                 s = s.replace(/__ESCAPED_QUOTE__/g, "\\\"");
-                
-                // 3. 制御文字の正規化
                 s = s.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
-                
                 return JSON.parse(s);
             } catch (e) {
                 console.error("Parse Error Details:", rawStr);
@@ -196,7 +206,7 @@
             let adaptive = `現在偏差値${dev}に最適化。`;
 
             let promptText = `最難関高校講師。類題をJSON作成。数値替え禁止。数式はLaTeX($)。`;
-            if (isOtherUnit) promptText = `最難関高校講師。異なる系統の良問をJSON作成。`;
+            if (isOtherUnit) promptText = `最難関高校講師。現在の単元「${state.prob.unit}」と異なる系統の良問をJSON作成。`;
 
             showUI(`思考力を問う問題を構成中...`);
             try {
