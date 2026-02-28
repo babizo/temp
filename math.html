@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.3.7</title>
+    <title>AI数学講師 4.3.8</title>
     
     <script>
         window.MathJax = {
@@ -54,7 +54,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.3.7
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.3.8
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -83,7 +83,7 @@
             <h1>問題 [<span id="u-title">数と式</span>]<span id="prob-lv" class="prob-lv-badge">Lv.---</span></h1>
             <button onclick="doSkip()" style="background:var(--skip); color:white; padding:6px 12px; width:auto; border-radius:4px;">他単元へ ≫</button>
         </div>
-        <div id="canvas-box">
+        <div id="canvas-box" style="display:none;">
             <div class="viewer-box" id="canvas-outer">
                 <div style="position:absolute; top:5px; right:5px; z-index:10;"><button onclick="resetViewer('svg')" style="background:rgba(0,0,0,0.6); color:white; border:none; width:28px; height:28px; border-radius:4px;">🏠</button></div>
                 <div id="svg-layer"></div>
@@ -134,7 +134,6 @@
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
-        <div style="font-size:0.75rem; color:#ffadad; margin-top:10px;">※高品質な解析のため最大1分程かかる場合があります</div>
         <button onclick="abortAction()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断する</button>
     </div>
 
@@ -151,7 +150,6 @@
         const svgLayer = document.getElementById('svg-layer');
 
         function startImageSelection() { if(confirm("画像は1枚にまとめてください。撮影・選択を開始しますか？")) document.getElementById('c-input').click(); }
-
         function abortAction() { if (appState.controller) appState.controller.abort(); hideUI(); }
 
         async function controlledRender(contentId, loaderId, contentHtml) {
@@ -162,7 +160,7 @@
             loader.style.display = 'block';
             content.innerHTML = contentHtml;
             const p = (window.MathJax && MathJax.typesetPromise) ? MathJax.typesetPromise([content]) : Promise.resolve();
-            await Promise.race([p, new Promise(r => setTimeout(r, 3000))]);
+            await Promise.race([p, new Promise(r => setTimeout(r, 2500))]);
             loader.style.display = 'none';
             content.style.visibility = 'visible';
         }
@@ -174,7 +172,7 @@
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, signal: appState.controller.signal,
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `数学採点官。個人名禁止。筆跡なし=0点。中学生向け平易解説。リンク形式[解説はこちら](URL)。回転補正・微積分禁止。
+                        { text: `数学採点官。個人名禁止。筆跡なし=0点。中学生向け平易解説。リンク形式。回転補正・微積分禁止。
 ※AIによる自動採点のため、結果には誤差が含まれる可能性があります。
 Score: X/10出力。問題：${appState.prob.text}` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
@@ -187,7 +185,7 @@ Score: X/10出力。問題：${appState.prob.text}` },
                 appState.seen = true; 
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 hideUI();
-            } catch(e) { if(e.name !== 'AbortError') alert("エラーが発生しました。"); hideUI(); }
+            } catch(e) { if(e.name !== 'AbortError') alert("採点エラー。"); hideUI(); }
         }
 
         async function applyProb(p, lv) {
@@ -198,6 +196,8 @@ Score: X/10出力。問題：${appState.prob.text}` },
             await controlledRender('math-content-area', 'prob-typing', html);
             document.getElementById('h-box').innerText = p.hint || "ヒントなし";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none'; document.getElementById('correct-me-btn').style.display = 'none'; pboxOuter.style.display = 'none';
+            
+            // 図が必要な単元か判定
             const showDiagram = /図形|関数|立体|相似|相似比|グラフ|円|三角形|座標|辺/.test(appState.unit) || /円|三角形|座標|辺/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) startDrawing(p.text);
@@ -207,7 +207,10 @@ Score: X/10出力。問題：${appState.prob.text}` },
 
         async function generateNext(isOther = false, isHardMode = false) {
             let d = isHardMode ? 76 : parseFloat(document.getElementById('dev-slider').value);
-            if (isOther) { const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random() * 5)]; }
+            if (isOther) { 
+                const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; 
+                appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random() * 5)]; 
+            }
             showUI(`${appState.unit} 作問中...`);
             appState.controller = new AbortController();
             try {
@@ -233,7 +236,7 @@ Score: X/10出力。問題：${appState.prob.text}` },
             if(h.length > 0) { const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length; updateTargetLabel(Math.max(45, Math.min(80, 40 + (avg * 3.5)))); }
         }
 
-        /* ビューワーエンジン */
+        /* エンジン */
         function applyTransform(container, type) { container.style.transform = `translate(${viewStates[type].x}px, ${viewStates[type].y}px) scale(${viewStates[type].scale})`; }
         function resetViewer(type) { viewStates[type] = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 }; applyTransform(type === 'svg' ? svgLayer : imgContainer, type); }
         function setupViewer(element, container, type) {
@@ -245,15 +248,15 @@ Score: X/10出力。問題：${appState.prob.text}` },
             element.addEventListener('touchmove', (e) => { if(e.target === ov || e.target.classList.contains('crop-handle')) return; e.preventDefault(); if (e.touches.length === 1 && viewStates[type].isDragging) { viewStates[type].x = e.touches[0].clientX - viewStates[type].startX; viewStates[type].y = e.touches[0].clientY - viewStates[type].startY; } else if (e.touches.length === 2) { const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); const delta = dist / viewStates[type].lastDist; viewStates[type].scale = Math.min(Math.max(viewStates[type].scale * delta, 0.5), 8); viewStates[type].lastDist = dist; } applyTransform(container, type); }, { passive: false });
         }
         function startDrawing(text) { const layer = document.getElementById('svg-layer'); let start = Date.now(); clearInterval(appState.svgT); appState.svgT = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100); resetViewer('svg'); autoDraw(text); }
-        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」を補足するSVGタグのみ。点名数値入れよ。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
-        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。数式$囲み。微積分禁止。問題：${appState.prob.text}` }] }] }) }); const data = await res.json(); appState.ans = data.candidates[0].content.parts[0].text.trim(); } catch (e) {} }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」を補足するSVGタグのみ出力。サイズ調整せよ。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
+        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。数式$囲み。問題：${appState.prob.text}` }] }] }) }); const data = await res.json(); appState.ans = data.candidates[0].content.parts[0].text.trim(); } catch (e) {} }
         async function peekAnswer() { const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn'); if (box.style.display === 'block' && box.style.visibility === 'visible') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; } if (!appState.seen) { if (!confirm("未採点のため加算なし。解答を表示しますか？")) return; appState.seen = true; saveLog(0); } if (!appState.ans) { btn.innerText = "⏳ 取得中..."; await prefetchAnswer(); } await controlledRender('res-box', 'res-typing', appState.ans || "解答取得エラー"); btn.innerText = "🔍 解答を閉じる"; }
+        function doSkip() { generateNext(true); }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(window.MathJax) MathJax.typesetPromise([b]); }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
-        function resetData() { if(confirm("初期化？")) { localStorage.clear(); location.reload(); } }
         function saveLog(s) { let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); const now = new Date(); const dt = (now.getMonth()+1) + "/" + now.getDate() + " " + now.getHours() + ":" + String(now.getMinutes()).padStart(2,'0') + ":" + String(now.getSeconds()).padStart(2,'0'); h.unshift({ u: appState.unit, s: s, dt: dt, lv: appState.currentLv.toFixed(1) }); localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats(); }
-        function forcePerfectScore() { if(!confirm("満点修正し偏差値を再計算しますか？")) return; let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); if(h.length > 0) { h[0].s = 10; localStorage.setItem('m_hist', JSON.stringify(h)); refreshStats(); document.getElementById('res-box').innerHTML = "<b>【修正完了】</b> 偏差値を更新しました。"; document.getElementById('correct-me-btn').style.display = 'none'; } }
+        function resetData() { if(confirm("初期化？")) { localStorage.clear(); location.reload(); } }
         document.getElementById('c-input').onchange = (e) => { const file = e.target.files[0]; if (!file) return; img.src = URL.createObjectURL(file); img.onload = () => { pboxOuter.style.display = 'block'; document.getElementById('edit-tools').style.display = 'flex'; document.getElementById('ans-grade-btn').style.display = 'block'; resetViewer('ans'); initCrop(); }; };
         function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; img.style.transform = `rotate(${imgState.rot}deg)`; initCrop(); }
         function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = 200; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
@@ -272,8 +275,8 @@ Score: X/10出力。問題：${appState.prob.text}` },
             setupViewer(document.getElementById('canvas-outer'), svgLayer, 'svg');
             setupViewer(pboxOuter, imgContainer, 'ans');
             refreshStats();
-            // 初期問題を即座に表示
-            applyProb({ text: "次の方程式を解け。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xの値を求めよ。"], hint: "分母を払って整理せよ。" }, 60.0);
+            // 初期問題を適用（単元名：数と式）
+            applyProb({ text: "次の方程式を解け。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xの値を求めよ。"], hint: "整理して解け。" }, 60.0);
         });
     </script>
 </body>
