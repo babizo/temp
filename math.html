@@ -33,7 +33,7 @@
 
         .dev-control-box { width: 100%; padding: 5px 0; }
         .dev-display-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 5px; }
-        #dev-slider { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 10px 0 5px 0; }
+        #dev-slider { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 15px 0 5px 0; }
         body.light-mode #dev-slider { background: #ccc; }
         #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid #fff; }
         
@@ -53,11 +53,16 @@
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
         .btn-ai-gen { background: var(--ai); color: white; }
         .btn-camera { background: var(--success); color: white; flex: 1; }
+        .btn-grade-confirm { background: #f39c12; color: white; margin-top: 10px; display: none; }
+        
         .canvas-footer { font-weight: bold; font-size: 0.75rem; text-align: center; line-height: 1.4; margin-bottom: 10px; }
         .text-alert { color: #ffadad; }
         .text-dim { color: #888; font-weight: normal; font-size: 0.65rem; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #444; font-size: 0.8rem; cursor: pointer; }
         .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        
+        /* 答案プレビュー用 */
+        #ans-preview { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; border: 2px solid var(--primary); display: none; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -65,7 +70,7 @@
     <div class="top-bar">
         <div class="debug-bar">
             <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-            <span class="version-tag">ver 3.5.5 Student-Grading</span>
+            <span class="version-tag">ver 3.5.6 Preview</span>
         </div>
         <button class="theme-toggle" onclick="toggleTheme()">🌓 モード切替</button>
     </div>
@@ -113,11 +118,13 @@
     </div>
 
     <div class="card">
-        <div style="display:flex; gap:10px;">
-            <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 撮影して採点</button>
-            <button id="ans-toggle-btn" class="btn-answer-only" onclick="peekAnswer()" style="background:#555; color:white; flex:1;">🔍 解答を確認</button>
+        <div style="display:flex; gap:10px; flex-direction: column;">
+            <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 答案を撮影・選択</button>
+            <img id="ans-preview" alt="答案プレビュー">
+            <button id="ans-grade-btn" class="btn-grade-confirm" onclick="executeGrading()">✅ この答案で採点する</button>
+            <button id="ans-toggle-btn" class="btn-answer-only" onclick="peekAnswer()" style="background:#555; color:white;">🔍 解答を確認</button>
         </div>
-        <div class="text-dim" style="text-align:center; margin-top:-5px; margin-bottom:5px;">※採点には最大1分程かかる場合があります</div>
+        <div class="text-dim" style="text-align:center; margin-top:5px;">※採点には最大1分程かかる場合があります</div>
         <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
         <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px; font-size:0.85rem;"></div>
     </div>
@@ -136,13 +143,13 @@
 
     <script>
         let currentAbortController = null, drawingAbortController = null, drawingLock = false;
-        let isRendering = false, drawInterval = null;
+        let isRendering = false, drawInterval = null, currentImageData = null;
         let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, startTime: 0, seen_answer: false, prefetched_answer: null, isFetching: false, last_units: [], current_target_unit: "数と式" };
 
         function toggleTheme() { document.body.classList.toggle('light-mode'); }
         
         function startMathObserver() {
-            const observer = new MutationObserver((mutations) => {
+            const observer = new MutationObserver(() => {
                 if (isRendering) return;
                 document.querySelectorAll('#h-box, #res-box').forEach(el => {
                     if (el.innerHTML.includes('](')) {
@@ -167,39 +174,50 @@
                 document.getElementById('dev-val').innerText = val.toFixed(1);
                 updateTargetSchool(val);
             });
-            document.getElementById('c-input').addEventListener('change', handleImageGrade);
+            document.getElementById('c-input').addEventListener('change', previewImage);
             applyProb({ unit: "数と式", text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式 $2(x-3) = \\frac{x}{2} + 1$ を解け。"], hint: "まずは分母の2を払うために、両辺に2を掛けて整数の方程式に直すことが第一歩だ。その後、xを含む項を左辺に、定数項を右辺に移行して整理せよ。" });
         };
 
-        async function handleImageGrade(e) {
-            if (!e.target.files[0]) return;
-            showUI("答案を採点中...");
+        // 画像プレビュー表示
+        function previewImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
             const reader = new FileReader();
-            reader.onload = async (ev) => {
-                try {
-                    const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [
-                            { text: `あなたは数学の入試採点官です。
-【タスク】
-1. 提示された「問題」と、アップロードされた「答案画像」を詳細に比較してください。
-2. 答案画像の計算プロセス、論理、最終的な解を評価してください。模範解答をそのまま出力するのではなく、画像内の書き込みに基づいて「どこが合っていて、どこで間違えたか」を具体的に指摘してください。
-3. 最後に Score: X/10 形式で点数を出してください。
-4. 補足が必要なら[解説](URL)形式でリンクを張ってください。
-
-【問題】
-${state.prob.text}` }, 
-                            { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }
-                        ] }] })
-                    });
-                    const fb = (await res.json()).candidates[0].content.parts[0].text;
-                    document.getElementById('res-box').innerHTML = fb; 
-                    document.getElementById('res-box').style.display = 'block';
-                    document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる";
-                    const score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
-                    saveLog(score >= 8 ? "○" : "×", score);
-                } catch(err) { alert("採点中にエラーが発生しました。"); } finally { hideUI(); }
+            reader.onload = (ev) => {
+                currentImageData = ev.target.result;
+                const img = document.getElementById('ans-preview');
+                img.src = currentImageData;
+                img.style.display = 'block';
+                document.getElementById('ans-grade-btn').style.display = 'block';
+                // 表示エリアへスクロール
+                img.scrollIntoView({ behavior: 'smooth' });
             };
-            reader.readAsDataURL(e.target.files[0]);
+            reader.readAsDataURL(file);
+        }
+
+        // 採点実行（確定ボタン押下時）
+        async function executeGrading() {
+            if (!currentImageData || state.seen_answer) return;
+            showUI("答案を採点中...");
+            try {
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ contents: [{ parts: [
+                        { text: `入試採点官。添付画像（生徒の答案）を問題と照らし合わせ、論理と計算を詳細に評価せよ。画像内の誤りや工夫を具体的に指摘し、Score: X/10 を出せ。補足リンクも活用せよ。問題：${state.prob.text}` }, 
+                        { inlineData: { mimeType: "image/jpeg", data: currentImageData.split(',')[1] } }
+                    ] }] })
+                });
+                const fb = (await res.json()).candidates[0].content.parts[0].text;
+                document.getElementById('res-box').innerHTML = fb; 
+                document.getElementById('res-box').style.display = 'block';
+                document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる";
+                
+                // プレビューと確定ボタンを隠す
+                document.getElementById('ans-preview').style.display = 'none';
+                document.getElementById('ans-grade-btn').style.display = 'none';
+                
+                const score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
+                saveLog(score >= 8 ? "○" : "×", score);
+            } catch(err) { alert("採点中にエラーが発生しました。"); } finally { hideUI(); }
         }
 
         function updateTargetSchool(dev) {
@@ -212,6 +230,8 @@ ${state.prob.text}` },
         function applyProb(p) {
             const mainText = p.text || p.problem || ""; if (mainText.length < 5) return false;
             state.prob = p; state.seen_answer = false; state.prefetched_answer = null; resetView();
+            document.getElementById('ans-preview').style.display = 'none';
+            document.getElementById('ans-grade-btn').style.display = 'none';
             document.getElementById('u-title').innerText = state.current_target_unit;
             document.getElementById('p-text').innerText = mainText.replace(/riangle/g, "\\triangle ");
             const subs = (Array.isArray(p.sub || p.q) ? (p.sub || p.q) : [p.sub || p.q]).filter(q => q);
@@ -279,7 +299,7 @@ ${state.prob.text}` },
 
         async function peekAnswer() { 
             const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn');
-            if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を表示"; return; }
+            if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
             if (!state.seen_answer) { if (!confirm("解答を確認すると本問の偏差値加算は行われません。")) return; state.seen_answer = true; saveLog("×", 0); }
             if (!state.prefetched_answer) { btn.innerText = "⏳ 取得中..."; while(!state.prefetched_answer) { if(!state.isFetching) await prefetchAnswer(); await new Promise(r => setTimeout(r, 1000)); } }
             box.innerHTML = state.prefetched_answer; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる"; safeRender();
