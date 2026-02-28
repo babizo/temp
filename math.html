@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.8.3</title>
+    <title>AI数学講師 3.8.4</title>
     
     <script>
         window.MathJax = {
@@ -11,7 +11,7 @@
             options: { enableMenu: false }
         };
     </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script id="MathJax-script" async src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js)"></script>
 
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; --hard: #e74c3c; }
@@ -49,7 +49,7 @@
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.8.3 FLOW_FIXED</div>
+        <div style="font-size:0.7rem; color:#888;">ver 3.8.4 CLEAN_UP</div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
@@ -220,8 +220,7 @@ ${subQs ? '小問：\n' + subQs : ''}
         }
 
         function applyProb(p) {
-            // バリデーション緩和：textさえあれば通す
-            if (!p || !p.text) { showError("無効な問題データです。もう一度作成してください"); return; }
+            if (!p || !p.text) { showError("データ形式エラー：再度作成してください"); return; }
             appState.prob = p; appState.seen = false; appState.ans = null;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('p-text').innerText = p.text;
@@ -236,7 +235,7 @@ ${subQs ? '小問：\n' + subQs : ''}
             if (showDiagram) startDrawing(p.text);
             if (window.MathJax) MathJax.typesetPromise();
             setTimeout(prefetchAnswer, 2000);
-            hideUI(); // ここでローディングを消す
+            hideUI();
         }
 
         async function generateNext(isOther = false, isHardMode = false) {
@@ -245,21 +244,30 @@ ${subQs ? '小問：\n' + subQs : ''}
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学限定。微積分禁止。JSON形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試限定。微積分禁止。JSON形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
-                if (!data.candidates || !data.candidates[0].content.parts[0].text) throw new Error("データを受信できませんでした");
-                const jsonText = data.candidates[0].content.parts[0].text;
-                const parsed = JSON.parse(jsonText.replace(/```json|```/g, '').trim());
-                applyProb(parsed);
-            } catch (e) { showError("生成エラー：もう一度ボタンを押してください"); }
+                if (!data.candidates || !data.candidates[0].content.parts[0].text) throw new Error("受信失敗");
+                
+                // クリーニング：バッククォークやゴミを除去
+                let jsonText = data.candidates[0].content.parts[0].text;
+                jsonText = jsonText.replace(/```json|```/g, '').trim();
+                
+                try {
+                    const parsed = JSON.parse(jsonText);
+                    applyProb(parsed);
+                } catch(pe) { 
+                    console.error("Parse Error:", jsonText);
+                    throw new Error("データ解析エラー：もう一度お試しください"); 
+                }
+            } catch (e) { showError(e.message || "生成エラー：再試行してください"); }
         }
 
         async function prefetchAnswer() { 
             if (!appState.prob.text) return;
             const subQs = Array.isArray(appState.prob.sub) ? appState.prob.sub.join('\n') : appState.prob.sub;
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答作成。小問を全て解け。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。小問全解。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
                 const data = await res.json();
                 if (data.candidates) {
                     appState.ans = data.candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); 
@@ -272,7 +280,7 @@ ${subQs ? '小問：\n' + subQs : ''}
             if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
             if (!appState.seen) { if (!confirm("未採点なので偏差値加算は行われません。")) return; appState.seen = true; saveLog(0); }
             if (!appState.ans) { btn.innerText = "⏳ 取得中..."; await prefetchAnswer(); }
-            box.innerHTML = appState.ans || "解答取得エラー：もう一度お試しください"; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
+            box.innerHTML = appState.ans || "解答取得エラー"; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
             if (window.MathJax) MathJax.typesetPromise();
         }
 
@@ -318,7 +326,7 @@ ${subQs ? '小問：\n' + subQs : ''}
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
             refreshStats();
-            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xを求めよ。"], hint: "両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直し、整理せよ。" });
+            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を満たすxを求めよ。"], hint: "両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直し、整理せよ。" });
         });
     </script>
 </body>
