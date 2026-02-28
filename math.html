@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.3.2</title>
+    <title>AI数学講師 4.3.4</title>
     
     <script>
         window.MathJax = {
@@ -36,18 +36,26 @@
         .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); box-sizing: border-box; cursor: move; z-index: 20; }
         .crop-handle { position: absolute; width: 22px; height: 22px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; z-index: 30; }
         
+        /* 露出防止用のスタイル */
+        .render-container { visibility: hidden; }
+        .typing-loader { color: var(--ai); font-size: 0.9rem; font-weight: bold; text-align: center; padding: 10px; display: none; }
+
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.98); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 15%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; }
-        .typing-loader { color: var(--ai); font-size: 0.9rem; font-weight: bold; text-align: center; padding: 10px; display: none; }
+        
+        /* 履歴見切れ防止 */
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; overflow: hidden; }
+        .hist-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .hist-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; margin-left: 10px; }
     </style>
 </head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.3.2
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.3.4
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -82,8 +90,8 @@
                 <div id="svg-layer"></div>
             </div>
         </div>
-        <div id="prob-typing" class="typing-loader">数式を変換中...</div>
-        <div id="math-content-area">
+        <div id="prob-typing" class="typing-loader">数式を美しく変換中...</div>
+        <div id="math-content-area" class="render-container">
             <p id="p-text" style="font-weight:bold; color:#ccc; border-bottom:1px dashed #444; padding-bottom:8px;"></p>
             <ul id="q-list" style="padding-left:20px; list-style:none;"></ul>
             <div id="h-box" style="display:none; color:var(--hint); font-size:0.85rem; padding:10px; background:#332b1e; border-radius:5px; border-left:4px solid var(--hint);"></div>
@@ -113,8 +121,8 @@
         <button id="ans-grade-btn" style="background:#f39c12; color:white; display:none;" onclick="executeGrading()">✅ 枠内を採点する</button>
         <button id="ans-toggle-btn" style="background:#555; color:white;" onclick="peekAnswer()">🔍 解答を確認</button>
         <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
-        <div id="res-typing" class="typing-loader">解析結果を整形中...</div>
-        <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px;"></div>
+        <div id="res-typing" class="typing-loader">結果を整形中...</div>
+        <div id="res-box" class="render-container" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px;"></div>
         <button id="correct-me-btn" style="background:var(--success); color:white; display:none; margin-top:8px;" onclick="forcePerfectScore()">✨ ここはあってる（満点に修正）</button>
     </div>
 
@@ -143,28 +151,21 @@
 
         function startImageSelection() { if(confirm("画像は1枚にまとめてください。撮影・選択を開始しますか？")) document.getElementById('c-input').click(); }
 
-        // MathJaxの読み込み完了を待つセーフティ初期化
-        function safeInit() {
-            let retry = 0;
-            const check = setInterval(() => {
-                retry++;
-                if ((window.MathJax && MathJax.typesetPromise) || retry > 20) {
-                    clearInterval(check);
-                    generateNext(false, false);
-                }
-            }, 300);
-        }
-
+        // 生コード露出防止：visibilityで制御
         async function controlledRender(contentId, loaderId, contentHtml) {
             const content = document.getElementById(contentId);
             const loader = document.getElementById(loaderId);
-            content.style.display = 'none';
+            
+            content.style.visibility = 'hidden';
+            if(contentId === 'res-box') content.style.display = 'block';
             loader.style.display = 'block';
             content.innerHTML = contentHtml;
+
             const p = (window.MathJax && MathJax.typesetPromise) ? MathJax.typesetPromise([content]) : Promise.resolve();
-            await Promise.race([p, new Promise(r => setTimeout(r, 4000))]);
+            await Promise.race([p, new Promise(r => setTimeout(r, 3500))]);
+            
             loader.style.display = 'none';
-            content.style.display = 'block';
+            content.style.visibility = 'visible';
         }
 
         async function executeGrading() {
@@ -173,24 +174,21 @@
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `数学採点官。個人名呼称禁止。筆跡なし=Score 0。中学生向け平易解説。専門用語はリンク形式 [解説はこちら](URL)。回転補正・微積分禁止。Score: X/10出力。問題：${appState.prob.text}` }, 
+                        { text: `数学採点官。中学生向け。筆跡なし=0点。
+1. [解説（例え話）はこちら](URL) 形式のリンクを必ず1つ含めよ。
+2. リンク先の内容を中学生にもわかる例え話で想像させる簡潔な一文を添えよ。
+3. 回転補正・微積分禁止。Score: X/10出力。問題：${appState.prob.text}` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
                 const rData = await res.json();
                 const fb = rData.candidates[0].content.parts[0].text;
-                await controlledRender('res-box', 'res-typing', fb.trim());
+                await controlledRender('res-box', 'res-typing', fb.trim().replace(/[+\-*\/=]\s*\$$/, " $"));
                 document.getElementById('correct-me-btn').style.display = 'block';
                 appState.seen = true; 
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 hideUI();
             } catch(e) { alert("採点エラー"); hideUI(); }
-        }
-
-        function forcePerfectScore() {
-            if(!confirm("満点に修正して偏差値を更新しますか？")) return;
-            let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            if(h.length > 0) { h[0].s = 10; localStorage.setItem('m_hist', JSON.stringify(h)); refreshStats(); document.getElementById('res-box').innerHTML = "<b>【修正完了】</b> 偏差値を再計算しました。"; document.getElementById('correct-me-btn').style.display = 'none'; }
         }
 
         async function applyProb(p, lv) {
@@ -214,7 +212,7 @@
             showUI(`${appState.unit} 作問中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学限定（微積分禁止）。単元「${appState.unit}」。JSON形式。偏差値: ${d}` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試（微積分禁止）。単元「${appState.unit}」。JSON形式。偏差値: ${d}` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 applyProb(JSON.parse(data.candidates[0].content.parts[0].text), d);
@@ -223,13 +221,42 @@
 
         async function peekAnswer() {
             const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn');
-            if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
+            if (box.style.display === 'block' && box.style.visibility === 'visible') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
             if (!appState.seen) { if (!confirm("未採点のため偏差値加算なし。解答を表示しますか？")) return; appState.seen = true; saveLog(0); }
             if (!appState.ans) { btn.innerText = "⏳ 取得中..."; await prefetchAnswer(); }
             await controlledRender('res-box', 'res-typing', appState.ans || "解答取得エラー");
             btn.innerText = "🔍 解答を閉じる";
         }
 
+        function updateTargetLabel(val) {
+            let s = "[標準]";
+            if (val >= 76) s = "[筑駒]"; 
+            else if (val >= 72) s = "[開成]"; 
+            else if (val >= 70) s = "[渋幕]"; 
+            else if (val >= 68) s = "[慶応志木・筑付]"; 
+            else if (val >= 66) s = "[早大学院・慶應義塾]";
+            else if (val >= 64) s = "[学芸・早実・本庄]"; 
+            else if (val >= 60) s = "[日比谷]"; 
+            else if (val >= 56) s = "[西]";
+            document.getElementById('target-school').innerText = s;
+            document.getElementById('dev-val').innerText = val.toFixed(1);
+            document.getElementById('dev-slider').value = val;
+        }
+
+        function refreshStats() {
+            const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
+            document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `
+                <div class="history-item">
+                    <div class="hist-info">
+                        <span class="hist-date">${x.dt} (Lv.${x.lv})</span>
+                        <span class="hist-title">${x.u}</span>
+                    </div>
+                    <span class="score-badge">${x.s}/10</span>
+                </div>`).join('');
+            if(h.length > 0) { const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length; updateTargetLabel(Math.max(45, Math.min(80, 40 + (avg * 3.5)))); }
+        }
+
+        /* 既存エンジン */
         function applyTransform(container, type) { container.style.transform = `translate(${viewStates[type].x}px, ${viewStates[type].y}px) scale(${viewStates[type].scale})`; }
         function resetViewer(type) { viewStates[type] = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 }; applyTransform(type === 'svg' ? svgLayer : imgContainer, type); }
         function setupViewer(element, container, type) {
@@ -240,15 +267,14 @@
             element.addEventListener('touchstart', (e) => { if(e.target === ov || e.target.classList.contains('crop-handle')) return; if (e.touches.length === 1) { viewStates[type].isDragging = true; viewStates[type].startX = e.touches[0].clientX - viewStates[type].x; viewStates[type].startY = e.touches[0].clientY - viewStates[type].y; } else if (e.touches.length === 2) { viewStates[type].lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); } }, { passive: false });
             element.addEventListener('touchmove', (e) => { if(e.target === ov || e.target.classList.contains('crop-handle')) return; e.preventDefault(); if (e.touches.length === 1 && viewStates[type].isDragging) { viewStates[type].x = e.touches[0].clientX - viewStates[type].startX; viewStates[type].y = e.touches[0].clientY - viewStates[type].startY; } else if (e.touches.length === 2) { const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); const delta = dist / viewStates[type].lastDist; viewStates[type].scale = Math.min(Math.max(viewStates[type].scale * delta, 0.5), 8); viewStates[type].lastDist = dist; } applyTransform(container, type); }, { passive: false });
         }
-
         function startDrawing(text) { const layer = document.getElementById('svg-layer'); let start = Date.now(); clearInterval(appState.svgT); appState.svgT = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100); resetViewer('svg'); autoDraw(text); }
-        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」を補足するSVGタグのみ。点名や数値のみ入れよ。サイズ調整せよ。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」を補足するSVGタグのみ。点名や数値を入れサイズ調整せよ。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
         async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。数式は$囲み。微積分禁止。問題：${appState.prob.text}` }] }] }) }); const data = await res.json(); appState.ans = data.candidates[0].content.parts[0].text.trim(); } catch (e) {} }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
-        function resetData() { if(confirm("初期化？")) { localStorage.clear(); location.reload(); } }
-        function refreshStats() { const h = JSON.parse(localStorage.getItem('m_hist') || "[]"); document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt} (Lv.${x.lv})</span><span>${x.u}</span></div><span class="score-badge">${x.s}/10</span></div>`).join(''); if(h.length > 0) { const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length; const d = Math.max(45, Math.min(80, 40 + (avg * 3.5))); document.getElementById('dev-slider').value = d; updateTargetLabel(d); } }
         function saveLog(s) { let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); const now = new Date(); const dt = (now.getMonth()+1) + "/" + now.getDate() + " " + now.getHours() + ":" + String(now.getMinutes()).padStart(2,'0') + ":" + String(now.getSeconds()).padStart(2,'0'); h.unshift({ u: appState.unit, s: s, dt: dt, lv: appState.currentLv.toFixed(1) }); localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats(); }
+        function resetData() { if(confirm("初期化？")) { localStorage.clear(); location.reload(); } }
+        function forcePerfectScore() { if(!confirm("満点修正し偏差値を再計算しますか？")) return; let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); if(h.length > 0) { h[0].s = 10; localStorage.setItem('m_hist', JSON.stringify(h)); refreshStats(); document.getElementById('res-box').innerHTML = "<b>【修正完了】</b> 偏差値を更新しました。"; document.getElementById('correct-me-btn').style.display = 'none'; } }
         document.getElementById('c-input').onchange = (e) => { const file = e.target.files[0]; if (!file) return; img.src = URL.createObjectURL(file); img.onload = () => { pboxOuter.style.display = 'block'; document.getElementById('edit-tools').style.display = 'flex'; document.getElementById('ans-grade-btn').style.display = 'block'; resetViewer('ans'); initCrop(); }; };
         function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; img.style.transform = `rotate(${imgState.rot}deg)`; initCrop(); }
         function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = 200; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
@@ -267,7 +293,7 @@
             setupViewer(document.getElementById('canvas-outer'), svgLayer, 'svg');
             setupViewer(pboxOuter, imgContainer, 'ans');
             refreshStats();
-            safeInit(); // 安全な初期化
+            setTimeout(() => { if(!appState.prob.text) generateNext(false, false); }, 1000);
         });
     </script>
 </body>
