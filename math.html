@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.8.0</title>
+    <title>AI数学講師 3.8.2</title>
     
     <script>
         window.MathJax = {
@@ -43,12 +43,13 @@
         .hist-info { display: flex; flex-direction: column; gap: 2px; }
         .hist-date { font-size: 0.6rem; color: #888; }
         .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; }
+        .error-msg { color: var(--error); font-weight: bold; margin-top: 10px; }
     </style>
-</head>
+ head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.8.0 TOGGLE_BUTTON</div>
+        <div style="font-size:0.7rem; color:#888;">ver 3.8.2 UNDEF_GUARD</div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
@@ -114,8 +115,9 @@
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
-        <div style="font-size:0.75rem; color:#ffadad; margin-top:10px;">※高品質な解析のため最大1分程かかる場合があります</div>
-        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断</button>
+        <div id="error-feedback" class="error-msg" style="display:none;"></div>
+        <div id="disclaimer" style="font-size:0.75rem; color:#ffadad; margin-top:10px;">※高品質な解析のため最大1分程かかる場合があります</div>
+        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断・再試行</button>
     </div>
 
     <script>
@@ -208,24 +210,30 @@ ${subQs ? '小問：\n' + subQs : ''}
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
-                const fb = (await res.json()).candidates[0].content.parts[0].text;
+                const responseData = await res.json();
+                if (!responseData.candidates) throw new Error("Grading Failed");
+                const fb = responseData.candidates[0].content.parts[0].text;
                 const box = document.getElementById('res-box');
                 box.innerHTML = fb.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
                 box.style.display = 'block'; document.getElementById('ans-grade-btn').style.display = 'none';
-                document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる"; // ラベル更新
+                document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる";
                 if (window.MathJax) MathJax.typesetPromise();
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
-            } catch(e) { alert("採点エラー。"); } finally { hideUI(); }
+                hideUI();
+            } catch(e) { showError("採点タイムアウト：再試行してください"); }
         }
 
         function applyProb(p) {
+            // undefinedガード
+            if (!p || typeof p.text === 'undefined') { showError("不完全なデータを受信しました。再度試してください"); return; }
             appState.prob = p; appState.seen = false; appState.ans = null;
             document.getElementById('u-title').innerText = appState.unit;
-            document.getElementById('p-text').innerText = p.text;
-            document.getElementById('q-list').innerHTML = (Array.isArray(p.sub) ? p.sub : [p.sub]).map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
-            document.getElementById('h-box').innerText = p.hint;
+            document.getElementById('p-text').innerText = p.text || "問題文の取得に失敗しました";
+            const subs = (Array.isArray(p.sub) ? p.sub : [p.sub]).filter(q => q && typeof q !== 'undefined');
+            document.getElementById('q-list').innerHTML = subs.map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
+            document.getElementById('h-box').innerText = p.hint || "ヒントはありません";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
-            document.getElementById('ans-toggle-btn').innerText = "🔍 解答を確認"; // リセット
+            document.getElementById('ans-toggle-btn').innerText = "🔍 解答を確認";
             pbox.style.display = 'none'; guide.style.display = 'none'; document.getElementById('ans-grade-btn').style.display = 'none';
             const showDiagram = /平面図形|関数|立体/.test(appState.unit) || /三角形|円|グラフ|相似/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
@@ -240,17 +248,28 @@ ${subQs ? '小問：\n' + subQs : ''}
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学範囲限定。微積分禁止。JSON形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学限定。微積分禁止。JSON形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
-                applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
-            } finally { hideUI(); }
+                const data = await res.json();
+                if (!data.candidates) throw new Error("Generation Failed");
+                const jsonText = data.candidates[0].content.parts[0].text;
+                try {
+                    const parsed = JSON.parse(jsonText);
+                    applyProb(parsed);
+                    hideUI();
+                } catch(pe) { throw new Error("JSON Parse Error"); }
+            } catch (e) { showError("生成タイムアウト：再度ボタンを押してください"); }
         }
 
         async function prefetchAnswer() { 
+            if (!appState.prob.text) return;
             const subQs = Array.isArray(appState.prob.sub) ? appState.prob.sub.join('\n') : appState.prob.sub;
             try { 
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答作成。小問(1)～(n)を全て解け。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
-                appState.ans = (await res.json()).candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); 
+                const data = await res.json();
+                if (data.candidates) {
+                    appState.ans = data.candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); 
+                }
             } catch (e) {} 
         }
 
@@ -258,15 +277,29 @@ ${subQs ? '小問：\n' + subQs : ''}
             const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn');
             if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
             if (!appState.seen) { if (!confirm("未採点なので偏差値加算は行われません。")) return; appState.seen = true; saveLog(0); }
-            if (!appState.ans) await prefetchAnswer();
-            box.innerHTML = appState.ans; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
+            if (!appState.ans) { btn.innerText = "⏳ 取得中..."; await prefetchAnswer(); }
+            box.innerHTML = appState.ans || "解答取得エラー：もう一度お試しください"; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
             if (window.MathJax) MathJax.typesetPromise();
         }
 
         function startDrawing(text) { document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div>`; autoDraw(text); }
-        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」のSVG。` }] }] }) }); let svg = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); if (svg) document.getElementById('svg-layer').innerHTML = svg[0]; } catch (e) {} }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」のSVG図。` }] }] }) }); const data = await res.json(); let svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); if (svg) document.getElementById('svg-layer').innerHTML = svg[0]; } catch (e) {} }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(window.MathJax) MathJax.typesetPromise(); }
-        function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
+        
+        function showUI(m) { 
+            document.getElementById('status-ui').style.display='block'; 
+            document.getElementById('msg').innerText=m; 
+            document.getElementById('error-feedback').style.display='none';
+            document.getElementById('disclaimer').style.display='block';
+            let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); 
+        }
+        function showError(em) {
+            clearInterval(appState.t);
+            document.getElementById('msg').innerText="エラーが発生しました";
+            const ef = document.getElementById('error-feedback');
+            ef.innerText = em; ef.style.display = 'block';
+            document.getElementById('disclaimer').style.display = 'none';
+        }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
         function doSkip() { generateNext(true); }
         function resetData() { if(confirm("初期化しますか？")) { localStorage.clear(); location.reload(); } }
@@ -291,7 +324,7 @@ ${subQs ? '小問：\n' + subQs : ''}
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
             refreshStats();
-            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xを求めよ。"], hint: "両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直し、括弧を外して整理せよ。" });
+            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を満たすxを求めよ。"], hint: "両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直し、整理せよ。" });
         });
     </script>
 </body>
