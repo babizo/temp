@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.8.0</title>
+    <title>AI数学講師 4.8.2</title>
     
     <script>
         window.MathJax = {
@@ -22,7 +22,6 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         
-        /* スライダー目盛り完全固定 */
         #dev-slider { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 25px 0 10px 0; }
         #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid #fff; }
         .scale-labels { display: flex; justify-content: space-between; width: 100%; position: relative; height: 50px; }
@@ -30,7 +29,6 @@
 
         .viewer-box { position: relative; background: #ffffff; border-radius: 6px; height: 260px; border: 2px solid #333; overflow: hidden; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-        .preview-box-outer { position: relative; width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary); display: none; }
         .disclaimer-text { font-size: 0.65rem; color: #888; text-align: center; margin-top: 6px; line-height: 1.2; display: block; }
 
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0, 0, 0, 0.96); border-radius: 12px; border: 2px solid var(--ai); position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 10000; width: 92%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,1); }
@@ -40,14 +38,13 @@
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; }
-        .hist-title { color: var(--primary); text-decoration: underline; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.8.0
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.8.2
         </div>
         <button onclick="document.body.classList.toggle('light-mode')" style="background:#444; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto; margin:0;">🌓 モード切替</button>
     </div>
@@ -60,15 +57,7 @@
         </div>
         <input type="range" id="dev-slider" min="45" max="80" step="0.5" value="60">
         <div class="scale-labels">
-            <span style="left:0%;">45</span>
-            <span style="left:31.4%;">56<br>西</span>
-            <span style="left:42.8%;">60<br>日比谷</span>
-            <span style="left:54.2%;">64<br>早実</span>
-            <span style="left:60%;">66<br>学院</span>
-            <span style="left:65.7%;">68<br>慶応</span>
-            <span style="left:71.4%;">70<br>渋幕</span>
-            <span style="left:77.1%;">72<br>開成</span>
-            <span style="left:88.5%;">76<br>筑駒</span>
+            <span style="left:0%;">45</span><span style="left:31.4%;">56<br>西</span><span style="left:42.8%;">60<br>日比谷</span><span style="left:54.2%;">64<br>早実</span><span style="left:60%;">66<br>学院</span><span style="left:65.7%;">68<br>慶応</span><span style="left:71.4%;">70<br>渋幕</span><span style="left:77.1%;">72<br>開成</span><span style="left:88.5%;">76<br>筑駒</span>
         </div>
     </div>
 
@@ -81,7 +70,7 @@
             <div class="viewer-box" id="canvas-outer">
                 <div id="svg-layer"></div>
             </div>
-            <span class="disclaimer-text">※図は問題文の補足イメージであり、数学的に正確でない場合があります。</span>
+            <span class="disclaimer-text">※図は数学的に正確でない場合があります。</span>
         </div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; color:#ccc; border-bottom:1px dashed #444; padding-bottom:8px;"></p>
@@ -96,7 +85,7 @@
     </div>
 
     <div class="card">
-        <button onclick="startImageSelection()" style="background:var(--success); color:white;">📸 答案を撮影・選択</button>
+        <button onclick="startImageSelection()" style="background:var(--success); color:white;">📸 答案を撮影</button>
         <div id="preview-area-outer" class="preview-box-outer">
             <img id="ans-preview" src="" style="width:100%;height:100%;object-fit:contain;">
         </div>
@@ -110,7 +99,7 @@
     </div>
 
     <div id="status-ui" class="loading-overlay">
-        <div class="drag-handle" id="drag-zone"><span>Floating Debug Window</span><span>:::::</span></div>
+        <div class="drag-handle" id="drag-zone"><span>Floating Tracer Window</span><span>:::::</span></div>
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:5px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.0rem; margin-bottom:5px;"></p>
         <div id="status-debug" class="debug-overlay-log"></div>
@@ -135,18 +124,17 @@
         function dEnd() { initX=curX; initY=curY; active=false; }
         function dMove(e) { if(active){ e.preventDefault(); curX=(e.type==="touchmove"?e.touches[0].clientX:e.clientX)-initX; curY=(e.type==="touchmove"?e.touches[0].clientY:e.clientY)-initY; xOff=curX; yOff=curY; ui.style.transform=`translate(calc(-50% + ${curX}px), ${curY}px)`; } }
 
-        /* DEBUGログ（タイムスタンプ付） */
+        /* 全プロセス可視化ログ */
         async function debugLog(msg, isRaw=false) {
             if(!document.getElementById('debug-mode').checked) return;
             const logEl = document.getElementById('status-debug'), now = new Date();
             const ts = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}]`;
             logEl.style.display='block';
-            logEl.innerHTML += isRaw ? `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0; font-size:0.6rem;">${ts} [RAW]<br>${msg}</div>` : `<span style="color:#555;">${ts}</span> <span style="color:var(--primary);">></span> ${msg}<br>`;
+            logEl.innerHTML += isRaw ? `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0; font-size:0.65rem; word-break:break-all;">${ts} [RAW DATA]<br>${msg}</div>` : `<span style="color:#555;">${ts}</span> <span style="color:var(--primary);">></span> ${msg}<br>`;
             logEl.scrollTop = logEl.scrollHeight;
             await new Promise(r => setTimeout(r, 600));
         }
 
-        /* ヒント表示復旧（物理修復） */
         function toggleHint() {
             if (!appState.prob.hint) return;
             if (hBox.style.display === 'block') { hBox.style.display = 'none'; } else {
@@ -164,15 +152,21 @@
         function finalizeDisplay(isError=false, errorMsg="") {
             clearInterval(appState.t);
             const retryBtn = document.getElementById('retry-btn'), abortBtn = document.getElementById('abort-btn');
-            if(isError){ document.getElementById('msg').innerText = errorMsg; document.getElementById('msg').style.color = "var(--error)"; retryBtn.style.display = "block"; retryBtn.onclick = () => { retryBtn.style.display="none"; generateNext(false); }; return; }
+            if(isError){
+                document.getElementById('msg').innerText = errorMsg;
+                document.getElementById('msg').style.color = "var(--error)";
+                retryBtn.style.display = "block";
+                retryBtn.onclick = () => { retryBtn.style.display="none"; generateNext(false); };
+                return;
+            }
             if(document.getElementById('debug-mode').checked){ abortBtn.innerText = "閉じる（確定）"; abortBtn.onclick=()=>forceHideUI(true); } else { forceHideUI(); }
         }
 
         async function robustTranslation(obj) {
             let found = { text: null, sub: [], hint: null };
             const synonyms = { text: ['text', 'problem_text', 'problem'], sub: ['sub', 'questions', 'question'], hint: ['hint', 'solution', 'explanation'] };
-            await debugLog("データパース開始...");
-            function search(curr) { if(!curr || typeof curr !== 'object') return; for(let k in synonyms){ for(let w of synonyms[k]){ if(w in current && !found[k]) found[k]=current[w]; } } for(let key in curr) search(curr[key]); }
+            await debugLog("JSONフィールド解析開始...");
+            function search(curr) { if(!curr || typeof curr !== 'object') return; for(let k in synonyms){ for(let w of synonyms[k]){ if(w in current && !found[k]) found[k]=current[w]; } } for(let key in current) search(current[key]); }
             const current = obj; search(current);
             if(found.sub && !Array.isArray(found.sub)) found.sub = [found.sub];
             if(Array.isArray(found.hint)) found.hint = found.hint.join('\n');
@@ -180,7 +174,7 @@
         }
 
         async function applyProb(p, lv, isFirstLoad=false) {
-            if(!p){ await debugLog("ERR: 解析失敗。"); finalizeDisplay(true, "データ不完全のため再作問します"); return; }
+            if(!p){ await debugLog("ERR: データ整合性エラー。"); finalizeDisplay(true, "データ不完全のため再作問します"); return; }
             appState.prob = p; appState.seen = false; appState.ans = null; appState.currentLv = lv;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('prob-lv').innerText = `Lv.${lv.toFixed(1)}`;
@@ -191,7 +185,7 @@
             const showDiagram = /図形|関数|相似|グラフ|座標|三角形|円|面積/.test(appState.unit) || /図形|座標|点/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
             if(isFirstLoad) { if(window.MathJax) await MathJax.typesetPromise([content]); forceHideUI(true); } else {
-                await debugLog("MathJax 解析適用...");
+                await debugLog("数式描画(MathJax)実行中...");
                 if(window.MathJax) await MathJax.typesetPromise([content]);
                 if(showDiagram) autoDraw(p.text);
             }
@@ -202,40 +196,56 @@
             let d = isHardMode ? 76 : parseFloat(document.getElementById('dev-slider').value);
             if(unitStr) appState.unit = unitStr;
             else if(isOther) { 
-                const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; 
-                appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random()*5)]; 
+                const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"];
+                appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random()*5)];
             }
             showUI(`${appState.unit} 作問中...`);
-            const prompt = `入試数学問題作成。偏差値:${d}。必ず厳格な入試口調を守れ。{"text": "問題文", "sub": ["設問"], "hint": "解説"} のJSON。`;
+            
+            // 修正：リクエスト送信時のログ復活
+            await debugLog(`偏差値 ${d} 指定でAIへリクエスト送信...`);
+            
+            const prompt = `入試問題。偏差値:${d}。厳格口調。{"text": "本文", "sub": ["設問"], "hint": "解説"} JSON形式。`;
             appState.controller = new AbortController();
+            let rawDataForDebug = "";
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, signal: appState.controller.signal,
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
-                const data = await res.json(); const raw = data.candidates[0].content.parts[0].text;
-                await debugLog(raw, true);
-                const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
-                if (start === -1) { finalizeDisplay(true, "JSONデータなし"); return; }
-                const parsed = await robustTranslation(JSON.parse(raw.substring(start, end + 1)));
+                
+                await debugLog("AIからパケット受信中...");
+                const data = await res.json();
+                rawDataForDebug = data.candidates[0].content.parts[0].text;
+                
+                await debugLog("パケット受信完了。RAW DATAを出力します。");
+                await debugLog(rawDataForDebug, true);
+                
+                const start = rawDataForDebug.indexOf('{'), end = rawDataForDebug.lastIndexOf('}');
+                if (start === -1) throw new Error("AIの応答にJSON構造が含まれていません。");
+                
+                const parsed = await robustTranslation(JSON.parse(rawDataForDebug.substring(start, end + 1)));
                 await applyProb(parsed, d);
-            } catch (e) { if(e.name !== 'AbortError') finalizeDisplay(true, "AI通信エラー"); }
+            } catch (e) { 
+                await debugLog(`通信プロセス失敗: ${e.message}`);
+                if(rawDataForDebug) await debugLog("受信済みのRAWデータを解析不能と判断。");
+                if(e.name !== 'AbortError') finalizeDisplay(true, "AI通信エラー"); 
+            }
         }
 
-        /* 他単元へボタン修復 */
         function doSkip() { generateNext(true); }
 
         async function autoDraw(t) { 
             let start = Date.now(); clearInterval(appState.svgT);
             appState.svgT = setInterval(() => { svgLayer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100);
             try { 
-                await debugLog("図解AIリクエスト開始...");
+                await debugLog("図解リクエスト(autoDraw)送信...");
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学「${t}」のSVG。推測禁止。SVGタグのみ。` }] }] }) }); 
                 const data = await res.json(); const rawSvg = data.candidates[0].content.parts[0].text;
+                await debugLog("図解パケット受信。RAW SVGを出力。");
                 await debugLog(rawSvg, true); 
                 const svgMatch = rawSvg.match(/<svg[\s\S]*?<\/svg>/i); 
                 clearInterval(appState.svgT); 
-                if (svgMatch) { svgLayer.innerHTML = svgMatch[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } else { throw new Error("No SVG"); }
-            } catch (e) { clearInterval(appState.svgT); await debugLog(`図解失敗: ${e.message}`); svgLayer.innerHTML = `<div style="color:var(--error); font-size:0.7rem; padding:20px;">図解なし</div>`; } 
+                if (svgMatch) { svgLayer.innerHTML = svgMatch[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } else { throw new Error("SVGタグなし"); }
+            } catch (e) { clearInterval(appState.svgT); await debugLog(`図解失敗詳細: ${e.message}`); svgLayer.innerHTML = `<div style="color:var(--error); font-size:0.7rem;">図解なし</div>`; } 
         }
 
         async function prefetchAnswer() { 
@@ -255,7 +265,6 @@
             box.scrollIntoView({behavior:'smooth'});
         }
 
-        /* 補助 */
         function updateTargetLabel(val) { let s="[標準]"; if(val>=76) s="[筑駒]"; else if(val>=72) s="[開成]"; else if(val>=70) s="[渋幕]"; else if(val>=68) s="[慶応]"; else if(val>=66) s="[学院]"; else if(val>=64) s="[早実]"; else if(val>=60) s="[日比谷]"; else if(val>=56) s="[西]"; document.getElementById('target-school').innerText=s; document.getElementById('dev-val').innerText=val.toFixed(1); document.getElementById('dev-slider').value=val; }
         function refreshStats() { const h=JSON.parse(localStorage.getItem('m_hist')||"[]"); document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt}</span><span class="hist-title" onclick="generateNext(false, false, '${x.u}')">${x.u}を再履修</span></div><span class="score-badge">${x.s}/10</span></div>`).join(''); if(h.length>0){ const avg=h.map(x=>x.s).reduce((a,b)=>a+b,0)/h.length; updateTargetLabel(Math.max(45, Math.min(80, 40+(avg*3.5)))); } }
         function resetData() { if(confirm("リセット？")){ localStorage.clear(); location.reload(); } }
