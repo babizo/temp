@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.9.6</title>
+    <title>AI数学講師 4.9.7</title>
     
     <script>
         window.MathJax = {
@@ -30,13 +30,10 @@
         .viewer-box { position: relative; background: #ffffff; border-radius: 6px; height: 260px; border: 2px solid #333; overflow: hidden; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
         .preview-box-outer { position: relative; width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary); display: none; }
-        .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); pointer-events: auto; }
-        .crop-handle { position: absolute; width: 22px; height: 22px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; z-index: 30; }
-        .disclaimer-text { font-size: 0.65rem; color: #888; text-align: center; margin-top: 6px; line-height: 1.2; display: block; }
-
+        
         .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0, 0, 0, 0.96); border-radius: 12px; border: 2px solid var(--ai); position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 10000; width: 92%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,1); }
         .drag-handle { background: #333; margin: -15px -15px 10px -15px; padding: 10px; border-radius: 10px 10px 0 0; cursor: move; color: #aaa; font-size: 0.7rem; display: flex; justify-content: space-between; }
-        .debug-overlay-log { font-family: monospace; font-size: 0.7rem; color: #10ac84; text-align: left; padding: 10px; background: #000; border: 1px solid #333; height: 180px; overflow-y: scroll; margin: 10px 0; line-height: 1.5; border-left: 3px solid var(--primary); }
+        .debug-overlay-log { font-family: monospace; font-size: 0.7rem; color: #10ac84; text-align: left; padding: 10px; background: #000; border: 1px solid #333; height: 180px; overflow-y: scroll; margin: 10px 0; line-height: 1.5; border-left: 3px solid var(--primary); display: block; }
 
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         #h-box { display: none; color: var(--hint); font-size: 0.85rem; padding: 12px; background: #332b1e; border-radius: 8px; border-left: 4px solid var(--hint); margin-top: 10px; }
@@ -51,7 +48,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.9.6
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> RAWデータ表示</label> ver 4.9.7
         </div>
         <button onclick="document.body.classList.toggle('light-mode')" style="background:#444; color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:0.7rem; width:auto; margin:0;">🌓 モード切替</button>
     </div>
@@ -64,7 +61,7 @@
         </div>
         <input type="range" id="dev-slider" min="45" max="80" step="0.5" value="60">
         <div class="scale-labels">
-            <span style="left:0%;">45</span><span style="left:31.4%;">56<br>西</span><span style="left:42.8%;">60<br>日比谷</span><span style="left:54.2%;">64<br>学芸<br>早実<br>本庄</span><span style="left:60%;">66<br>学院<br>義塾</span><span style="left:65.7%;">68<br>志木<br>筑付</span><span style="left:71.4%;">70<br>渋幕</span><span style="left:77.1%;">72<br>開成</span><span style="left:88.5%;">76<br>筑駒</span>
+            <span style="left:0%;">45</span><span style="left:31.4%;">56<br>西</span><span style="left:42.8%;">60<br>日比谷</span><span style="left:54.2%;">64<br>学芸</span><span style="left:60%;">66<br>学院</span><span style="left:65.7%;">68<br>志木</span><span style="left:71.4%;">70<br>渋幕</span><span style="left:77.1%;">72<br>開成</span><span style="left:88.5%;">76<br>筑駒</span>
         </div>
     </div>
 
@@ -78,7 +75,6 @@
                 <div style="position:absolute; top:5px; right:5px; z-index:10;"><button onclick="resetCanvas()" style="background:rgba(0,0,0,0.6); color:white; border:none; width:28px; height:28px; border-radius:4px;">🏠</button></div>
                 <div id="svg-layer"></div>
             </div>
-            <span class="disclaimer-text">※図は問題文の補足イメージであり、数学的に正確でない場合があります。</span>
         </div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; color:#ccc; border-bottom:1px dashed #444; padding-bottom:8px;"></p>
@@ -95,13 +91,7 @@
     <div class="card">
         <button onclick="startImageSelection()" style="background:var(--success); color:white;">📸 答案を撮影・採点</button>
         <div id="preview-area-outer" class="preview-box-outer">
-            <div id="ans-preview-container"><img id="ans-preview" src="" style="width:100%;height:100%;object-fit:contain;"></div>
-            <div id="crop-overlay" class="crop-overlay">
-                <div class="crop-handle tl" data-handle="tl" style="top:-11px;left:-11px;position:absolute;width:22px;height:22px;background:var(--primary);border:2px solid #fff;border-radius:50%;"></div>
-                <div class="crop-handle tr" data-handle="tr" style="top:-11px;right:-11px;position:absolute;width:22px;height:22px;background:var(--primary);border:2px solid #fff;border-radius:50%;"></div>
-                <div class="crop-handle bl" data-handle="bl" style="bottom:-11px;left:-11px;position:absolute;width:22px;height:22px;background:var(--primary);border:2px solid #fff;border-radius:50%;"></div>
-                <div class="crop-handle br" data-handle="br" style="bottom:-11px;right:-11px;position:absolute;width:22px;height:22px;background:var(--primary);border:2px solid #fff;border-radius:50%;"></div>
-            </div>
+            <img id="ans-preview" src="" style="width:100%;height:100%;object-fit:contain;">
         </div>
         <button id="ans-toggle-btn" style="background:#555; color:white;" onclick="peekAnswer()">🔍 解答を確認</button>
         <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px;"></div>
@@ -113,29 +103,33 @@
     </div>
 
     <div id="status-ui" class="loading-overlay">
-        <div class="drag-handle" id="drag-zone"><span>Floating Debug Tracer</span><span>:::::</span></div>
+        <div class="drag-handle" id="drag-zone"><span>Process Monitor</span><span>:::::</span></div>
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:5px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.0rem; margin-bottom:5px;"></p>
         <div id="status-debug" class="debug-overlay-log"></div>
         <div style="font-size:0.6rem; color:#888;">※高品質な解析のため最大1分程かかる場合があります</div>
-        <button id="close-status-btn" onclick="forceHideUI(true)" style="background:#444; color:#ccc; margin-top:10px; padding:8px; border-radius:4px; display:none;">閉じる</button>
+        <button id="close-status-btn" onclick="forceHideUI(true)" style="background:#444; color:#ccc; margin-top:10px; padding:8px; border-radius:4px;">閉じる</button>
     </div>
 
     <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
 
     <script>
         let appState = { prob: {}, seen: false, ans: null, unit: "数と式", currentLv: 60.0, t: null, svgT: null, controller: null };
-        const ui = document.getElementById('status-ui'), dragZone = document.getElementById('drag-zone'), hBox = document.getElementById('h-box'), ansBtn = document.getElementById('ans-toggle-btn'), svgLayer = document.getElementById('svg-layer');
+        const ui = document.getElementById('status-ui'), hBox = document.getElementById('h-box'), ansBtn = document.getElementById('ans-toggle-btn'), svgLayer = document.getElementById('svg-layer');
 
-        /* ドラッグロジック */
+        /* ドラッグ */
         let active = false, curX, curY, initX, initY, xOff = 0, yOff = 0;
+        const dragZone = document.getElementById('drag-zone');
         const dStart = (e) => { initX = (e.type === "touchstart" ? e.touches[0].clientX : e.clientX) - xOff; initY = (e.type === "touchstart" ? e.touches[0].clientY : e.clientY) - yOff; if (e.target === dragZone || dragZone.contains(e.target)) active = true; };
         const dMove = (e) => { if (active) { e.preventDefault(); curX = (e.type === "touchmove" ? e.touches[0].clientX : e.clientX) - initX; curY = (e.type === "touchmove" ? e.touches[0].clientY : e.clientY) - initY; xOff = curX; yOff = curY; ui.style.transform = `translate(calc(-50% + ${curX}px), ${curY}px)`; } };
         dragZone.addEventListener("mousedown", dStart); window.addEventListener("mouseup", ()=>active=false); window.addEventListener("mousemove", dMove);
         dragZone.addEventListener("touchstart", dStart, {passive:false}); window.addEventListener("touchend", ()=>active=false); window.addEventListener("touchmove", dMove, {passive:false});
 
+        /* 標準ログ表示 (RAW以外は常に出す) */
         async function debugLog(msg, isRaw=false) {
-            if(!document.getElementById('debug-mode').checked) return;
+            const isRawMode = document.getElementById('debug-mode').checked;
+            if(isRaw && !isRawMode) return; // RAWデータかつスイッチOFFなら隠す
+            
             const logEl = document.getElementById('status-debug'), now = new Date();
             const ts = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}]`;
             logEl.style.display='block';
@@ -154,23 +148,23 @@
         }
 
         function forceHideUI(manual=false) {
-            if(document.getElementById('debug-mode').checked && !manual) return;
             ui.style.display='none'; clearInterval(appState.t); xOff=0; yOff=0; ui.style.transform=`translateX(-50%)`;
         }
 
         function finalizeDisplay(isError=false, errorMsg="") {
             clearInterval(appState.t);
-            if(isError){ document.getElementById('msg').innerText = errorMsg; document.getElementById('msg').style.color = "var(--error)"; document.getElementById('close-status-btn').style.display="block"; return; }
-            if(document.getElementById('debug-mode').checked){ document.getElementById('close-status-btn').style.display="block"; } else { ui.style.display='none'; }
+            if(isError){ document.getElementById('msg').innerText = errorMsg; document.getElementById('msg').style.color = "var(--error)"; return; }
+            document.getElementById('msg').innerText = "完了しました";
+            document.getElementById('msg').style.color = "var(--success)";
         }
 
         async function applyProb(p, lv, isFirstLoad=false) {
-            if (!p.sub || p.sub.length === 0 || p.sub[0].match(/設問|問\d/)) p.sub = ["値を正確に求めよ。"];
             appState.prob = p; appState.seen = false; appState.ans = null; appState.currentLv = lv;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('prob-lv').innerText = `Lv.${lv.toFixed(1)}`;
+            const subItems = (p.sub && p.sub.length > 0) ? p.sub : ["値を正確に求めよ。"];
             document.getElementById('p-text').innerHTML = p.text;
-            document.getElementById('q-list').innerHTML = p.sub.map((q,i)=>`<li>(${i+1}) ${q}</li>`).join('');
+            document.getElementById('q-list').innerHTML = subItems.map((q,i)=>`<li>(${i+1}) ${q}</li>`).join('');
             
             const showDiagram = /図形|関数|相似|グラフ|座標|三角形|円|面積/.test(appState.unit) || /図形|座標|点|A\(/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
@@ -178,10 +172,16 @@
             
             await debugLog("作問プロセス完了。描画へ移行。");
             if(!isFirstLoad && showDiagram) { await autoDraw(p.text); } else { finalizeDisplay(); }
+            // 自動で解答を取りに行く
             setTimeout(prefetchAnswer, 1500);
         }
 
         async function generateNext(isOther = false, isHardMode = false) {
+            // 答案プレビュー・解答エリアのリセット（新規作問時）
+            document.getElementById('preview-area-outer').style.display = 'none';
+            document.getElementById('res-box').style.display = 'none';
+            ansBtn.innerText = "🔍 解答を確認";
+
             let d = isHardMode ? 76 : parseFloat(document.getElementById('dev-slider').value);
             if(isOther) { 
                 const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"];
@@ -189,8 +189,10 @@
             }
             showUI(`${appState.unit} 作問中...`);
             await debugLog(`偏差値 ${d} 指定で作問リクエスト送信...`);
-            const prompt = `入試数学【単元：${appState.unit}】偏差値:${d}。
-            {"text": "本文", "sub": ["具体的な設問"], "hint": "20文字ヒント"} JSON形式。`;
+
+            const prompt = `入試数学【単元：${appState.unit}】偏差値:${d}。厳格口調。
+            {"text": "本文", "sub": ["設問1"], "hint": "20文字ヒント"} JSON形式。`;
+            
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
@@ -209,17 +211,17 @@
                 svgLayer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem; text-align:center;">図解生成中... (${sec}s)</div>`;
             }, 100);
             try { 
-                await debugLog("図解AIリクエスト中...");
-                // プロンプトに記号・数値の必須化を追加
+                await debugLog("図解AI通信開始...");
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学「${t}」の幾何図解。
-                    【必須】問題文に登場する全ての点名（A, B, P, Q等）と数値（長さ、角度、座標）を、図中の適切な位置に必ず描画せよ。
-                    文章説明は禁止。SVGタグのみ。` }] }] }) 
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学「${t}」の幾何図解。点名・数値を必ず図中に反映せよ。SVGタグのみ。` }] }] }) 
                 }); 
                 const data = await res.json(); 
                 const svgMatch = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); 
                 clearInterval(appState.svgT);
-                if (svgMatch) { svgLayer.innerHTML = svgMatch[0]; if(window.MathJax) await MathJax.typesetPromise([svgLayer]); }
+                if (svgMatch) { 
+                    svgLayer.innerHTML = svgMatch[0]; 
+                    if(window.MathJax) await MathJax.typesetPromise([svgLayer]); 
+                }
             } catch (e) { clearInterval(appState.svgT); await debugLog(`図解失敗`); }
             await debugLog("図解描画完了。全工程終了。");
             finalizeDisplay(); 
@@ -228,7 +230,7 @@
         async function prefetchAnswer() { 
             ansBtn.innerText = "⏳ 解答を取得中...";
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。要点3つ。問題：${appState.prob.text}` }] }] }) }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答。要点3つ。問題：${appState.prob.text}` }] }] }) }); 
                 const data = await res.json(); appState.ans = data.candidates[0].content.parts[0].text.trim();
                 ansBtn.innerText = "🔍 解答を確認";
             } catch (e) { ansBtn.innerText = "🔍 解答を確認"; } 
@@ -242,11 +244,8 @@
             box.scrollIntoView({behavior:'smooth'});
         }
 
-        /* 撮影フローの修正（1ファイル注意喚起） */
         function startImageSelection() {
-            if(confirm("画像は1枚にまとめてください（1ファイルのみ対応）。撮影または選択を開始しますか？")) {
-                document.getElementById('c-input').click();
-            }
+            if(confirm("画像は1枚にまとめてください（1ファイルのみ）。撮影を開始しますか？")) document.getElementById('c-input').click();
         }
 
         function refreshStats() {
@@ -254,11 +253,17 @@
             document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt}</span><span class="hist-title" onclick="generateNextFromHist('${x.u}')">${x.u}を再履修</span></div><span class="score-badge">${x.s}/10</span></div>`).join('');
         }
         window.generateNextFromHist = (u) => { appState.unit = u; generateNext(false); };
-        function updateTargetLabel(val) { let s="[標準]"; if(val>=76) s="[筑駒]"; else if(val>=72) s="[開成]"; else if(val>=70) s="[渋幕]"; else if(val>=68) s="[慶応]"; else if(val>=66) s="[学院]"; else if(val>=64) s="[早実]"; else if(val>=60) s="[日比谷]"; else if(val>=56) s="[西]"; document.getElementById('target-school').innerText=s; document.getElementById('dev-val').innerText=val.toFixed(1); document.getElementById('dev-slider').value=val; }
+        function updateTargetLabel(val) { let s="[標準]"; if(val>=76) s="[筑駒]"; else if(val>=72) s="[開成]"; else if(val>=70) s="[渋幕]"; else if(val>=68) s="[慶応]"; else if(val>=66) s="[学院]"; else if(val>=64) s="[学芸]"; else if(val>=60) s="[日比谷]"; else if(val>=56) s="[西]"; document.getElementById('target-school').innerText=s; document.getElementById('dev-val').innerText=val.toFixed(1); document.getElementById('dev-slider').value=val; }
         function saveLog(s) { let h=JSON.parse(localStorage.getItem('m_hist')||"[]"); const now=new Date(); h.unshift({u:appState.unit,s:s,dt:(now.getMonth()+1)+"/"+now.getDate(),lv:appState.currentLv.toFixed(1)}); localStorage.setItem('m_hist',JSON.stringify(h.slice(0,20))); refreshStats(); }
-        function showUI(m) { ui.style.display='block'; document.getElementById('msg').innerText=m; document.getElementById('msg').style.color="#fff"; document.getElementById('status-debug').innerHTML=""; document.getElementById('timer').innerText="0.0s"; let s=Date.now(); clearInterval(appState.t); appState.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
+        function showUI(m) { 
+            ui.style.display='block'; document.getElementById('msg').innerText=m; 
+            document.getElementById('msg').style.color="#fff";
+            document.getElementById('status-debug').innerHTML="";
+            document.getElementById('timer').innerText="0.0s";
+            let s=Date.now(); clearInterval(appState.t); 
+            appState.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); 
+        }
         function resetCanvas() { svgLayer.style.transform = "scale(1)"; }
-        function doSkip() { generateNext(true); }
         function resetData() { localStorage.clear(); location.reload(); }
 
         document.addEventListener('DOMContentLoaded', () => {
