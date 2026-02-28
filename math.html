@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.2.0</title>
+    <title>AI数学講師 4.3.0</title>
     
     <script>
         window.MathJax = {
@@ -27,33 +27,27 @@
         .scale-labels { display: flex; justify-content: space-between; padding: 0; margin-top: 8px; position: relative; width: 100%; height: 45px; }
         .scale-labels span { font-size: 0.5rem; color: #888; text-align: center; position: absolute; transform: translateX(-50%); white-space: nowrap; line-height: 1.1; }
         
-        #canvas-box { display: none; margin-bottom: 10px; }
-        .canvas-outer { position: relative; background: #ffffff; border-radius: 6px; height: 260px; border: 2px solid #333; overflow: hidden; touch-action: none; cursor: grab; }
-        #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: center; transition: transform 0.1s ease-out; }
-        .canvas-tools { position: absolute; top: 5px; right: 5px; z-index: 10; display: flex; flex-direction: column; gap: 5px; }
-        .canvas-btn { background: rgba(0,0,0,0.6); color: white; border: none; width: 28px; height: 28px; border-radius: 4px; font-size: 14px; cursor: pointer; }
-        .canvas-disclaimer { font-size: 0.65rem; color: #888; margin-top: 4px; text-align: center; }
-
-        .preview-box { width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; position: relative; display: none; border: 2px solid var(--primary); touch-action: none; }
-        #ans-preview { width: 100%; height: 100%; object-fit: contain; transform-origin: center; pointer-events: none; }
-        .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); box-sizing: border-box; cursor: move; display: none; }
-        .crop-handle { position: absolute; width: 18px; height: 18px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; }
-        .tl { top: -9px; left: -9px; cursor: nwse-resize; } .tr { top: -9px; right: -9px; cursor: nesw-resize; }
-        .bl { bottom: -9px; left: -9px; cursor: nesw-resize; } .br { bottom: -9px; right: -9px; cursor: nwse-resize; }
+        .viewer-box { position: relative; background: #ffffff; border-radius: 6px; height: 260px; border: 2px solid #333; overflow: hidden; touch-action: none; cursor: grab; }
+        #svg-layer, #ans-preview-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: center; transition: transform 0.1s ease-out; }
+        #ans-preview { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+        
+        .preview-box-outer { position: relative; width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary); display: none; touch-action: none; }
+        .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); box-sizing: border-box; cursor: move; z-index: 20; }
+        .crop-handle { position: absolute; width: 22px; height: 22px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; z-index: 30; }
+        
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.98); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 15%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; }
-        .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; }
-        .prob-lv-badge { font-size: 0.7rem; background: #444; color: #fff; padding: 1px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
-        .typing-loader { color: var(--ai); font-size: 0.9rem; font-weight: bold; text-align: center; padding: 20px; display: none; }
+        .typing-loader { color: var(--ai); font-size: 0.9rem; font-weight: bold; text-align: center; padding: 10px; display: none; }
+        a { color: var(--primary); text-decoration: underline; }
     </style>
 </head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.2.0
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.3.0
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -83,13 +77,12 @@
             <button onclick="doSkip()" style="background:var(--skip); color:white; padding:6px 12px; width:auto; border-radius:4px;">他単元へ ≫</button>
         </div>
         <div id="canvas-box">
-            <div class="canvas-outer" id="canvas-outer">
-                <div class="canvas-tools"><button class="canvas-btn" onclick="resetCanvas()">🏠</button></div>
+            <div class="viewer-box" id="canvas-outer">
+                <div style="position:absolute; top:5px; right:5px; z-index:10;"><button onclick="resetViewer('svg')" style="background:rgba(0,0,0,0.6); color:white; border:none; width:28px; height:28px; border-radius:4px;">🏠</button></div>
                 <div id="svg-layer"></div>
             </div>
-            <div class="canvas-disclaimer">※図は問題文の補足イメージです。長さ等は数学的に正確でない場合があります。</div>
         </div>
-        <div id="typing-msg" class="typing-loader">数式をきれいに変換中...</div>
+        <div id="prob-typing" class="typing-loader">数式を変換中...</div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; color:#ccc; border-bottom:1px dashed #444; padding-bottom:8px;"></p>
             <ul id="q-list" style="padding-left:20px; list-style:none;"></ul>
@@ -97,31 +90,32 @@
         </div>
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); flex:1;">💡 ヒント</button>
-            <button onclick="generateNext(false)" style="background:var(--ai); color:white; flex:1.5;">✨ 指定偏差値の類題</button>
+            <button onclick="generateNext(false)" style="background:var(--ai); color:white; flex:1.5;">✨ 指定レベル類題</button>
             <button onclick="generateNext(false, true)" style="background:var(--hard); color:white; flex:1.5;">🔥 最難関へ</button>
         </div>
     </div>
 
     <div class="card">
         <button onclick="startImageSelection()" style="background:var(--success); color:white;">📸 答案を撮影・選択</button>
-        <div id="preview-area" class="preview-box">
-            <img id="ans-preview" src="">
+        <div id="preview-area-outer" class="preview-box-outer">
+            <div style="position:absolute; top:5px; right:5px; z-index:40;"><button onclick="resetViewer('ans')" style="background:rgba(0,0,0,0.6); color:white; border:none; width:28px; height:28px; border-radius:4px;">🏠</button></div>
+            <div id="ans-preview-container"><img id="ans-preview" src=""></div>
             <div id="crop-overlay" class="crop-overlay">
-                <div class="crop-handle tl" data-handle="tl"></div>
-                <div class="crop-handle tr" data-handle="tr"></div>
-                <div class="crop-handle bl" data-handle="bl"></div>
-                <div class="crop-handle br" data-handle="br"></div>
+                <div class="crop-handle tl" data-handle="tl" style="top:-11px;left:-11px;"></div>
+                <div class="crop-handle tr" data-handle="tr" style="top:-11px;right:-11px;"></div>
+                <div class="crop-handle bl" data-handle="bl" style="bottom:-11px;left:-11px;"></div>
+                <div class="crop-handle br" data-handle="br" style="bottom:-11px;right:-11px;"></div>
             </div>
         </div>
         <div id="edit-tools" style="display:none; justify-content:center; gap:10px; margin:10px 0;">
             <button onclick="rotateImg()" style="background:#444; color:#fff; padding:5px 12px; border-radius:4px;">↻ 回転</button>
-            <button onclick="resetImg()" style="background:#444; color:#fff; padding:5px 12px; border-radius:4px;">リセット</button>
         </div>
         <button id="ans-grade-btn" style="background:#f39c12; color:white; display:none;" onclick="executeGrading()">✅ 枠内を採点する</button>
         <button id="ans-toggle-btn" style="background:#555; color:white;" onclick="peekAnswer()">🔍 解答を確認</button>
         
         <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
         
+        <div id="res-typing" class="typing-loader">解析結果を整形中...</div>
         <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px;"></div>
         <button id="correct-me-btn" style="background:var(--success); color:white; display:none; margin-top:8px;" onclick="forcePerfectScore()">✨ ここはあってる（満点に修正）</button>
     </div>
@@ -134,216 +128,129 @@
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
-        <div style="font-size:0.75rem; color:#ffadad; margin-top:10px;">※高品質な解析のため最大1分程かかる場合があります</div>
         <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断</button>
     </div>
 
     <script>
-        let imgState = { rot: 0, scale: 1, px: 0, py: 0 };
+        let appState = { prob: {}, seen: false, ans: null, unit: "数と式", currentLv: 60.0, t: null, svgT: null };
+        let viewStates = { svg: { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 }, ans: { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 } };
         let cropState = { x: 50, y: 50, w: 200, h: 150, dragging: false, handling: null, sX: 0, sY: 0 };
-        let appState = { prob: {}, seen: false, ans: null, unit: "数と式", currentLv: 60.0, t: null, svgT: null, lastRawScore: 0 };
-        let canvasState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 };
+        let imgState = { rot: 0 };
 
         const ov = document.getElementById('crop-overlay');
-        const pbox = document.getElementById('preview-area');
+        const pboxOuter = document.getElementById('preview-area-outer');
         const img = document.getElementById('ans-preview');
+        const imgContainer = document.getElementById('ans-preview-container');
         const svgLayer = document.getElementById('svg-layer');
-        const canvasOuter = document.getElementById('canvas-outer');
 
-        function startImageSelection() {
-            if(confirm("画像は1枚にまとめてください。撮影・選択を開始しますか？")) {
-                document.getElementById('c-input').click();
-            }
+        function startImageSelection() { if(confirm("画像は1枚にまとめてください。撮影・選択を開始しますか？")) document.getElementById('c-input').click(); }
+
+        async function controlledRender(contentId, loaderId, contentHtml) {
+            const content = document.getElementById(contentId);
+            const loader = document.getElementById(loaderId);
+            content.style.display = 'none';
+            loader.style.display = 'block';
+            content.innerHTML = contentHtml;
+            if (window.MathJax && MathJax.typesetPromise) await MathJax.typesetPromise([content]);
+            loader.style.display = 'none';
+            content.style.display = 'block';
         }
-
-        function updateTargetLabel(val) {
-            let s = "[標準]";
-            if (val >= 76) s = "[筑駒]"; 
-            else if (val >= 72) s = "[開成]"; 
-            else if (val >= 70) s = "[渋幕]"; 
-            else if (val >= 68) s = "[慶応志木・筑付]"; 
-            else if (val >= 66) s = "[早大学院・慶應義塾]";
-            else if (val >= 64) s = "[学芸・早実・本庄]"; 
-            else if (val >= 60) s = "[日比谷]"; 
-            else if (val >= 56) s = "[西]";
-            document.getElementById('target-school').innerText = s;
-            document.getElementById('dev-val').innerText = val.toFixed(1);
-        }
-
-        async function safeMathRender() {
-            if (window.MathJax && MathJax.typesetPromise) {
-                document.getElementById('math-content-area').style.visibility = 'hidden';
-                document.getElementById('typing-msg').style.display = 'block';
-                await MathJax.typesetPromise();
-                document.getElementById('typing-msg').style.display = 'none';
-                document.getElementById('math-content-area').style.visibility = 'visible';
-            }
-        }
-
-        function updateCanvasTransform() { svgLayer.style.transform = `translate(${canvasState.x}px, ${canvasState.y}px) scale(${canvasState.scale})`; }
-        function resetCanvas() { canvasState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 }; updateCanvasTransform(); }
-        canvasOuter.addEventListener('wheel', (e) => { e.preventDefault(); const delta = e.deltaY > 0 ? 0.9 : 1.1; canvasState.scale = Math.min(Math.max(canvasState.scale * delta, 0.5), 5); updateCanvasTransform(); }, { passive: false });
-        canvasOuter.addEventListener('mousedown', (e) => { canvasState.isDragging = true; canvasState.startX = e.clientX - canvasState.x; canvasState.startY = e.clientY - canvasState.y; });
-        window.addEventListener('mousemove', (e) => { if (!canvasState.isDragging) return; canvasState.x = e.clientX - canvasState.startX; canvasState.y = e.clientY - canvasState.startY; updateCanvasTransform(); });
-        window.addEventListener('mouseup', () => canvasState.isDragging = false);
 
         async function executeGrading() {
-            showUI("厳密に採点・解説中...");
+            showUI("厳密に採点中...");
             const data = getCroppedData();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `厳格な数学採点官。個人名は呼ぶな。画像内の手書き筆跡がない場合は Score: 0。中学生向けに平易に正誤解説し Score: X/10 を出力。回転補正せよ。微積分禁止。問題：${appState.prob.text}` }, 
+                        { text: `厳格な数学採点官。個人名は呼ぶな。筆跡がない場合は Score: 0。
+【ルール】
+1. 中学生向けに平易に正誤解説。
+2. 専門用語や詳細な例え話が必要な場合は、[詳細解説（例え話）はこちら](https://example.com/math-helper) のようなハイパーリンク形式で誘導せよ（本体に詰め込むな）。
+3. Score: X/10 を最後に出力。回転補正・微積分禁止。` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
                 const responseData = await res.json();
                 const fb = responseData.candidates[0].content.parts[0].text;
-                document.getElementById('res-box').innerHTML = fb.trim().replace(/[+\-*\/=]\s*\$$/, " $");
-                document.getElementById('res-box').style.display = 'block';
-                document.getElementById('correct-me-btn').style.display = 'block'; // 修正ボタン表示
+                await controlledRender('res-box', 'res-typing', fb.trim());
+                document.getElementById('correct-me-btn').style.display = 'block';
                 appState.seen = true; 
-                let score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
-                appState.lastRawScore = score;
-                saveLog(score);
-                safeMathRender();
+                saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 hideUI();
             } catch(e) { alert("採点エラー"); hideUI(); }
         }
 
-        // 納得いかない場合の満点補正
-        function forcePerfectScore() {
-            if(!confirm("AIの誤採点として、この問題を『満点（10点）』に修正し偏差値を再計算しますか？")) return;
-            let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            if(h.length > 0) {
-                h[0].s = 10; // 最新の履歴を10点に上書き
-                localStorage.setItem('m_hist', JSON.stringify(h));
-                refreshStats(); // 偏差値の再計算
-                document.getElementById('res-box').innerHTML = "<b>【修正完了】</b> 満点として偏差値を更新しました。";
-                document.getElementById('correct-me-btn').style.display = 'none';
-            }
-        }
-
-        function applyProb(p, lv) {
+        async function applyProb(p, lv) {
             appState.prob = p; appState.seen = false; appState.ans = null; appState.currentLv = lv;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('prob-lv').innerText = `Lv.${lv.toFixed(1)}`;
-            document.getElementById('p-text').innerText = p.text.trim();
-            const subs = (Array.isArray(p.sub) ? p.sub : [p.sub]).filter(q => q);
-            document.getElementById('q-list').innerHTML = subs.map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
+            
+            const probHtml = `<p style="font-weight:bold;">${p.text.trim()}</p>` + 
+                             `<ul style="padding-left:20px;">${(Array.isArray(p.sub) ? p.sub : [p.sub]).map((q,i)=>`<li>(${i+1}) ${q}</li>`).join('')}</ul>`;
+            await controlledRender('math-content-area', 'prob-typing', probHtml);
+            
             document.getElementById('h-box').innerText = p.hint || "ヒントなし";
-            document.getElementById('h-box').style.display = 'none'; 
+            document.getElementById('h-box').style.display = 'none';
             document.getElementById('res-box').style.display = 'none';
             document.getElementById('correct-me-btn').style.display = 'none';
+            pboxOuter.style.display = 'none';
 
             const showDiagram = /図形|関数|立体|相似|グラフ|円|三角形|座標|辺/.test(appState.unit) || /円|三角形|座標|辺/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) startDrawing(p.text);
-            safeMathRender();
             setTimeout(prefetchAnswer, 2000);
             hideUI();
-        }
-
-        async function generateNext(isOther = false, isHardMode = false) {
-            let d = isHardMode ? 76 : parseFloat(document.getElementById('dev-slider').value);
-            if (isOther) { 
-                const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; 
-                appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random() * (units.length-1))]; 
-            }
-            showUI(`${appState.unit} 作問中...`);
-            try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試限定（微積分禁止）。単元は「${appState.unit}」。JSON形式 { "text": "日本語問題", "sub": ["小問"], "hint": "解説" }。偏差値: ${d}` }] }], generationConfig: { responseMimeType: "application/json" } })
-                });
-                const data = await res.json();
-                applyProb(JSON.parse(data.candidates[0].content.parts[0].text), d);
-            } catch (e) { alert("生成エラー"); hideUI(); }
-        }
-
-        function startDrawing(text) { 
-            const layer = document.getElementById('svg-layer');
-            let start = Date.now();
-            clearInterval(appState.svgT);
-            appState.svgT = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100);
-            resetCanvas();
-            autoDraw(text); 
-        }
-
-        async function autoDraw(t) { 
-            try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `問題文「${t}」を補足するSVGタグのみ。問題文を入れるな。点名や数値のみ。` }] }] }) 
-                }); 
-                const data = await res.json(); 
-                const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
-                clearInterval(appState.svgT);
-                if (svg) { document.getElementById('svg-layer').innerHTML = svg[0]; safeMathRender(); }
-            } catch (e) { clearInterval(appState.svgT); } 
-        }
-
-        async function prefetchAnswer() { 
-            try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。数式は$囲み。微積分禁止。問題：${appState.prob.text}` }] }] }) }); 
-                const data = await res.json();
-                appState.ans = data.candidates[0].content.parts[0].text.trim(); 
-            } catch (e) {} 
         }
 
         async function peekAnswer() {
             const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn');
             if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
-            if (!appState.seen) { 
-                if (!confirm("未採点のため偏差値加算は行われませんが、解答を表示しますか？")) return; 
-                appState.seen = true; saveLog(0); 
-            }
+            if (!appState.seen) { if (!confirm("未採点のため偏差値加算なし。解答を表示しますか？")) return; appState.seen = true; saveLog(0); }
             if (!appState.ans) { btn.innerText = "⏳ 取得中..."; await prefetchAnswer(); }
-            box.innerHTML = appState.ans || "解答取得エラー"; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
-            safeMathRender();
+            await controlledRender('res-box', 'res-typing', appState.ans || "解答取得エラー");
+            btn.innerText = "🔍 解答を閉じる";
         }
 
-        function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; safeMathRender(); }
+        /* --- ズーム・移動エンジン --- */
+        function applyTransform(container, type) { container.style.transform = `translate(${viewStates[type].x}px, ${viewStates[type].y}px) scale(${viewStates[type].scale})`; }
+        function resetViewer(type) { viewStates[type] = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 }; applyTransform(type === 'svg' ? svgLayer : imgContainer, type); }
+        function setupViewer(element, container, type) {
+            element.addEventListener('wheel', (e) => { e.preventDefault(); const delta = e.deltaY > 0 ? 0.9 : 1.1; viewStates[type].scale = Math.min(Math.max(viewStates[type].scale * delta, 0.5), 8); applyTransform(container, type); }, { passive: false });
+            element.addEventListener('mousedown', (e) => { if(e.target === ov || e.target.classList.contains('crop-handle')) return; viewStates[type].isDragging = true; viewStates[type].startX = e.clientX - viewStates[type].x; viewStates[type].startY = e.clientY - viewStates[type].y; });
+            window.addEventListener('mousemove', (e) => { if (!viewStates[type].isDragging) return; viewStates[type].x = e.clientX - viewStates[type].startX; viewStates[type].y = e.clientY - viewStates[type].startY; applyTransform(container, type); });
+            window.addEventListener('mouseup', () => viewStates[type].isDragging = false);
+            element.addEventListener('touchstart', (e) => { if(e.target === ov || e.target.classList.contains('crop-handle')) return; if (e.touches.length === 1) { viewStates[type].isDragging = true; viewStates[type].startX = e.touches[0].clientX - viewStates[type].x; viewStates[type].startY = e.touches[0].clientY - viewStates[type].y; } else if (e.touches.length === 2) { viewStates[type].lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); } }, { passive: false });
+            element.addEventListener('touchmove', (e) => { if(e.target === ov || e.target.classList.contains('crop-handle')) return; e.preventDefault(); if (e.touches.length === 1 && viewStates[type].isDragging) { viewStates[type].x = e.touches[0].clientX - viewStates[type].startX; viewStates[type].y = e.touches[0].clientY - viewStates[type].startY; } else if (e.touches.length === 2) { const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); const delta = dist / viewStates[type].lastDist; viewStates[type].scale = Math.min(Math.max(viewStates[type].scale * delta, 0.5), 8); viewStates[type].lastDist = dist; } applyTransform(container, type); }, { passive: false });
+        }
+
+        /* --- 既存ヘルパー --- */
+        function forcePerfectScore() { if(!confirm("満点に修正し偏差値を再計算しますか？")) return; let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); if(h.length > 0) { h[0].s = 10; localStorage.setItem('m_hist', JSON.stringify(h)); refreshStats(); document.getElementById('res-box').innerHTML = "<b>【修正完了】</b> 偏差値を更新しました。"; document.getElementById('correct-me-btn').style.display = 'none'; } }
+        async function generateNext(isOther = false, isHardMode = false) { let d = isHardMode ? 76 : parseFloat(document.getElementById('dev-slider').value); if (isOther) { const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random() * (units.length-1))]; } showUI(`${appState.unit} 作問中...`); try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試限定（微積分禁止）。単元「${appState.unit}」。JSON形式。偏差値: ${d}` }] }], generationConfig: { responseMimeType: "application/json" } }) }); const data = await res.json(); applyProb(JSON.parse(data.candidates[0].content.parts[0].text), d); } catch (e) { alert("生成エラー"); hideUI(); } }
+        function startDrawing(text) { const layer = document.getElementById('svg-layer'); let start = Date.now(); clearInterval(appState.svgT); appState.svgT = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100); resetViewer('svg'); autoDraw(text); }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」を補足するSVGタグのみ。点名や数値を入れ、キャンバスに収まるよう調整せよ。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
+        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。数式は$囲み。微積分禁止。問題：${appState.prob.text}` }] }] }) }); const data = await res.json(); appState.ans = data.candidates[0].content.parts[0].text.trim(); } catch (e) {} }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
-        function doSkip() { generateNext(true); }
         function resetData() { if(confirm("初期化？")) { localStorage.clear(); location.reload(); } }
-
-        function refreshStats() {
-            const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt} (Lv.${x.lv || "---"})</span><span>${x.u}</span></div><span class="score-badge">${x.s}/10</span></div>`).join('');
-            if(h.length > 0) { const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length; const d = Math.max(45, Math.min(80, 40 + (avg * 3.5))); document.getElementById('dev-slider').value = d; updateTargetLabel(d); }
-        }
-        function saveLog(s) {
-            let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            const now = new Date();
-            const dt = (now.getMonth()+1) + "/" + now.getDate() + " " + now.getHours() + ":" + String(now.getMinutes()).padStart(2,'0') + ":" + String(now.getSeconds()).padStart(2,'0');
-            h.unshift({ u: appState.unit, s: s, dt: dt, lv: appState.currentLv.toFixed(1) });
-            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats();
-        }
-
-        document.getElementById('c-input').onchange = (e) => {
-            const file = e.target.files[0]; if (!file) return;
-            img.src = URL.createObjectURL(file);
-            img.onload = () => { pbox.style.display = 'block'; document.getElementById('edit-tools').style.display = 'flex'; document.getElementById('ans-grade-btn').style.display = 'block'; resetImg(); initCrop(); };
-        };
-
+        function refreshStats() { const h = JSON.parse(localStorage.getItem('m_hist') || "[]"); document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt} (Lv.${x.lv || "---"})</span><span>${x.u}</span></div><span class="score-badge">${x.s}/10</span></div>`).join(''); if(h.length > 0) { const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length; const d = Math.max(45, Math.min(80, 40 + (avg * 3.5))); document.getElementById('dev-slider').value = d; updateTargetLabel(d); } }
+        function saveLog(s) { let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); const now = new Date(); const dt = (now.getMonth()+1) + "/" + now.getDate() + " " + now.getHours() + ":" + String(now.getMinutes()).padStart(2,'0') + ":" + String(now.getSeconds()).padStart(2,'0'); h.unshift({ u: appState.unit, s: s, dt: dt, lv: appState.currentLv.toFixed(1) }); localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats(); }
+        document.getElementById('c-input').onchange = (e) => { const file = e.target.files[0]; if (!file) return; img.src = URL.createObjectURL(file); img.onload = () => { pboxOuter.style.display = 'block'; document.getElementById('edit-tools').style.display = 'flex'; document.getElementById('ans-grade-btn').style.display = 'block'; resetViewer('ans'); initCrop(); }; };
         function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; img.style.transform = `rotate(${imgState.rot}deg)`; initCrop(); }
-        function resetImg() { imgState.rot = 0; img.style.transform = ''; initCrop(); }
-        function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = pbox.clientWidth-100; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
+        function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = 200; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
         function updateCropUI() { ov.style.left = cropState.x + 'px'; ov.style.top = cropState.y + 'px'; ov.style.width = cropState.w + 'px'; ov.style.height = cropState.h + 'px'; }
-        pbox.addEventListener('mousedown', startDrag);
-        pbox.addEventListener('touchstart', startDrag, {passive: false});
-        window.addEventListener('mousemove', drag);
-        window.addEventListener('touchmove', drag, {passive: false});
-        window.addEventListener('mouseup', () => cropState.dragging = false);
-        window.addEventListener('touchend', () => cropState.dragging = false);
-        function startDrag(e) { const pos = getPos(e); if (e.target.classList.contains('crop-handle')) { cropState.handling = e.target.dataset.handle; cropState.dragging = true; } else if (e.target === ov) { cropState.handling = 'move'; cropState.dragging = true; } else return; e.preventDefault(); cropState.sX = pos.x; cropState.sY = pos.y; }
-        function drag(e) { if (!cropState.dragging) return; e.preventDefault(); const pos = getPos(e); const dX = pos.x - cropState.sX; const dY = pos.y - cropState.sY; if (cropState.handling === 'move') { cropState.x += dX; cropState.y += dY; } else { if (cropState.handling.includes('r')) cropState.w += dX; if (cropState.handling.includes('l')) { cropState.x += dX; cropState.w -= dX; } if (cropState.handling.includes('b')) cropState.h += dY; if (cropState.handling.includes('t')) { cropState.y += dY; cropState.h -= dY; } } cropState.sX = pos.x; cropState.sY = pos.y; updateCropUI(); }
-        function getPos(e) { const rect = pbox.getBoundingClientRect(); return { x: (e.touches ? e.touches[0].clientX : e.clientX) - rect.left, y: (e.touches ? e.touches[0].clientY : e.clientY) - rect.top }; }
-        function getCroppedData() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const ratio = Math.max(img.naturalWidth / img.clientWidth, img.naturalHeight / img.clientHeight); const sw = cropState.w * ratio; const sh = cropState.h * ratio; const sx = (cropState.x - (pbox.clientWidth - img.naturalWidth / ratio) / 2) * ratio; const sy = (cropState.y - (pbox.clientHeight - img.naturalHeight / ratio) / 2) * ratio; canvas.width = sw; canvas.height = sh; ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh); return canvas.toDataURL('image/jpeg', 0.8); }
+        pboxOuter.addEventListener('mousedown', startDrag); pboxOuter.addEventListener('touchstart', startDrag, {passive: false});
+        window.addEventListener('mousemove', drag); window.addEventListener('touchmove', drag, {passive: false});
+        window.addEventListener('mouseup', () => cropState.dragging = false); window.addEventListener('touchend', () => cropState.dragging = false);
+        function startDrag(e) { const pos = getPos(e); if (e.target.classList.contains('crop-handle')) { cropState.handling = e.target.dataset.handle; cropState.dragging = true; e.stopPropagation(); } else if (e.target === ov) { cropState.handling = 'move'; cropState.dragging = true; e.stopPropagation(); } }
+        function drag(e) { if (!cropState.dragging) return; e.preventDefault(); e.stopPropagation(); const pos = getPos(e); const dX = pos.x - cropState.sX; const dY = pos.y - cropState.sY; if (cropState.handling === 'move') { cropState.x += dX; cropState.y += dY; } else { if (cropState.handling.includes('r')) cropState.w += dX; if (cropState.handling.includes('l')) { cropState.x += dX; cropState.w -= dX; } if (cropState.handling.includes('b')) cropState.h += dY; if (cropState.handling.includes('t')) { cropState.y += dY; cropState.h -= dY; } } cropState.sX = pos.x; cropState.sY = pos.y; updateCropUI(); }
+        function getPos(e) { const rect = pboxOuter.getBoundingClientRect(); return { x: (e.touches ? e.touches[0].clientX : e.clientX) - rect.left, y: (e.touches ? e.touches[0].clientY : e.clientY) - rect.top }; }
+        function getCroppedData() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const ratio = Math.max(img.naturalWidth / img.clientWidth, img.naturalHeight / img.clientHeight); const sw = cropState.w * ratio; const sh = cropState.h * ratio; const sx = (cropState.x - (pboxOuter.clientWidth - img.naturalWidth / ratio) / 2) * ratio; const sy = (cropState.y - (pboxOuter.clientHeight - img.naturalHeight / ratio) / 2) * ratio; canvas.width = sw; canvas.height = sh; ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh); return canvas.toDataURL('image/jpeg', 0.8); }
 
         document.addEventListener('DOMContentLoaded', () => {
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
+            setupViewer(document.getElementById('canvas-outer'), svgLayer, 'svg');
+            setupViewer(pboxOuter, imgContainer, 'ans');
             refreshStats();
             generateNext(false, false);
         });
