@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 5.1.0</title>
+    <title>AI数学講師 5.1.1</title>
     
     <script>
         window.MathJax = {
@@ -47,7 +47,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> RAW表示</label> ver 5.1.0
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> RAW表示</label> ver 5.1.1
         </div>
         <button onclick="document.body.classList.toggle('light-mode')" style="background:#444; color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:0.7rem; width:auto; margin:0;">🌓 モード</button>
     </div>
@@ -114,7 +114,7 @@
     </div>
 
     <div id="status-ui" class="loading-overlay">
-        <div class="drag-handle" id="drag-zone"><span>Process Trace Monitor</span><span>:::::</span></div>
+        <div class="drag-handle" id="drag-zone"><span>Process Monitor</span><span>:::::</span></div>
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:5px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.0rem; margin-bottom:5px;"></p>
         <div id="status-debug" class="debug-overlay-log"></div>
@@ -142,47 +142,46 @@
 
         function setEngine(e) { appState.engine = e; document.getElementById('btn-engine-nb').classList.toggle('active', e==='nb'); document.getElementById('btn-engine-ai').classList.toggle('active', e==='ai'); if(appState.prob.text) autoDraw(appState.prob.text); }
 
-        /* ログ機能 */
         async function traceLog(msg, isRaw=false, type="info") {
             const isRawMode = document.getElementById('debug-mode').checked; if(isRaw && !isRawMode) return;
             const logEl = document.getElementById('status-debug'), now = new Date();
             const ts = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}]`;
-            let color = "#888";
-            if(type === "error") color = "var(--error)";
-            if(type === "success") color = "var(--success)";
+            let color = "#888"; if(type === "error") color = "var(--error)"; if(type === "success") color = "var(--success)";
             logEl.innerHTML += isRaw ? `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0;">${ts} [RAW]<br>${msg}</div>` : `<span style="color:#555;">${ts}</span> <span style="color:${color};">> ${msg}</span><br>`;
             logEl.scrollTop = logEl.scrollHeight;
         }
 
-        /* 異常終了用（カウンタ停止） */
-        function abortProcess(errorMsg) {
-            clearInterval(appState.t);
-            statusMsg.innerText = errorMsg;
-            statusMsg.style.color = "var(--error)";
-            traceLog(`プロセス中断: ${errorMsg}`, false, "error");
-            document.getElementById('close-status-btn').style.display = "block";
-        }
+        function abortProcess(errorMsg) { clearInterval(appState.t); statusMsg.innerText = errorMsg; statusMsg.style.color = "var(--error)"; traceLog(errorMsg, false, "error"); }
 
         async function applyProb(p, lv, isFirstLoad=false) {
             const mathArea = document.getElementById('math-content-area'); mathArea.style.opacity = "0";
             try {
-                appState.prob = p; appState.seen = false; appState.ans = null; appState.currentLv = lv;
+                // 堅牢化：subが空の場合の補完
+                const subItems = (p.sub && p.sub.length > 0) ? p.sub : ["解を正確に導きなさい。"];
+                appState.prob = p; appState.prob.sub = subItems; appState.seen = false; appState.ans = null; appState.currentLv = lv;
+                
                 document.getElementById('u-title').innerText = appState.unit;
                 document.getElementById('prob-lv').innerText = `Lv.${lv.toFixed(1)}`;
                 document.getElementById('p-text').innerHTML = p.text;
-                document.getElementById('q-list').innerHTML = (p.sub||["値を求めよ。"]).map((q,i)=>`<li>(${i+1}) ${q}</li>`).join('');
+                document.getElementById('q-list').innerHTML = subItems.map((q,i)=>`<li>(${i+1}) ${q}</li>`).join('');
+                
                 const showDiagram = /図形|関数|相似|グラフ|座標|三角形|円|面積/.test(appState.unit) || /図形|座標|点|A\(/.test(p.text);
                 document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
                 
                 if(window.MathJax) {
                     traceLog("MathJax変換中...");
-                    MathJax.typesetPromise([mathArea]).then(() => { mathArea.style.opacity = "1"; traceLog("MathJax完了", false, "success"); });
+                    await MathJax.typesetPromise([mathArea]);
+                    mathArea.style.opacity = "1";
+                    traceLog("MathJax完了", false, "success");
                 } else { mathArea.style.opacity = "1"; }
 
-                clearInterval(appState.t); // 正常終了
+                clearInterval(appState.t);
                 if(!isFirstLoad && showDiagram) { await autoDraw(p.text); } else { forceHideUI(); }
-                setTimeout(prefetchAnswer, 1000);
-            } catch (e) { abortProcess("パース失敗"); }
+                
+                // 修正：パースが完全に終わってから解答を取得しに行く
+                setTimeout(prefetchAnswer, 500);
+
+            } catch (e) { abortProcess("内部パース失敗: " + e.message); }
         }
 
         async function generateNext(isOther = false, isHardMode = false) {
@@ -194,12 +193,14 @@
             traceLog(`${appState.unit} リクエスト(偏差値:${d})...`);
             
             try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試数学【単元：${appState.unit}】偏差値:${d}。{"text":"本文","sub":["設問"],"hint":"20-30文字"} JSON。` }] }] }) });
-                if(!res.ok) throw new Error("HTTP Error");
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, 
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `入試数学【単元：${appState.unit}】偏差値:${d}。{"text":"本文","sub":["設問"],"hint":"20-30文字"} JSON。` }] }] }) 
+                });
                 const jsonStr = await res.json();
                 const raw = jsonStr.candidates[0].content.parts[0].text;
                 traceLog(raw, true);
-                applyProb(JSON.parse(raw), d);
+                // パースして適用
+                await applyProb(JSON.parse(raw), d);
             } catch (e) { abortProcess("通信エラー"); }
         }
 
@@ -207,7 +208,7 @@
             let start = Date.now(); clearInterval(appState.svgT);
             appState.svgT = setInterval(() => { svgLayer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">描画中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100);
             try { 
-                const prompt = appState.engine === 'nb' ? `【NB2】点名・数値を反映した幾何図解。SVGのみ。: ${t}` : `数学「${t}」の幾何図解。SVGのみ。`;
+                const prompt = appState.engine === 'nb' ? `【NB2】点名・数値を反映。SVGのみ。: ${t}` : `数学「${t}」の幾何図解。SVGのみ。`;
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
                 const data = await res.json();
                 const svgMatch = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
@@ -217,12 +218,20 @@
             forceHideUI(); 
         }
 
-        async function prefetchAnswer() { traceLog("解答取得中..."); try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答。問題：${appState.prob.text}` }] }] }) }); appState.ans = (await res.json()).candidates[0].content.parts[0].text.trim(); traceLog("解答完了", false, "success"); } catch (e) {} }
+        async function prefetchAnswer() { 
+            if(!appState.prob.text) return;
+            traceLog("解答取得開始..."); 
+            try { 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。問題：${appState.prob.text}` }] }] }) }); 
+                appState.ans = (await res.json()).candidates[0].content.parts[0].text.trim(); 
+                traceLog("解答取得完了", false, "success"); 
+            } catch (e) { traceLog("解答取得失敗（後ほど手動取得します）"); } 
+        }
 
         async function peekAnswer() { 
             if(document.getElementById('res-box').style.display==='block'){ document.getElementById('res-box').style.display='none'; return; }
             if(!appState.seen){ if(!confirm("未採点のため 0点 で記録されますがよろしいですか？")) return; appState.seen = true; saveLog(0); }
-            if(!appState.ans) await prefetchAnswer();
+            if(!appState.ans) { ansBtn.innerText = "⏳ 取得中..."; await prefetchAnswer(); }
             document.getElementById('res-box').innerHTML = appState.ans; document.getElementById('res-box').style.display='block';
             if(window.MathJax) await MathJax.typesetPromise([document.getElementById('res-box')]);
             document.getElementById('res-box').scrollIntoView({behavior:'smooth'});
@@ -233,7 +242,7 @@
         function showUI(m) { ui.style.display='block'; statusMsg.innerText=m; statusMsg.style.color="#fff"; document.getElementById('status-debug').innerHTML=""; document.getElementById('timer').innerText="0.0s"; let s=Date.now(); clearInterval(appState.t); appState.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
         function updateTargetLabel(val) { let s="[標準]"; if(val>=76) s="[筑駒]"; else if(val>=72) s="[開成]"; else if(val>=70) s="[渋幕]"; else if(val>=68) s="[志木]"; else if(val>=66) s="[学院]"; else if(val>=64) s="[学芸]"; else if(val>=60) s="[日比谷]"; else if(val>=56) s="[西]"; document.getElementById('target-school').innerText=s; document.getElementById('dev-val').innerText=val.toFixed(1); }
         function saveLog(s) { let h=JSON.parse(localStorage.getItem('m_hist')||"[]"); const now=new Date(); h.unshift({u:appState.unit, s:s, dt:`${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, lv:appState.currentLv.toFixed(1)}); localStorage.setItem('m_hist', JSON.stringify(h.slice(0,20))); refreshStats(); }
-        function refreshStats() { const h=JSON.parse(localStorage.getItem('m_hist')||"[]"); document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt}</span><span class="hist-title" onclick="generateFromHist('${x.u}')">${x.u}</span></div><span class="score-badge">${x.s}/10</span></div>`).join(''); }
+        function refreshStats() { const h=JSON.parse(localStorage.getItem('m_hist')||"[]"); document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt}</span><span class="hist-title" onclick="window.generateFromHist('${x.u}')">${x.u}</span></div><span class="score-badge">${x.s}/10</span></div>`).join(''); }
         window.generateFromHist = (u) => { appState.unit = u; generateNext(false); };
         function resetCanvas() { svgLayer.style.transform = "scale(1)"; }
 
