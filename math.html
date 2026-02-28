@@ -65,7 +65,7 @@
     <div class="top-bar">
         <div class="debug-bar">
             <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-            <span class="version-tag">ver 3.5.4 Link-Repair</span>
+            <span class="version-tag">ver 3.5.5 Student-Grading</span>
         </div>
         <button class="theme-toggle" onclick="toggleTheme()">🌓 モード切替</button>
     </div>
@@ -117,6 +117,7 @@
             <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 撮影して採点</button>
             <button id="ans-toggle-btn" class="btn-answer-only" onclick="peekAnswer()" style="background:#555; color:white; flex:1;">🔍 解答を確認</button>
         </div>
+        <div class="text-dim" style="text-align:center; margin-top:-5px; margin-bottom:5px;">※採点には最大1分程かかる場合があります</div>
         <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
         <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px; font-size:0.85rem;"></div>
     </div>
@@ -129,6 +130,7 @@
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
+        <div class="text-alert" style="font-size:0.7rem; margin-top:10px;">※高品質な解析のため最大1分程かかる場合があります</div>
         <button onclick="abortGeneration()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; border:none; margin-top:15px; width:60%;">中断</button>
     </div>
 
@@ -142,7 +144,6 @@
         function startMathObserver() {
             const observer = new MutationObserver((mutations) => {
                 if (isRendering) return;
-                // MarkdownリンクをHTMLハイパーリンクに変換
                 document.querySelectorAll('#h-box, #res-box').forEach(el => {
                     if (el.innerHTML.includes('](')) {
                         el.innerHTML = el.innerHTML.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
@@ -172,12 +173,23 @@
 
         async function handleImageGrade(e) {
             if (!e.target.files[0]) return;
-            showUI("答案を分析中...");
+            showUI("答案を採点中...");
             const reader = new FileReader();
             reader.onload = async (ev) => {
                 try {
                     const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `入試採点官。Score: X/10で採点し手順を記述せよ。補足が必要なら[解説](URL)形式でリンクを張れ。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [
+                            { text: `あなたは数学の入試採点官です。
+【タスク】
+1. 提示された「問題」と、アップロードされた「答案画像」を詳細に比較してください。
+2. 答案画像の計算プロセス、論理、最終的な解を評価してください。模範解答をそのまま出力するのではなく、画像内の書き込みに基づいて「どこが合っていて、どこで間違えたか」を具体的に指摘してください。
+3. 最後に Score: X/10 形式で点数を出してください。
+4. 補足が必要なら[解説](URL)形式でリンクを張ってください。
+
+【問題】
+${state.prob.text}` }, 
+                            { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }
+                        ] }] })
                     });
                     const fb = (await res.json()).candidates[0].content.parts[0].text;
                     document.getElementById('res-box').innerHTML = fb; 
