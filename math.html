@@ -44,8 +44,6 @@
         .draw-timer-text { font-family: monospace; font-size: 1.2rem; color: var(--ai); margin-top: 5px; }
         .btn-redraw { position: absolute; right: 10px; top: 50px; background: #444; color: #fff; border: 1px solid #666; padding: 3px 10px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; z-index: 10; font-weight: bold; }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
-        
-        /* 外部リンクスタイル */
         a { color: var(--primary); text-decoration: underline; }
 
         .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.98); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 15%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
@@ -64,7 +62,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.4.7 Toggle-Answer</span>
+        <span class="version-tag">ver 3.4.8 Bug-Fix</span>
     </div>
 
     <div class="card">
@@ -158,7 +156,13 @@
                 document.getElementById('dev-val').innerText = val.toFixed(1);
                 updateTargetSchool(val);
             });
-            applyProb({ unit: "数と式", text: "次の等式において、$x$ の値を求めよ。", sub: ["$2(x-3) = \\frac{x}{2} + 1$"], hint: "分母を払うために、両辺を2倍せよ。" });
+            // 初期問題を完全な文章形式へ修正
+            applyProb({ 
+                unit: "数と式", 
+                text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", 
+                sub: ["$2(x-3) = \\frac{x}{2} + 1$ を満たす$x$を求めよ。"], 
+                hint: "分母の2を払うために、両辺に2を掛けて整数の方程式に直せ。" 
+            });
         };
 
         function updateTargetSchool(dev) {
@@ -177,7 +181,6 @@
             s = s.replace(/riangle/g, "\\triangle ");
             if (!s.includes('$')) s = s.replace(/([a-z]\s*[=<>]\s*[^ 　\n。]+|[a-z]\^\d+|[A-Z]\([^\)]+\)|\\frac\{[^\}]+\}\{[^\}]+\})/gi, '$$$1$$');
             if (index !== null) s = `(${index}) ` + s.trim();
-            // Markdownリンクの有効化 (aタグへの変換はMathJaxとMutationObserverが処理)
             return s.trim();
         }
 
@@ -231,7 +234,6 @@
             if (retryCount === 0) { if (drawingAbortController) drawingAbortController.abort(); drawingLock = false; }
             let currentDev = parseFloat(document.getElementById('dev-val').innerText);
             let devValue = isHardMode ? 76 : currentDev;
-            
             let target = state.current_target_unit;
             if (isOther) {
                 const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率", "データの活用"];
@@ -239,13 +241,10 @@
                 target = pool[Math.floor(Math.random() * pool.length)];
             }
             state.current_target_unit = target;
-
             showUI(`${target} (Lv.${devValue.toFixed(1)}) を構成中...`);
             currentAbortController = new AbortController();
-            const prompt = `あなたは最難関入試の「数学作問委員」です。
-【使命】受験生の思考力を試す厳格な問題を構成せよ。
-【重要】hint/解答には、公式や背景知識の補足が必要な場合、必ず[詳しい説明](URL)形式で外部リンクを張れ。
-【形式】単元「${target}」、SAPIX偏差値${devValue}相当。JSON(text, sub:[], hint)形式。`;
+            const prompt = `あなたは最難関入試の数学作問委員。受験生の思考力を試す厳格な問題を構成せよ。口調は「～を求めよ」。
+公式補足が必要なら[詳しい説明](URL)を張れ。単元「${target}」、SAPIX偏差値${devValue}相当。JSON(text, sub:[], hint)形式。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
@@ -253,7 +252,7 @@
                 });
                 const parsed = JSON.parse((await res.json()).candidates[0].content.parts[0].text);
                 if (applyProb(parsed)) hideUI();
-                else throw new Error("Invalid Data");
+                else throw new Error("Invalid");
             } catch (e) {
                 if (retryCount < 3 && e.name !== 'AbortError') generateNext(isOther, isHardMode, retryCount + 1);
                 else hideUI();
@@ -284,7 +283,7 @@
             try { 
                 const res = await fetch(`/api/chat`, { 
                     method: "POST", headers: {"Content-Type": "application/json"}, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `入試解答。公式等の補足が必要なら[解説ページ](URL)を張れ。問題：${state.prob.text||state.prob.problem}` }] }] }) 
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `入試解答作成委員。問題の解を導出せよ。補足が必要なら[解説](URL)を張れ。問題：${state.prob.text}` }] }] }) 
                 }); 
                 state.prefetched_answer = (await res.json()).candidates[0].content.parts[0].text; 
             } catch (e) {} 
@@ -293,25 +292,13 @@
         function peekAnswer() { 
             const box = document.getElementById('res-box');
             const btn = document.getElementById('ans-toggle-btn');
-            
-            // トグル動作：開いているなら閉じる
-            if (box.style.display === 'block') {
-                box.style.display = 'none';
-                btn.innerText = "🔍 解答を表示";
-                return;
-            }
-
-            // 未読時の警告処理
+            if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
             if (!state.seen_answer) {
                 if (!confirm("解答を確認すると本問の偏差値加算は行われません。よろしいですか？")) return; 
-                state.seen_answer = true; 
-                saveLog("×", 0); // 0点として記録
+                state.seen_answer = true; saveLog("×", 0); 
             }
-
-            // 解答を表示
-            box.innerHTML = state.prefetched_answer || "解答を取得中、再度お試しください。"; 
-            box.style.display = 'block'; 
-            btn.innerText = "🔍 解答を閉じる";
+            box.innerHTML = state.prefetched_answer || "解答を取得できませんでした。再度生成をお試しください。"; 
+            box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
             safeRender();
         }
         
@@ -333,8 +320,7 @@
         }
         function saveLog(mark, score) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            const probToSave = JSON.parse(JSON.stringify(state.prob));
-            h.unshift({ u: state.current_target_unit, s: score, p: probToSave });
+            h.unshift({ u: state.current_target_unit, s: score, p: state.prob });
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats();
         }
 
