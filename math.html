@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.7.0</title>
+    <title>AI数学講師 4.7.1</title>
     
     <script>
         window.MathJax = {
@@ -22,75 +22,60 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .theme-toggle { background: #444; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.7rem; cursor: pointer; }
+        
+        /* スライダーと学校名ラベル */
         #dev-slider { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 25px 0 10px 0; }
         #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid #fff; }
         .scale-labels { display: flex; justify-content: space-between; padding: 0; position: relative; width: 100%; height: 50px; }
         .scale-labels span { font-size: 0.5rem; color: #888; text-align: center; position: absolute; transform: translateX(-50%); white-space: nowrap; line-height: 1.1; }
-        .viewer-box { position: relative; background: #ffffff; border-radius: 6px; height: 260px; border: 2px solid #333; overflow: hidden; touch-action: none; cursor: grab; }
+
+        .viewer-box { position: relative; background: #ffffff; border-radius: 6px; height: 260px; border: 2px solid #333; overflow: hidden; touch-action: none; }
         #svg-layer, #ans-preview-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: center; transition: transform 0.1s ease-out; }
         #ans-preview { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
-        .preview-box-outer { position: relative; width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary); display: none; touch-action: none; }
-        .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); box-sizing: border-box; cursor: move; z-index: 20; }
+        
+        .preview-box-outer { position: relative; width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary); display: none; }
+        .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); pointer-events: auto; }
         .crop-handle { position: absolute; width: 22px; height: 22px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; z-index: 30; }
         .disclaimer-text { font-size: 0.65rem; color: #888; text-align: center; margin-top: 6px; line-height: 1.2; display: block; }
-        
-        /* フローティング・デバッグウィンドウ（ver 4.7.0） */
-        .loading-overlay { 
-            display: none; 
-            text-align: center; 
-            padding: 15px; 
-            background: rgba(0, 0, 0, 0.9); 
-            border-radius: 12px; 
-            border: 2px solid var(--ai); 
-            position: fixed; 
-            top: 10%; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            z-index: 10000; 
-            width: 90%; 
-            max-width: 450px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            cursor: default;
-        }
-        .drag-handle { 
-            background: #333; 
-            margin: -15px -15px 10px -15px; 
-            padding: 8px; 
-            border-radius: 10px 10px 0 0; 
-            cursor: move; 
-            color: #888; 
-            font-size: 0.6rem;
-            display: flex;
-            justify-content: space-between;
-        }
-        .debug-overlay-log { font-family: monospace; font-size: 0.7rem; color: #10ac84; text-align: left; padding: 10px; background: #000; border: 1px solid #333; height: 180px; overflow-y: scroll; margin: 10px 0; line-height: 1.4; border-left: 3px solid var(--primary); }
-        
+
+        /* フローティング・ウィンドウ */
+        .loading-overlay { display: none; text-align: center; padding: 15px; background: rgba(0, 0, 0, 0.95); border-radius: 12px; border: 2px solid var(--ai); position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 10000; width: 92%; max-width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .drag-handle { background: #333; margin: -15px -15px 10px -15px; padding: 10px; border-radius: 10px 10px 0 0; cursor: move; color: #aaa; font-size: 0.7rem; font-weight: bold; display: flex; justify-content: space-between; }
+        .debug-overlay-log { font-family: monospace; font-size: 0.7rem; color: #10ac84; text-align: left; padding: 10px; background: #000; border: 1px solid #333; height: 180px; overflow-y: scroll; margin: 10px 0; line-height: 1.5; border-left: 3px solid var(--primary); }
+
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; overflow: hidden; }
-        .hist-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-        .hist-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--primary); text-decoration: underline; cursor: pointer; }
-        .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; margin-left: 10px; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; }
+        .hist-title { color: var(--primary); text-decoration: underline; cursor: pointer; font-weight: bold; }
+        .score-badge { background: #444; padding: 2px 10px; border-radius: 4px; font-weight: bold; min-width: 40px; text-align: center; }
     </style>
 </head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.7.0
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.7.1
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>推定レベル設定</h1></div>
+        <div class="header-flex"><h1>レベル設定</h1></div>
         <div style="text-align:center;">
             <span id="dev-val" style="font-size:1.8rem; font-weight:bold; color:var(--primary); font-family:monospace;">60.0</span>
             <span id="target-school" style="color:var(--hint); font-weight:bold; margin-left:10px;">[日比谷]</span>
         </div>
         <input type="range" id="dev-slider" min="45" max="80" step="0.5" value="60">
         <div class="scale-labels">
-            <span style="left:0%;">45</span><span style="left:31.4%;">56</span><span style="left:42.8%;">60</span><span style="left:54.2%;">64</span><span style="left:65.7%;">68</span><span style="left:71.4%;">70</span><span style="left:77.1%;">72</span><span style="left:88.5%;">76</span>
+            <span style="left:0%;">45</span>
+            <span style="left:31.4%;">56<br>西</span>
+            <span style="left:42.8%;">60<br>日比谷</span>
+            <span style="left:54.2%;">64<br>学芸<br>早実<br>本庄</span>
+            <span style="left:60%;">66<br>学院<br>義塾</span>
+            <span style="left:65.7%;">68<br>志木<br>筑付</span>
+            <span style="left:71.4%;">70<br>渋幕</span>
+            <span style="left:77.1%;">72<br>開成</span>
+            <span style="left:88.5%;">76<br>筑駒</span>
         </div>
     </div>
 
@@ -104,12 +89,12 @@
                 <div style="position:absolute; top:5px; right:5px; z-index:10;"><button onclick="resetViewer('svg')" style="background:rgba(0,0,0,0.6); color:white; border:none; width:28px; height:28px; border-radius:4px;">🏠</button></div>
                 <div id="svg-layer"></div>
             </div>
-            <span class="disclaimer-text">※図は問題文の補足イメージです。</span>
+            <span class="disclaimer-text">※図は問題文の補足イメージであり、数学的に正確でない場合があります。</span>
         </div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; color:#ccc; border-bottom:1px dashed #444; padding-bottom:8px;"></p>
             <ul id="q-list" style="padding-left:20px; list-style:none;"></ul>
-            <div id="h-box" style="display:none; color:var(--hint); font-size:0.85rem; padding:10px; background:#332b1e; border-radius:5px; border-left:4px solid var(--hint); margin-top:10px;"></div>
+            <div id="h-box" style="display:none; color:var(--hint); font-size:0.85rem; padding:12px; background:#332b1e; border-radius:5px; border-left:4px solid var(--hint); margin-top:10px;"></div>
         </div>
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); flex:1;">💡 ヒント</button>
@@ -119,7 +104,7 @@
     </div>
 
     <div class="card">
-        <button onclick="startImageSelection()" style="background:var(--success); color:white;">📸 答案を撮影・選択</button>
+        <button onclick="startImageSelection()" style="background:var(--success); color:white;">📸 答案を撮影（1枚に集約）</button>
         <div id="preview-area-outer" class="preview-box-outer">
             <div style="position:absolute; top:5px; right:5px; z-index:40;"><button onclick="resetViewer('ans')" style="background:rgba(0,0,0,0.6); color:white; border:none; width:28px; height:28px; border-radius:4px;">🏠</button></div>
             <div id="ans-preview-container"><img id="ans-preview" src=""></div>
@@ -131,29 +116,29 @@
             </div>
         </div>
         <div id="edit-tools" style="display:none; justify-content:center; gap:10px; margin:10px 0;"><button onclick="rotateImg()" style="background:#444; color:#fff; padding:5px 12px; border-radius:4px;">↻ 回転</button></div>
-        <button id="ans-grade-btn" style="background:#f39c12; color:white; display:none;" onclick="executeGrading()">✅ 採点開始</button>
+        <button id="ans-grade-btn" style="background:#f39c12; color:white; display:none;" onclick="executeGrading()">✅ 枠内を採点開始</button>
         <button id="ans-toggle-btn" style="background:#555; color:white;" onclick="peekAnswer()">🔍 解答を確認</button>
         <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px;"></div>
-        <button id="correct-me-btn" style="background:var(--success); color:white; display:none; margin-top:8px;" onclick="forcePerfectScore()">✨ ここはあってる（満点に修正）</button>
+        <button id="correct-me-btn" style="background:var(--success); color:white; display:none; margin-top:8px;" onclick="forcePerfectScore()">✨ ここはあってる（満点修正）</button>
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>演習履歴</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">リセット</button></div>
+        <div class="header-flex"><h1>演習履歴</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">全リセット</button></div>
         <div id="hist-list"></div>
     </div>
 
     <div id="status-ui" class="loading-overlay">
         <div class="drag-handle" id="drag-zone">
-            <span>Floating Debug Info</span>
+            <span>Floating Debug Window</span>
             <span>:::::</span>
         </div>
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:5px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.0rem; margin-bottom:5px;"></p>
         <div id="status-debug" class="debug-overlay-log"></div>
-        <div style="font-size:0.6rem; color:#888; margin-top:5px;">※高品質な解析のため最大1分程かかる場合があります</div>
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button id="retry-btn" style="background:var(--success); color:white; display:none; flex:1; padding:8px;">再試行する</button>
-            <button id="abort-btn" onclick="forceHideUI(true)" style="background:#444; color:#ccc; flex:1; padding:8px;">閉じる</button>
+        <div style="font-size:0.6rem; color:#888;">※高品質な解析のため最大1分程かかる場合があります</div>
+        <div style="display:flex; gap:10px; margin-top:12px;">
+            <button id="retry-btn" style="background:var(--success); color:white; display:none; flex:1; padding:10px;">再試行する</button>
+            <button id="abort-btn" onclick="forceHideUI(true)" style="background:#444; color:#ccc; flex:1; padding:10px;">閉じる</button>
         </div>
     </div>
 
@@ -161,32 +146,34 @@
 
     <script>
         let appState = { prob: {}, seen: false, ans: null, unit: "数と式", currentLv: 60.0, t: null, controller: null };
-        let viewStates = { svg: { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 }, ans: { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 } };
+        let viewStates = { svg: { scale: 1, x: 0, y: 0, isDragging: false }, ans: { scale: 1, x: 0, y: 0, isDragging: false } };
         let cropState = { x: 50, y: 50, w: 200, h: 150, dragging: false, handling: null, sX: 0, sY: 0 };
         let imgState = { rot: 0 };
 
         const ui = document.getElementById('status-ui');
         const dragZone = document.getElementById('drag-zone');
+        const pboxOuter = document.getElementById('preview-area-outer');
+        const img = document.getElementById('ans-preview');
+        const svgLayer = document.getElementById('svg-layer');
 
-        /* ドラッグロジック（ver 4.7.0） */
+        /* ドラッグロジック */
         let active = false; let currentX; let currentY; let initialX; let initialY; let xOffset = 0; let yOffset = 0;
-        dragZone.addEventListener("mousedown", dragStart); window.addEventListener("mouseup", dragEnd); window.addEventListener("mousemove", drag);
-        dragZone.addEventListener("touchstart", dragStart, {passive: false}); window.addEventListener("touchend", dragEnd); window.addEventListener("touchmove", drag, {passive: false});
+        dragZone.addEventListener("mousedown", dStart); window.addEventListener("mouseup", dEnd); window.addEventListener("mousemove", dMove);
+        dragZone.addEventListener("touchstart", dStart, {passive: false}); window.addEventListener("touchend", dEnd); window.addEventListener("touchmove", dMove, {passive: false});
+        function dStart(e) { initialX = (e.type === "touchstart" ? e.touches[0].clientX : e.clientX) - xOffset; initialY = (e.type === "touchstart" ? e.touches[0].clientY : e.clientY) - yOffset; if (e.target === dragZone || dragZone.contains(e.target)) active = true; }
+        function dEnd() { initialX = currentX; initialY = currentY; active = false; }
+        function dMove(e) { if (active) { e.preventDefault(); currentX = (e.type === "touchmove" ? e.touches[0].clientX : e.clientX) - initialX; currentY = (e.type === "touchmove" ? e.touches[0].clientY : e.clientY) - initialY; xOffset = currentX; yOffset = currentY; ui.style.transform = `translate(calc(-50% + ${currentX}px), ${currentY}px)`; } }
 
-        function dragStart(e) {
-            initialX = (e.type === "touchstart" ? e.touches[0].clientX : e.clientX) - xOffset;
-            initialY = (e.type === "touchstart" ? e.touches[0].clientY : e.clientY) - yOffset;
-            if (e.target === dragZone || dragZone.contains(e.target)) active = true;
-        }
-        function dragEnd() { initialX = currentX; initialY = currentY; active = false; }
-        function drag(e) {
-            if (active) {
-                e.preventDefault();
-                currentX = (e.type === "touchmove" ? e.touches[0].clientX : e.clientX) - initialX;
-                currentY = (e.type === "touchmove" ? e.touches[0].clientY : e.clientY) - initialY;
-                xOffset = currentX; yOffset = currentY;
-                ui.style.transform = `translate(calc(-50% + ${currentX}px), ${currentY}px)`;
-            }
+        /* DEBUGログ（タイムスタンプ付） */
+        async function debugLog(msg, isRaw = false) {
+            if (!document.getElementById('debug-mode').checked) return;
+            const logEl = document.getElementById('status-debug');
+            const now = new Date();
+            const ts = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}]`;
+            logEl.style.display = 'block';
+            logEl.innerHTML += isRaw ? `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0;">${ts} [RAW DATA]<br>${msg}</div>` : `<span style="color:#555;">${ts}</span> <span style="color:var(--primary);">></span> ${msg}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+            await new Promise(r => setTimeout(r, 1000));
         }
 
         function forceHideUI(manual = false) {
@@ -195,19 +182,7 @@
             if (appState.controller) appState.controller.abort();
             ui.style.display = 'none';
             clearInterval(appState.t);
-            // 位置リセット
             xOffset = 0; yOffset = 0; ui.style.transform = `translateX(-50%)`;
-        }
-
-        async function debugLog(msg, isRaw = false) {
-            if (!document.getElementById('debug-mode').checked) return;
-            const logEl = document.getElementById('status-debug');
-            const now = new Date();
-            const ts = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}]`;
-            logEl.style.display = 'block';
-            logEl.innerHTML += isRaw ? `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0;">${ts} [RAW]<br>${msg}</div>` : `<span style="color:#555;">${ts}</span> <span style="color:var(--primary);">></span> ${msg}<br>`;
-            logEl.scrollTop = logEl.scrollHeight;
-            await new Promise(r => setTimeout(r, 1000));
         }
 
         function finalizeDisplay(isError = false, errorMsg = "") {
@@ -222,18 +197,15 @@
                 retryBtn.onclick = () => { retryBtn.style.display = "none"; generateNext(false); };
                 return;
             }
-            if (isDebug) {
-                abortBtn.innerText = "閉じる（確定）"; abortBtn.style.background = "var(--success)";
-                abortBtn.onclick = () => forceHideUI(true);
-            } else { forceHideUI(); }
+            if (isDebug) { abortBtn.innerText = "閉じる（確定）"; abortBtn.style.background = "var(--success)"; abortBtn.onclick = () => forceHideUI(true); } else { forceHideUI(); }
         }
 
         async function controlledRender(contentId, contentHtml) {
             const content = document.getElementById(contentId);
             content.style.visibility = 'hidden';
             content.innerHTML = contentHtml;
-            if(contentId === 'res-box') { content.style.display = 'block'; }
-            await debugLog("MathJax 適用...");
+            if(contentId === 'res-box') content.style.display = 'block';
+            await debugLog("MathJax 再描画中...");
             try { await MathJax.typesetPromise([content]); } catch(e) {}
             content.style.visibility = 'visible';
             finalizeDisplay();
@@ -246,19 +218,19 @@
                 sub: ['sub', 'questions', 'items', 'question', 'sub_problems'],
                 hint: ['hint', 'solution', 'explanation', 'solution_steps', 'answer', 'ans']
             };
-            await debugLog("深層キー解析中...");
+            await debugLog("深層サーチ・キー翻訳中...");
             function search(current) {
                 if (!current || typeof current !== 'object') return;
-                for (let k in synonyms) {
-                    for (let w of synonyms[k]) { if (w in current && !found[k]) found[k] = current[w]; }
-                }
+                for (let k in synonyms) { for (let w of synonyms[k]) { if (w in current && !found[k]) found[k] = current[w]; } }
                 for (let key in current) search(current[key]);
             }
             search(obj);
-            if (found.text) await debugLog("問題構成を把握。");
+            if (found.text) await debugLog("問題文救出成功。");
             if (found.sub && !Array.isArray(found.sub)) found.sub = [found.sub];
+            
+            // 救済：重複チェックとキーワード推測
             if (found.text && (!found.sub || found.sub.length === 0 || found.text.trim() === (found.sub[0]||'').trim())) {
-                await debugLog("設問を補完中...");
+                await debugLog("設問救済ロジック起動...");
                 if (found.text.includes("面積")) found.sub = ["面積を求めなさい。"];
                 else if (found.text.includes("座標")) found.sub = ["座標を求めなさい。"];
                 else found.sub = ["値を求めなさい。"];
@@ -269,40 +241,50 @@
 
         async function executeGrading() {
             showUI("詳細解析・採点中...");
-            await debugLog("AIへ送信...");
-            const prompt = `数学採点官。筆跡なし=0点。中学生向け日常語解説。必ず例え話を1つ入れる。要点は最大3つ。Score: X/10出力。問題：${appState.prob.text}`;
+            await debugLog("AI採点官へ送信...");
+            const data = getCroppedData();
+            const prompt = `数学採点。筆跡なし=0点。中学生向け日常語解説。必ず1つ例え話を入れよ。要点は最大3つ。Score: X/10出力。問題：${appState.prob.text}`;
             appState.controller = new AbortController();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, signal: appState.controller.signal,
-                    body: JSON.stringify({ contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: "image/jpeg", data: getCroppedData().split(',')[1] } } ] }] })
+                    body: JSON.stringify({ contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } } ] }] })
                 });
                 const rData = await res.json();
                 const fb = rData.candidates[0].content.parts[0].text;
                 await debugLog(fb, true);
                 await controlledRender('res-box', fb.trim());
                 appState.seen = true; saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
-            } catch(e) { if(e.name !== 'AbortError') finalizeDisplay(true, "採点失敗"); }
+            } catch(e) { if(e.name !== 'AbortError') finalizeDisplay(true, "採点エラー。"); }
         }
 
         async function applyProb(p, lv, isFirstLoad = false) {
-            if (!p) { await debugLog("ERR: 解析不能。再作問を待機..."); finalizeDisplay(true, "データ不完全のため再作問します"); return; }
+            if (!p) { await debugLog("ERR: 解析失敗。"); finalizeDisplay(true, "データ不完全のため再作問します"); return; }
             appState.prob = p; appState.seen = false; appState.ans = null; appState.currentLv = lv;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('prob-lv').innerText = `Lv.${lv.toFixed(1)}`;
             const html = `<p style="font-weight:bold;">${p.text}</p><ul style="padding-left:20px;">${p.sub.map((q,i)=>`<li>(${i+1}) ${q}</li>`).join('')}</ul>`;
+            
+            // 仕様：新しい問題でプレビューを消去
             pboxOuter.style.display = 'none';
-            const keywordsDiagram = /図形|関数|立体|相似|グラフ|座標|三角形|円|面積/;
+            document.getElementById('edit-tools').style.display = 'none';
+            document.getElementById('ans-grade-btn').style.display = 'none';
+            document.getElementById('correct-me-btn').style.display = 'none';
+
+            const keywordsDiag = /図形|関数|立体|相似|グラフ|座標|三角形|円|面積/;
             const keywordsCalc = /方程式|計算|解け|展開|因数分解/;
-            const showDiagram = keywordsDiagram.test(appState.unit) || (keywordsDiagram.test(p.text) && !keywordsCalc.test(appState.unit));
+            const showDiagram = keywordsDiag.test(appState.unit) || (keywordsDiag.test(p.text) && !keywordsCalc.test(appState.unit));
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
+
             if (isFirstLoad) {
                 const content = document.getElementById('math-content-area');
                 content.innerHTML = html; if(window.MathJax) MathJax.typesetPromise([content]);
+                document.getElementById('h-box').innerText = p.hint || "ヒントなし";
                 forceHideUI(true);
             } else {
-                await debugLog(`図解判定: ${showDiagram ? 'あり' : 'なし'}`);
+                await debugLog(`キャンバス判定: ${showDiagram ? 'あり' : 'なし'}`);
                 await controlledRender('math-content-area', html);
-                if (showDiagram) { await debugLog("図解AIへのリクエスト..."); startDrawing(p.text); }
+                document.getElementById('h-box').innerText = p.hint || "ヒントなし";
+                if (showDiagram) { await debugLog("図解AIへ発注..."); startDrawing(p.text); }
             }
             setTimeout(prefetchAnswer, 2000);
         }
@@ -312,8 +294,8 @@
             if (unitStr) appState.unit = unitStr;
             else if (isOther) { const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random() * 5)]; }
             showUI(`${appState.unit} 作問中...`);
-            const prompt = `高校数学入試問題作成。単元:「${appState.unit}」、偏差値:${d}。必ず厳格な入試口調。{"text": "問題文", "sub": ["設問"], "hint": "解説"} のJSON。`;
-            await debugLog(`偏差値 ${d} 作問開始...`);
+            const prompt = `入試問題作成。単元:「${appState.unit}」、偏差値:${d}。必ず厳格な入試口調を守れ。{"text": "問題文", "sub": ["具体的な設問"], "hint": "解説"} のJSON。`;
+            await debugLog(`偏差値 ${d} 指定でAIへ送信...`);
             appState.controller = new AbortController();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, signal: appState.controller.signal,
@@ -323,15 +305,15 @@
                 const raw = data.candidates[0].content.parts[0].text;
                 await debugLog(raw, true);
                 const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
-                if (start === -1) { finalizeDisplay(true, "JSON不検出"); return; }
+                if (start === -1) { finalizeDisplay(true, "解析不能"); return; }
                 const parsed = await robustTranslation(JSON.parse(raw.substring(start, end + 1)));
                 await applyProb(parsed, d);
-            } catch (e) { if(e.name !== 'AbortError') finalizeDisplay(true, "通信エラー"); }
+            } catch (e) { if(e.name !== 'AbortError') finalizeDisplay(true, "通信失敗"); }
         }
 
         function updateTargetLabel(val) {
             let s = "[標準]";
-            if (val >= 76) s = "[筑駒]"; else if (val >= 72) s = "[開成]"; else if (val >= 70) s = "[渋幕]"; else if (val >= 68) s = "[慶応志木・筑付]"; else if (val >= 64) s = "[学芸・早実]"; else if (val >= 60) s = "[日比谷]"; else if (val >= 56) s = "[西]";
+            if (val >= 76) s = "[筑駒]"; else if (val >= 72) s = "[開成]"; else if (val >= 70) s = "[渋幕]"; else if (val >= 68) s = "[志木・筑付]"; else if (val >= 66) s = "[学院・義塾]"; else if (val >= 64) s = "[学芸・早実]"; else if (val >= 60) s = "[日比谷]"; else if (val >= 56) s = "[西]";
             document.getElementById('target-school').innerText = s;
             document.getElementById('dev-val').innerText = val.toFixed(1);
             document.getElementById('dev-slider').value = val;
@@ -343,66 +325,42 @@
             if(h.length > 0) { const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length; updateTargetLabel(Math.max(45, Math.min(80, 40 + (avg * 3.5)))); }
         }
 
-        function applyTransform(container, type) { container.style.transform = `translate(${viewStates[type].x}px, ${viewStates[type].y}px) scale(${viewStates[type].scale})`; }
-        function resetViewer(type) { viewStates[type] = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 }; applyTransform(type === 'svg' ? svgLayer : imgContainer, type); }
-        function setupViewer(element, container, type) {
-            element.addEventListener('wheel', (e) => { e.preventDefault(); const delta = e.deltaY > 0 ? 0.9 : 1.1; viewStates[type].scale = Math.min(Math.max(viewStates[type].scale * delta, 0.5), 8); applyTransform(container, type); }, { passive: false });
-            element.addEventListener('mousedown', (e) => { if(e.target.classList.contains('crop-handle')) return; viewStates[type].isDragging = true; viewStates[type].startX = e.clientX - viewStates[type].x; viewStates[type].startY = e.clientY - viewStates[type].y; });
-            window.addEventListener('mousemove', (e) => { if (!viewStates[type].isDragging) return; viewStates[type].x = e.clientX - viewStates[type].startX; viewStates[type].y = e.clientY - viewStates[type].startY; applyTransform(container, type); });
-            window.addEventListener('mouseup', () => viewStates[type].isDragging = false);
-        }
-        function startDrawing(text) { const layer = document.getElementById('svg-layer'); let start = Date.now(); clearInterval(appState.svgT); appState.svgT = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100); resetViewer('svg'); autoDraw(text); }
+        function resetViewer(type) { viewStates[type] = { scale: 1, x: 0, y: 0 }; applyTransform(type === 'svg' ? svgLayer : document.getElementById('ans-preview-container'), type); }
+        function applyTransform(c, t) { c.style.transform = `translate(${viewStates[t].x}px, ${viewStates[t].y}px) scale(${viewStates[t].scale})`; }
+        function startDrawing(text) { const layer = document.getElementById('svg-layer'); let start = Date.now(); clearInterval(appState.svgT); appState.svgT = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100); autoDraw(text); }
         async function autoDraw(t) { 
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学問題「${t}」のSVGを作成せよ。推測禁止。数値整合性重視。ラベルA,B,C配置。SVGタグのみ。` }] }] }) }); 
-                const data = await res.json(); 
-                const rawSvg = data.candidates[0].content.parts[0].text;
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学問題「${t}」のSVG。推測禁止。数値整合性。ラベル。SVGのみ。` }] }] }) }); 
+                const data = await res.json(); const rawSvg = data.candidates[0].content.parts[0].text;
                 await debugLog(rawSvg, true); 
                 const svg = rawSvg.match(/<svg[\s\S]*?<\/svg>/i); 
-                clearInterval(appState.svgT); 
-                if (svg) { svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } 
+                clearInterval(appState.svgT); if (svg) { svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } 
             } catch (e) { clearInterval(appState.svgT); } 
         }
         async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。問題：${appState.prob.text}` }] }] }) }); const data = await res.json(); appState.ans = data.candidates[0].content.parts[0].text.trim(); } catch (e) {} }
         async function peekAnswer() { 
             const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn'); 
             if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; } 
-            if (!appState.seen) { if (!confirm("未採点。解答を表示しますか？")) return; appState.seen = true; saveLog(0); } 
+            if (!appState.seen) { if (!confirm("未採点のため偏差値加算なし。解答を表示しますか？")) return; appState.seen = true; saveLog(0); } 
             if (!appState.ans) { btn.innerText = "⏳ 取得中..."; await prefetchAnswer(); } 
             await controlledRender('res-box', appState.ans); btn.innerText = "🔍 解答を閉じる"; 
         }
         function doSkip() { generateNext(true); }
-        function toggleHint() { 
-            const b = document.getElementById('h-box'); 
-            if(b.style.display==='block') { b.style.display='none'; } else { b.style.display='block'; if(window.MathJax) MathJax.typesetPromise([b]); }
-        }
-        function startImageSelection() { if(confirm("画像は1枚にまとめてください。")) document.getElementById('c-input').click(); }
-        function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; img.style.transform = `rotate(${imgState.rot}deg)`; initCrop(); }
-        function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = 200; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
-        function updateCropUI() { ov.style.left = cropState.x + 'px'; ov.style.top = cropState.y + 'px'; ov.style.width = cropState.w + 'px'; ov.style.height = cropState.h + 'px'; }
-        pboxOuter.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', dragCrop); window.addEventListener('mouseup', () => cropState.dragging = false);
-        function startDrag(e) { if (e.target.classList.contains('crop-handle')) { cropState.handling = e.target.dataset.handle; cropState.dragging = true; } else if (e.target === ov) { cropState.handling = 'move'; cropState.dragging = true; } }
-        function dragCrop(e) { if (!cropState.dragging) return; const rect = pboxOuter.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top; updateCropUI(); }
+        function toggleHint() { const b = document.getElementById('h-box'); if(b.style.display==='block') b.style.display='none'; else { b.style.display='block'; if(window.MathJax) MathJax.typesetPromise([b]); } }
+        function startImageSelection() { if(confirm("画像は1枚にまとめてください。撮影を開始しますか？")) document.getElementById('c-input').click(); }
+        function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; img.style.transform = `rotate(${imgState.rot}deg)`; }
+        function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = 200; cropState.h = 150; document.getElementById('crop-overlay').style.display = 'block'; updateCropUI(); }
+        function updateCropUI() { const ov = document.getElementById('crop-overlay'); ov.style.left = cropState.x + 'px'; ov.style.top = cropState.y + 'px'; ov.style.width = cropState.w + 'px'; ov.style.height = cropState.h + 'px'; }
         function getCroppedData() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const ratio = (img.naturalWidth / img.clientWidth); canvas.width = cropState.w * ratio; canvas.height = cropState.h * ratio; ctx.drawImage(img, cropState.x * ratio, cropState.y * ratio, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height); return canvas.toDataURL('image/jpeg', 0.8); }
-        function resetData() { if(confirm("初期化？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("全消去？")) { localStorage.clear(); location.reload(); } }
         function saveLog(s) { let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); const now = new Date(); const dt = (now.getMonth()+1) + "/" + now.getDate() + " " + now.getHours() + ":" + String(now.getMinutes()).padStart(2,'0'); h.unshift({ u: appState.unit, s: s, dt: dt, lv: appState.currentLv.toFixed(1) }); localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats(); }
-        function forcePerfectScore() { if(!confirm("修正？")) return; let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); if(h.length > 0) { h[0].s = 10; localStorage.setItem('m_hist', JSON.stringify(h)); refreshStats(); document.getElementById('res-box').innerHTML = "<b>【修正完了】</b>"; } }
-        document.getElementById('c-input').onchange = (e) => { const file = e.target.files[0]; if (!file) return; img.src = URL.createObjectURL(file); img.onload = () => { pboxOuter.style.display = 'block'; document.getElementById('edit-tools').style.display = 'flex'; document.getElementById('ans-grade-btn').style.display = 'block'; resetViewer('ans'); initCrop(); }; };
-
-        function showUI(m) {
-            ui.style.display='block'; document.getElementById('msg').innerText=m; 
-            document.getElementById('msg').style.color = "#fff";
-            document.getElementById('status-debug').innerHTML = "";
-            document.getElementById('retry-btn').style.display = "none";
-            document.getElementById('abort-btn').innerText = "中断する";
-            let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100);
-        }
+        function forcePerfectScore() { if(!confirm("満点？")) return; let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); if(h.length > 0) { h[0].s = 10; localStorage.setItem('m_hist', JSON.stringify(h)); refreshStats(); document.getElementById('res-box').innerHTML = "<b>【修正完了】</b>"; } }
+        document.getElementById('c-input').onchange = (e) => { const file = e.target.files[0]; if (!file) return; img.src = URL.createObjectURL(file); img.onload = () => { pboxOuter.style.display = 'block'; document.getElementById('edit-tools').style.display = 'flex'; document.getElementById('ans-grade-btn').style.display = 'block'; initCrop(); }; };
+        function showUI(m) { ui.style.display='block'; document.getElementById('msg').innerText=m; document.getElementById('msg').style.color = "#fff"; document.getElementById('status-debug').innerHTML = ""; document.getElementById('retry-btn').style.display = "none"; let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
 
         document.addEventListener('DOMContentLoaded', () => {
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
-            setupViewer(document.getElementById('canvas-outer'), svgLayer, 'svg');
-            setupViewer(pboxOuter, imgContainer, 'ans');
             refreshStats();
             applyProb({ text: "次の方程式を解け。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xの値を求めなさい。"], hint: "整理して解け。" }, 60.0, true);
         });
