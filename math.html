@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.5.0</title>
+    <title>AI数学講師 4.5.1</title>
     
     <script>
         window.MathJax = {
@@ -33,9 +33,8 @@
         .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); box-sizing: border-box; cursor: move; z-index: 20; }
         .crop-handle { position: absolute; width: 22px; height: 22px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; z-index: 30; }
         .render-container { visibility: hidden; }
-        .typing-loader { color: var(--ai); font-size: 0.9rem; font-weight: bold; text-align: center; padding: 10px; display: none; }
         .disclaimer-text { font-size: 0.65rem; color: #888; text-align: center; margin-top: 6px; line-height: 1.2; display: block; }
-        .debug-overlay-log { font-family: monospace; font-size: 0.7rem; color: #10ac84; margin-top: 15px; text-align: left; padding: 10px; background: #000; border: 2px solid #333; height: 160px; overflow-y: scroll; display: none; width: 90%; margin-left: auto; margin-right: auto; line-height: 1.4; }
+        .debug-overlay-log { font-family: monospace; font-size: 0.7rem; color: #10ac84; margin-top: 15px; text-align: left; padding: 12px; background: #000; border: 2px solid #333; height: 160px; overflow-y: scroll; display: none; width: 90%; margin-left: auto; margin-right: auto; line-height: 1.4; }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.98); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 15%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
@@ -49,7 +48,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.5.0
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.5.1
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -187,35 +186,43 @@
                 content.style.display = 'block';
                 document.getElementById('res-disclaimer').style.display = 'block';
             }
-            await debugLog("MathJax レンダリング中...");
+            await debugLog("MathJax 描画中...");
             try {
                 const p = (window.MathJax && MathJax.typesetPromise) ? MathJax.typesetPromise([content]) : Promise.resolve();
                 await Promise.race([p, new Promise(r => setTimeout(r, 2000))]);
             } catch(e) {}
             content.style.visibility = 'visible';
-            await debugLog("画面確定。");
+            await debugLog("描画確定。");
             finalizeDisplay();
         }
 
-        // 高精度JSON抽出エンジン（ver 4.5.0）
+        // 寛容なJSON抽出エンジン（ver 4.5.1）
         function robustParseJson(text) {
             try {
-                // 1. "text" と "sub" と "hint" という文字が含まれている範囲を特定
-                // AIがJSONの前後に余計な解説を書いても、これらを含む最小の{}をターゲットにする
-                const searchKey = /"text"[\s\S]*?"sub"[\s\S]*?"hint"/;
-                const match = text.match(searchKey);
-                if (!match) return null;
+                // 1. まずtext, sub, hintという文字列があるか探す
+                const hasText = text.includes('"text"');
+                const hasSub = text.includes('"sub"');
+                const hasHint = text.includes('"hint"');
+                
+                if (!hasText) return null;
 
-                // 2. 特定したキーの前後にある最も外側のカッコを探す
-                let start = text.lastIndexOf('{', match.index);
-                let end = text.indexOf('}', match.index + match[0].length);
+                // 2. 複数の{}がある場合に備え、"text"を含む最も外側の{}を特定する
+                let start = text.indexOf('{');
+                let end = text.lastIndexOf('}');
                 
                 if (start === -1 || end === -1) return null;
                 
-                const jsonCandidate = text.substring(start, end + 1);
-                return JSON.parse(jsonCandidate);
+                // 3. 切り出しとクリーニング
+                let jsonStr = text.substring(start, end + 1);
+                // AIがたまに出す不正な改行や制御文字を置換
+                jsonStr = jsonStr.replace(/[\u0000-\u001F\u007F-\u009F]/g, ""); 
+                
+                const obj = JSON.parse(jsonStr);
+                
+                // 4. 最低限textがあれば救済
+                if (obj.text) return obj;
+                return null;
             } catch(e) {
-                console.error("JSON Parse fail", e);
                 return null;
             }
         }
@@ -256,15 +263,15 @@
                 const content = document.getElementById('math-content-area');
                 content.innerHTML = html;
                 if(window.MathJax) MathJax.typesetPromise([content]);
-                document.getElementById('h-box').innerText = p.hint;
+                document.getElementById('h-box').innerText = p.hint || "ヒントなし";
                 forceHideUI(true);
             } else {
-                await debugLog("JSONをHTMLへパース完了...");
+                await debugLog("HTML構造へ展開中...");
                 await controlledRender('math-content-area', html);
                 document.getElementById('h-box').innerText = p.hint || "ヒントなし";
                 const showDiagram = /図形|関数|立体|相似|グラフ|円|三角形|座標/.test(appState.unit) || /円|三角形|座標/.test(p.text);
                 document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
-                if (showDiagram) { await debugLog("図解SVG生成リクエスト..."); startDrawing(p.text); }
+                if (showDiagram) { await debugLog("図解SVG生成プロセスへ..."); startDrawing(p.text); }
             }
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none'; document.getElementById('res-disclaimer').style.display = 'none'; document.getElementById('correct-me-btn').style.display = 'none'; pboxOuter.style.display = 'none';
             setTimeout(prefetchAnswer, 2000);
@@ -281,11 +288,11 @@
             appState.controller = new AbortController();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, signal: appState.controller.signal,
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試。単元「${appState.unit}」。JSON形式。偏差値: ${d}` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学限定。単元「${appState.unit}」。JSON形式。偏差値: ${d}` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 const rawText = data.candidates[0].content.parts[0].text;
-                await debugLog("AI回答パケットを受信。抽出開始...");
+                await debugLog("AI応答パケットを受信。デコード中...");
                 const parsed = robustParseJson(rawText);
                 if(parsed) {
                     await applyProb(parsed, d);
@@ -322,7 +329,7 @@
             element.addEventListener('touchmove', (e) => { if(e.target === ov || e.target.classList.contains('crop-handle')) return; e.preventDefault(); if (e.touches.length === 1 && viewStates[type].isDragging) { viewStates[type].x = e.touches[0].clientX - viewStates[type].startX; viewStates[type].y = e.touches[0].clientY - viewStates[type].startY; } else if (e.touches.length === 2) { const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); const delta = dist / viewStates[type].lastDist; viewStates[type].scale = Math.min(Math.max(viewStates[type].scale * delta, 0.5), 8); viewStates[type].lastDist = dist; } applyTransform(container, type); }, { passive: false });
         }
         function startDrawing(text) { const layer = document.getElementById('svg-layer'); let start = Date.now(); clearInterval(appState.svgT); appState.svgT = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100); resetViewer('svg'); autoDraw(text); }
-        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学補足SVGタグ。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { await debugLog("図解SVG受信。"); svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学補足SVGタグ。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { await debugLog("図解SVG描画。"); svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
         async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。問題：${appState.prob.text}` }] }] }) }); const data = await res.json(); appState.ans = data.candidates[0].content.parts[0].text.trim(); } catch (e) {} }
         async function peekAnswer() { const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn'); if (box.style.display === 'block' && box.style.visibility === 'visible') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; } if (!appState.seen) { if (!confirm("未採点。解答表示？")) return; appState.seen = true; saveLog(0); } if (!appState.ans) { btn.innerText = "⏳ 取得中..."; await prefetchAnswer(); } await controlledRender('res-box', appState.ans); btn.innerText = "🔍 解答を閉じる"; }
         function doSkip() { generateNext(true); }
@@ -339,8 +346,9 @@
             let s = Date.now(); clearInterval(appState.t);
             appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100);
         }
-        function resetData() { if(confirm("初期化？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("リセット？")) { localStorage.clear(); location.reload(); } }
         function saveLog(s) { let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); const now = new Date(); const dt = (now.getMonth()+1) + "/" + now.getDate() + " " + now.getHours() + ":" + String(now.getMinutes()).padStart(2,'0') + ":" + String(now.getSeconds()).padStart(2,'0'); h.unshift({ u: appState.unit, s: s, dt: dt, lv: appState.currentLv.toFixed(1) }); localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats(); }
+        function forcePerfectScore() { if(!confirm("満点修正？")) return; let h = JSON.parse(localStorage.getItem('m_hist') || "[]"); if(h.length > 0) { h[0].s = 10; localStorage.setItem('m_hist', JSON.stringify(h)); refreshStats(); document.getElementById('res-box').innerHTML = "<b>【修正完了】</b>"; document.getElementById('correct-me-btn').style.display = 'none'; } }
         document.getElementById('c-input').onchange = (e) => { const file = e.target.files[0]; if (!file) return; img.src = URL.createObjectURL(file); img.onload = () => { pboxOuter.style.display = 'block'; document.getElementById('edit-tools').style.display = 'flex'; document.getElementById('ans-grade-btn').style.display = 'block'; resetViewer('ans'); initCrop(); }; };
         function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; img.style.transform = `rotate(${imgState.rot}deg)`; initCrop(); }
         function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = 200; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
