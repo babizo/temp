@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.7.3</title>
+    <title>AI数学講師 3.7.4</title>
     
     <script>
         window.MathJax = {
@@ -54,7 +54,7 @@
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.7.3 OPTIMIZED</div>
+        <div style="font-size:0.7rem; color:#888;">ver 3.7.4 FINAL_LABELS</div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
@@ -85,7 +85,7 @@
         </div>
         <div style="display:flex; gap:10px;">
             <button onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); flex:1;">💡 ヒント</button>
-            <button onclick="generateNext(false)" style="background:var(--ai); color:white; flex:1.5;">✨ 類題に挑戦</button>
+            <button onclick="generateNext(false)" style="background:var(--ai); color:white; flex:1.5;">✨ 指定偏差値の類題</button>
             <button onclick="generateNext(false, true)" style="background:var(--hard); color:white; flex:1.5;">🔥 最難関へ</button>
         </div>
     </div>
@@ -120,7 +120,7 @@
 
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
-        <p id="msg" style="font-weight:bold; color:#fff;"></p>
+        <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
         <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断</button>
     </div>
 
@@ -184,8 +184,7 @@
             const file = e.target.files[0]; if (!file) return;
             img.src = URL.createObjectURL(file);
             img.onload = () => { 
-                pbox.style.display = 'block'; 
-                guide.style.display = 'block'; // ガイドを表示
+                pbox.style.display = 'block'; guide.style.display = 'block';
                 document.getElementById('edit-tools').style.display = 'flex'; 
                 document.getElementById('ans-grade-btn').style.display = 'block'; 
                 resetImg(); initCrop(); 
@@ -217,8 +216,7 @@
             document.getElementById('q-list').innerHTML = (Array.isArray(p.sub) ? p.sub : [p.sub]).map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
             document.getElementById('h-box').innerText = p.hint;
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
-            pbox.style.display = 'none'; 
-            guide.style.display = 'none'; // ガイドを隠す
+            pbox.style.display = 'none'; guide.style.display = 'none';
             document.getElementById('ans-grade-btn').style.display = 'none';
             const showDiagram = /平面図形|関数|立体/.test(appState.unit) || /三角形|円|グラフ/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
@@ -233,7 +231,7 @@
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。hint50字相当。JSON(text, sub:[], hint)形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。hint50字相当。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
             } finally { hideUI(); }
@@ -273,6 +271,8 @@
                 const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length;
                 const d = Math.min(80, 40 + (avg * 3.5));
                 document.getElementById('dev-slider').value = d; document.getElementById('dev-val').innerText = d.toFixed(1);
+                let s = "[標準]"; if (d >= 76) s = "[筑駒]"; else if (d >= 72) s = "[開成]"; else if (d >= 68) s = "[渋幕]"; else if (d >= 60) s = "[日比谷]"; else if (d >= 56) s = "[西]";
+                document.getElementById('target-school').innerText = s;
             }
         }
         function saveLog(s) {
