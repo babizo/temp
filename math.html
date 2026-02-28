@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.7.9</title>
+    <title>AI数学講師 4.8.0</title>
     
     <script>
         window.MathJax = {
@@ -22,13 +22,14 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         
+        /* スライダー目盛り完全固定 */
         #dev-slider { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 25px 0 10px 0; }
         #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid #fff; }
-        .scale-labels { display: flex; justify-content: space-between; padding: 0; position: relative; width: 100%; height: 50px; }
-        .scale-labels span { font-size: 0.5rem; color: #888; text-align: center; position: absolute; transform: translateX(-50%); white-space: nowrap; line-height: 1.1; }
+        .scale-labels { display: flex; justify-content: space-between; width: 100%; position: relative; height: 50px; }
+        .scale-labels span { font-size: 0.5rem; color: #888; text-align: center; line-height: 1.1; position: absolute; transform: translateX(-50%); white-space: nowrap; }
 
         .viewer-box { position: relative; background: #ffffff; border-radius: 6px; height: 260px; border: 2px solid #333; overflow: hidden; }
-        #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
         .preview-box-outer { position: relative; width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary); display: none; }
         .disclaimer-text { font-size: 0.65rem; color: #888; text-align: center; margin-top: 6px; line-height: 1.2; display: block; }
 
@@ -38,7 +39,7 @@
 
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; }
         .hist-title { color: var(--primary); text-decoration: underline; cursor: pointer; font-weight: bold; }
     </style>
 </head>
@@ -46,7 +47,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.7.9
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.8.0
         </div>
         <button onclick="document.body.classList.toggle('light-mode')" style="background:#444; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:0.7rem; width:auto; margin:0;">🌓 モード切替</button>
     </div>
@@ -59,7 +60,15 @@
         </div>
         <input type="range" id="dev-slider" min="45" max="80" step="0.5" value="60">
         <div class="scale-labels">
-            <span style="left:0%;">45</span><span style="left:31.4%;">56</span><span style="left:42.8%;">60</span><span style="left:54.2%;">64</span><span style="left:60%;">66</span><span style="left:65.7%;">68</span><span style="left:71.4%;">70</span><span style="left:77.1%;">72</span><span style="left:88.5%;">76</span>
+            <span style="left:0%;">45</span>
+            <span style="left:31.4%;">56<br>西</span>
+            <span style="left:42.8%;">60<br>日比谷</span>
+            <span style="left:54.2%;">64<br>早実</span>
+            <span style="left:60%;">66<br>学院</span>
+            <span style="left:65.7%;">68<br>慶応</span>
+            <span style="left:71.4%;">70<br>渋幕</span>
+            <span style="left:77.1%;">72<br>開成</span>
+            <span style="left:88.5%;">76<br>筑駒</span>
         </div>
     </div>
 
@@ -70,7 +79,6 @@
         </div>
         <div id="canvas-box" style="display:none;">
             <div class="viewer-box" id="canvas-outer">
-                <div style="position:absolute; top:5px; right:5px; z-index:10;"><button onclick="resetCanvas()" style="background:rgba(0,0,0,0.6); color:white; border:none; width:28px; height:28px; border-radius:4px;">🏠</button></div>
                 <div id="svg-layer"></div>
             </div>
             <span class="disclaimer-text">※図は問題文の補足イメージであり、数学的に正確でない場合があります。</span>
@@ -82,7 +90,7 @@
         </div>
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button id="hint-btn" onclick="toggleHint()" style="background:none; color:var(--hint); border:1px solid var(--hint); flex:1;">💡 ヒント</button>
-            <button onclick="generateNext(false)" style="background:var(--ai); color:white; flex:1.5;">✨ 指定レベル類題</button>
+            <button onclick="generateNext(false)" style="background:var(--ai); color:white; flex:1.5;">✨ 類題生成</button>
             <button onclick="generateNext(false, true)" style="background:var(--hard); color:white; flex:1.5;">🔥 最難関へ</button>
         </div>
     </div>
@@ -97,12 +105,12 @@
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>演習履歴</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">全リセット</button></div>
+        <div class="header-flex"><h1>演習履歴</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">全消去</button></div>
         <div id="hist-list"></div>
     </div>
 
     <div id="status-ui" class="loading-overlay">
-        <div class="drag-handle" id="drag-zone"><span>Floating Tracer Window</span><span>:::::</span></div>
+        <div class="drag-handle" id="drag-zone"><span>Floating Debug Window</span><span>:::::</span></div>
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:5px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.0rem; margin-bottom:5px;"></p>
         <div id="status-debug" class="debug-overlay-log"></div>
@@ -119,7 +127,7 @@
         let appState = { prob: {}, seen: false, ans: null, unit: "数と式", currentLv: 60.0, t: null, controller: null, svgT: null };
         const ui = document.getElementById('status-ui'), dragZone = document.getElementById('drag-zone'), hBox = document.getElementById('h-box'), ansBtn = document.getElementById('ans-toggle-btn'), svgLayer = document.getElementById('svg-layer');
 
-        /* ドラッグ */
+        /* ドラッグロジック */
         let active = false, curX, curY, initX, initY, xOff = 0, yOff = 0;
         dragZone.addEventListener("mousedown", dStart); window.addEventListener("mouseup", dEnd); window.addEventListener("mousemove", dMove);
         dragZone.addEventListener("touchstart", dStart, {passive:false}); window.addEventListener("touchend", dEnd); window.addEventListener("touchmove", dMove, {passive:false});
@@ -127,14 +135,24 @@
         function dEnd() { initX=curX; initY=curY; active=false; }
         function dMove(e) { if(active){ e.preventDefault(); curX=(e.type==="touchmove"?e.touches[0].clientX:e.clientX)-initX; curY=(e.type==="touchmove"?e.touches[0].clientY:e.clientY)-initY; xOff=curX; yOff=curY; ui.style.transform=`translate(calc(-50% + ${curX}px), ${curY}px)`; } }
 
+        /* DEBUGログ（タイムスタンプ付） */
         async function debugLog(msg, isRaw=false) {
             if(!document.getElementById('debug-mode').checked) return;
             const logEl = document.getElementById('status-debug'), now = new Date();
             const ts = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}]`;
             logEl.style.display='block';
-            logEl.innerHTML += isRaw ? `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0; font-size:0.6rem;">${ts} [RAW DATA]<br>${msg}</div>` : `<span style="color:#555;">${ts}</span> <span style="color:var(--primary);">></span> ${msg}<br>`;
+            logEl.innerHTML += isRaw ? `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0; font-size:0.6rem;">${ts} [RAW]<br>${msg}</div>` : `<span style="color:#555;">${ts}</span> <span style="color:var(--primary);">></span> ${msg}<br>`;
             logEl.scrollTop = logEl.scrollHeight;
             await new Promise(r => setTimeout(r, 600));
+        }
+
+        /* ヒント表示復旧（物理修復） */
+        function toggleHint() {
+            if (!appState.prob.hint) return;
+            if (hBox.style.display === 'block') { hBox.style.display = 'none'; } else {
+                hBox.style.display = 'block'; hBox.innerHTML = appState.prob.hint;
+                if(window.MathJax) MathJax.typesetPromise([hBox]);
+            }
         }
 
         function forceHideUI(manual=false) {
@@ -150,19 +168,10 @@
             if(document.getElementById('debug-mode').checked){ abortBtn.innerText = "閉じる（確定）"; abortBtn.onclick=()=>forceHideUI(true); } else { forceHideUI(); }
         }
 
-        /* ヒント表示復旧 */
-        function toggleHint() {
-            if (!appState.prob.hint) return;
-            if (hBox.style.display === 'block') { hBox.style.display = 'none'; } else {
-                hBox.style.display = 'block'; hBox.innerHTML = appState.prob.hint;
-                if(window.MathJax) MathJax.typesetPromise([hBox]);
-            }
-        }
-
         async function robustTranslation(obj) {
             let found = { text: null, sub: [], hint: null };
             const synonyms = { text: ['text', 'problem_text', 'problem'], sub: ['sub', 'questions', 'question'], hint: ['hint', 'solution', 'explanation'] };
-            await debugLog("パース開始...");
+            await debugLog("データパース開始...");
             function search(curr) { if(!curr || typeof curr !== 'object') return; for(let k in synonyms){ for(let w of synonyms[k]){ if(w in current && !found[k]) found[k]=current[w]; } } for(let key in curr) search(curr[key]); }
             const current = obj; search(current);
             if(found.sub && !Array.isArray(found.sub)) found.sub = [found.sub];
@@ -192,9 +201,12 @@
         async function generateNext(isOther = false, isHardMode = false, unitStr = null) {
             let d = isHardMode ? 76 : parseFloat(document.getElementById('dev-slider').value);
             if(unitStr) appState.unit = unitStr;
-            else if(isOther) { const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random()*5)]; }
+            else if(isOther) { 
+                const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; 
+                appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random()*5)]; 
+            }
             showUI(`${appState.unit} 作問中...`);
-            const prompt = `入試数学問題作成。偏差値:${d}。厳格な入試口調。{"text": "問題文", "sub": ["設問"], "hint": "解説"} のJSON。`;
+            const prompt = `入試数学問題作成。偏差値:${d}。必ず厳格な入試口調を守れ。{"text": "問題文", "sub": ["設問"], "hint": "解説"} のJSON。`;
             appState.controller = new AbortController();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, signal: appState.controller.signal,
@@ -209,12 +221,15 @@
             } catch (e) { if(e.name !== 'AbortError') finalizeDisplay(true, "AI通信エラー"); }
         }
 
+        /* 他単元へボタン修復 */
+        function doSkip() { generateNext(true); }
+
         async function autoDraw(t) { 
             let start = Date.now(); clearInterval(appState.svgT);
-            appState.svgT = setInterval(() => { svgLayer.innerHTML = `<div style="color:var(--ai); font-size:0.7rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100);
+            appState.svgT = setInterval(() => { svgLayer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100);
             try { 
-                await debugLog("図解AI通信開始...");
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学「${t}」のSVG。推測禁止。ラベル配置。SVGタグのみ。` }] }] }) }); 
+                await debugLog("図解AIリクエスト開始...");
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学「${t}」のSVG。推測禁止。SVGタグのみ。` }] }] }) }); 
                 const data = await res.json(); const rawSvg = data.candidates[0].content.parts[0].text;
                 await debugLog(rawSvg, true); 
                 const svgMatch = rawSvg.match(/<svg[\s\S]*?<\/svg>/i); 
@@ -234,16 +249,15 @@
 
         async function peekAnswer() { 
             const box = document.getElementById('res-box'); if(box.style.display==='block'){ box.style.display='none'; return; } 
-            if(!appState.seen){ if(!confirm("未採点。解答表示？")) return; appState.seen=true; saveLog(0); } 
+            if(!appState.seen){ if(!confirm("解答表示？")) return; appState.seen=true; saveLog(0); } 
             if(!appState.ans){ ansBtn.innerText="⏳ 取得中..."; await prefetchAnswer(); } 
             box.innerHTML = appState.ans; box.style.display='block'; if(window.MathJax) await MathJax.typesetPromise([box]);
             box.scrollIntoView({behavior:'smooth'});
         }
 
-        function updateTargetLabel(val) { let s="[標準]"; if(val>=76) s="[筑駒]"; else if(val>=72) s="[開成]"; else if(val>=70) s="[渋幕]"; else if(val>=68) s="[慶応]"; else if(val>=60) s="[日比谷]"; else if(val>=56) s="[西]"; document.getElementById('target-school').innerText=s; document.getElementById('dev-val').innerText=val.toFixed(1); document.getElementById('dev-slider').value=val; }
+        /* 補助 */
+        function updateTargetLabel(val) { let s="[標準]"; if(val>=76) s="[筑駒]"; else if(val>=72) s="[開成]"; else if(val>=70) s="[渋幕]"; else if(val>=68) s="[慶応]"; else if(val>=66) s="[学院]"; else if(val>=64) s="[早実]"; else if(val>=60) s="[日比谷]"; else if(val>=56) s="[西]"; document.getElementById('target-school').innerText=s; document.getElementById('dev-val').innerText=val.toFixed(1); document.getElementById('dev-slider').value=val; }
         function refreshStats() { const h=JSON.parse(localStorage.getItem('m_hist')||"[]"); document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt}</span><span class="hist-title" onclick="generateNext(false, false, '${x.u}')">${x.u}を再履修</span></div><span class="score-badge">${x.s}/10</span></div>`).join(''); if(h.length>0){ const avg=h.map(x=>x.s).reduce((a,b)=>a+b,0)/h.length; updateTargetLabel(Math.max(45, Math.min(80, 40+(avg*3.5)))); } }
-        function resetCanvas() { svgLayer.style.transform = "translate(0px, 0px) scale(1)"; }
-        function startImageSelection() { if(confirm("画像は1枚に。")) document.getElementById('c-input').click(); }
         function resetData() { if(confirm("リセット？")){ localStorage.clear(); location.reload(); } }
         function saveLog(s) { let h=JSON.parse(localStorage.getItem('m_hist')||"[]"); const now=new Date(); h.unshift({u:appState.unit,s:s,dt:(now.getMonth()+1)+"/"+now.getDate(),lv:appState.currentLv.toFixed(1)}); localStorage.setItem('m_hist',JSON.stringify(h.slice(0,30))); refreshStats(); }
         function showUI(m) { ui.style.display='block'; document.getElementById('msg').innerText=m; document.getElementById('msg').style.color="#fff"; document.getElementById('status-debug').innerHTML=""; let s=Date.now(); clearInterval(appState.t); appState.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
