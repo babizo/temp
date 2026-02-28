@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.7.7</title>
+    <title>AI数学講師 3.7.8</title>
     
     <script>
         window.MathJax = {
@@ -48,7 +48,7 @@
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.7.7 FIXED</div>
+        <div style="font-size:0.7rem; color:#888;">ver 3.7.8 RIGID_GRADER</div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
@@ -199,7 +199,13 @@
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `あなたは数学採点官。画像内の文字方向を補正し、論理と数式を評価せよ。Score: X/10 を必須。問題：${appState.prob.text}` }, 
+                        { text: `あなたは数学採点官です。
+【最重要：拒絶ルール】
+添付画像が「数学の答案（手書きの数式や論理プロセス）」でない場合、またはQRコード、無関係な図形、風景、白紙などの場合は、内容を評価せず、即座に「数学の答案として認識できません。撮り直してください。」と出力し Score: 0 とせよ。
+
+【採点ルール】
+答案である場合は、画像内の文字方向を補正し、数式と論理を評価せよ。Score: X/10 を必須出力。
+問題：${appState.prob.text}` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
@@ -220,7 +226,7 @@
             document.getElementById('h-box').innerText = p.hint;
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
             pbox.style.display = 'none'; guide.style.display = 'none'; document.getElementById('ans-grade-btn').style.display = 'none';
-            const showDiagram = /平面図形|関数|立体/.test(appState.unit) || /三角形|円|グラフ|座標/.test(p.text);
+            const showDiagram = /平面図形|関数|立体/.test(appState.unit) || /三角形|円|グラフ|相似/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) startDrawing(p.text);
             if (window.MathJax) MathJax.typesetPromise();
@@ -233,7 +239,7 @@
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。高校入試範囲。微積分禁止。JSON形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `あなたは数学作問委員。高校入試数学の範囲に限定。微積分禁止。単元「${appState.unit}」、偏差値${d}。JSON(text, sub:[], hint)形式。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
             } finally { hideUI(); }
@@ -245,8 +251,7 @@
             const box = document.getElementById('res-box'); if (box.style.display === 'block') { box.style.display = 'none'; return; }
             if (!appState.seen) { if (!confirm("未採点なので偏差値加算は行われません。")) return; appState.seen = true; saveLog(0); }
             if (!appState.ans) await prefetchAnswer();
-            box.innerHTML = appState.ans; box.style.display = 'block'; 
-            if (window.MathJax) MathJax.typesetPromise();
+            box.innerHTML = appState.ans; box.style.display = 'block'; if (window.MathJax) MathJax.typesetPromise();
         }
 
         function startDrawing(text) { document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div>`; autoDraw(text); }
