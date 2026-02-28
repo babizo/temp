@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.8.5</title>
+    <title>AI数学講師 3.8.6</title>
     
     <script>
         window.MathJax = {
@@ -51,7 +51,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.8.5
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.8.6
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -141,6 +141,16 @@
             document.getElementById('dev-val').innerText = val.toFixed(1);
         }
 
+        // --- LaTeX 補正フィルター ---
+        function cleanMathText(txt) {
+            if (!txt) return "";
+            // x^2 などを $x^2$ に自動変換（簡易版）
+            let fixed = txt.replace(/([a-z]|[0-9]|\))(\^)([0-9]|[a-z])/gi, "$1^{$3}"); 
+            // 既に$で囲まれていない数式記号っぽいものを探して囲む
+            fixed = fixed.replace(/(?<!\$)([a-z]\s*[=<>+\-]\s*[^.\s,]+)(?!\$)/gi, " $$1$ ");
+            return fixed;
+        }
+
         function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = pbox.clientWidth-100; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
         function updateCropUI() { ov.style.left = cropState.x + 'px'; ov.style.top = cropState.y + 'px'; ov.style.width = cropState.w + 'px'; ov.style.height = cropState.h + 'px'; }
         
@@ -202,11 +212,12 @@
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `数学採点官。画像回転補正。数学答案でないならScore: 0。
+                        { text: `数学採点官。画像補正必須。数学答案でないならScore: 0。
+数式解答は必ず $ ... $ で囲むこと。
 【対象問題】
 ${appState.prob.text}
 ${subQs ? '小問：\n' + subQs : ''}
-【ルール】小問(1)～(n)すべてを一括採点。論理重視しScore: X/10出力。` }, 
+【ルール】小問すべてを一括採点。論理重視。Score: X/10出力。` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
@@ -224,12 +235,12 @@ ${subQs ? '小問：\n' + subQs : ''}
         }
 
         function applyProb(p) {
-            if (!p || !p.text) { showError("データ形式エラー：再度作成してください", JSON.stringify(p)); return; }
+            if (!p || !p.text) { showError("データ形式エラー：再度作成してください"); return; }
             appState.prob = p; appState.seen = false; appState.ans = null;
             document.getElementById('u-title').innerText = appState.unit;
-            document.getElementById('p-text').innerText = p.text;
+            document.getElementById('p-text').innerText = cleanMathText(p.text);
             const subs = (Array.isArray(p.sub) ? p.sub : [p.sub]).filter(q => q);
-            document.getElementById('q-list').innerHTML = subs.map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
+            document.getElementById('q-list').innerHTML = subs.map((q, i) => `<li>(${i+1}) ${cleanMathText(q)}</li>`).join('');
             document.getElementById('h-box').innerText = p.hint || "ヒントはありません";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
             document.getElementById('ans-toggle-btn').innerText = "🔍 解答を確認";
@@ -249,21 +260,15 @@ ${subQs ? '小問：\n' + subQs : ''}
             let rawText = "";
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学範囲限定。微積分禁止。JSON形式(text, sub:[], hint)。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `あなたは数学作問委員。
+高校入試数学範囲限定。微積分禁止。
+【重要】数式は必ず $ ... $ で囲んだLaTeX形式で出力せよ。
+単元「${appState.unit}」、偏差値${d}。JSON形式(text, sub:[], hint)。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
-                if (!data.candidates || !data.candidates[0].content.parts[0].text) throw new Error("受信失敗");
-                
                 rawText = data.candidates[0].content.parts[0].text;
-                // クリーニング
                 let jsonText = rawText.replace(/```json|```/g, '').trim();
-                
-                try {
-                    const parsed = JSON.parse(jsonText);
-                    applyProb(parsed);
-                } catch(pe) { 
-                    throw new Error("JSONパース失敗"); 
-                }
+                applyProb(JSON.parse(jsonText));
             } catch (e) { showError("生成エラー：再試行してください", rawText || e.message); }
         }
 
@@ -271,11 +276,9 @@ ${subQs ? '小問：\n' + subQs : ''}
             if (!appState.prob.text) return;
             const subQs = Array.isArray(appState.prob.sub) ? appState.prob.sub.join('\n') : appState.prob.sub;
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。小問全解。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。小問全解。数式は必ず $ ... $ で囲め。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
                 const data = await res.json();
-                if (data.candidates) {
-                    appState.ans = data.candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); 
-                }
+                if (data.candidates) { appState.ans = data.candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); }
             } catch (e) {} 
         }
 
@@ -289,7 +292,7 @@ ${subQs ? '小問：\n' + subQs : ''}
         }
 
         function startDrawing(text) { document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div>`; autoDraw(text); }
-        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」のSVG図。` }] }] }) }); const data = await res.json(); let svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); if (svg) document.getElementById('svg-layer').innerHTML = svg[0]; } catch (e) {} }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」のSVG図解。` }] }] }) }); const data = await res.json(); let svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); if (svg) document.getElementById('svg-layer').innerHTML = svg[0]; } catch (e) {} }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(window.MathJax) MathJax.typesetPromise(); }
         
         function showUI(m) { 
@@ -297,7 +300,6 @@ ${subQs ? '小問：\n' + subQs : ''}
             document.getElementById('msg').innerText=m; 
             document.getElementById('error-feedback').style.display='none';
             document.getElementById('debug-output').style.display='none';
-            document.getElementById('disclaimer').style.display='block';
             let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); 
         }
         function showError(em, debugInfo = "") {
@@ -305,7 +307,6 @@ ${subQs ? '小問：\n' + subQs : ''}
             document.getElementById('msg').innerText="エラーが発生しました";
             const ef = document.getElementById('error-feedback');
             ef.innerText = em; ef.style.display = 'block';
-            document.getElementById('disclaimer').style.display = 'none';
             if (document.getElementById('debug-mode').checked && debugInfo) {
                 const dout = document.getElementById('debug-output');
                 dout.value = debugInfo;
@@ -314,7 +315,7 @@ ${subQs ? '小問：\n' + subQs : ''}
         }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
         function doSkip() { generateNext(true); }
-        function resetData() { if(confirm("初期化しますか？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("リセット？")) { localStorage.clear(); location.reload(); } }
 
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
@@ -336,7 +337,7 @@ ${subQs ? '小問：\n' + subQs : ''}
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
             refreshStats();
-            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を満たすxを求めよ。"], hint: "両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直し、整理せよ。" });
+            applyProb({ text: "次の方程式を解き、$x$ の値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を解け。"], hint: "分母を払うため両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直すのが定石。" });
         });
     </script>
 </body>
