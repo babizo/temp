@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.8.4</title>
+    <title>AI数学講師 3.8.5</title>
     
     <script>
         window.MathJax = {
@@ -11,7 +11,7 @@
             options: { enableMenu: false }
         };
     </script>
-    <script id="MathJax-script" async src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js)"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
         :root { --primary: #5dade2; --bg: #1a1a1a; --card: #262626; --text: #eeeeee; --success: #27ae60; --hint: #f39c12; --error: #e74c3c; --skip: #95a5a6; --ai: #a29bfe; --hard: #e74c3c; }
@@ -44,12 +44,15 @@
         .hist-date { font-size: 0.6rem; color: #888; }
         .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; }
         .error-msg { color: var(--error); font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
+        #debug-output { width: 100%; height: 100px; background: #000; color: #0f0; font-family: monospace; font-size: 0.7rem; margin-top: 10px; padding: 5px; border: 1px solid #333; display: none; overflow: auto; }
     </style>
 </head>
 <body>
 
-    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.8.4 CLEAN_UP</div>
+    <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
+        <div style="font-size:0.7rem; color:#888;">
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.8.5
+        </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
@@ -116,6 +119,7 @@
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
         <div id="error-feedback" class="error-msg" style="display:none;"></div>
+        <textarea id="debug-output" readonly></textarea>
         <div id="disclaimer" style="font-size:0.75rem; color:#ffadad; margin-top:10px;">※高品質な解析のため最大1分程かかる場合があります</div>
         <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断・再読込</button>
     </div>
@@ -207,7 +211,7 @@ ${subQs ? '小問：\n' + subQs : ''}
                     ] }] })
                 });
                 const responseData = await res.json();
-                if (!responseData.candidates) throw new Error("採点データを受信できませんでした");
+                if (!responseData.candidates) throw new Error("採点データ受信エラー");
                 const fb = responseData.candidates[0].content.parts[0].text;
                 const box = document.getElementById('res-box');
                 box.innerHTML = fb.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
@@ -216,11 +220,11 @@ ${subQs ? '小問：\n' + subQs : ''}
                 if (window.MathJax) MathJax.typesetPromise();
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 hideUI();
-            } catch(e) { showError(e.message || "採点タイムアウト：再試行してください"); }
+            } catch(e) { showError("採点タイムアウト：再試行してください", e.message); }
         }
 
         function applyProb(p) {
-            if (!p || !p.text) { showError("データ形式エラー：再度作成してください"); return; }
+            if (!p || !p.text) { showError("データ形式エラー：再度作成してください", JSON.stringify(p)); return; }
             appState.prob = p; appState.seen = false; appState.ans = null;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('p-text').innerText = p.text;
@@ -242,25 +246,25 @@ ${subQs ? '小問：\n' + subQs : ''}
             let d = isHardMode ? 76 : parseFloat(document.getElementById('dev-slider').value);
             if (isOther) { const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random() * 5)]; }
             showUI(`${appState.unit} 構成中...`);
+            let rawText = "";
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試限定。微積分禁止。JSON形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学範囲限定。微積分禁止。JSON形式(text, sub:[], hint)。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 if (!data.candidates || !data.candidates[0].content.parts[0].text) throw new Error("受信失敗");
                 
-                // クリーニング：バッククォークやゴミを除去
-                let jsonText = data.candidates[0].content.parts[0].text;
-                jsonText = jsonText.replace(/```json|```/g, '').trim();
+                rawText = data.candidates[0].content.parts[0].text;
+                // クリーニング
+                let jsonText = rawText.replace(/```json|```/g, '').trim();
                 
                 try {
                     const parsed = JSON.parse(jsonText);
                     applyProb(parsed);
                 } catch(pe) { 
-                    console.error("Parse Error:", jsonText);
-                    throw new Error("データ解析エラー：もう一度お試しください"); 
+                    throw new Error("JSONパース失敗"); 
                 }
-            } catch (e) { showError(e.message || "生成エラー：再試行してください"); }
+            } catch (e) { showError("生成エラー：再試行してください", rawText || e.message); }
         }
 
         async function prefetchAnswer() { 
@@ -292,15 +296,21 @@ ${subQs ? '小問：\n' + subQs : ''}
             document.getElementById('status-ui').style.display='block'; 
             document.getElementById('msg').innerText=m; 
             document.getElementById('error-feedback').style.display='none';
+            document.getElementById('debug-output').style.display='none';
             document.getElementById('disclaimer').style.display='block';
             let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); 
         }
-        function showError(em) {
+        function showError(em, debugInfo = "") {
             clearInterval(appState.t);
             document.getElementById('msg').innerText="エラーが発生しました";
             const ef = document.getElementById('error-feedback');
             ef.innerText = em; ef.style.display = 'block';
             document.getElementById('disclaimer').style.display = 'none';
+            if (document.getElementById('debug-mode').checked && debugInfo) {
+                const dout = document.getElementById('debug-output');
+                dout.value = debugInfo;
+                dout.style.display = 'block';
+            }
         }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
         function doSkip() { generateNext(true); }
