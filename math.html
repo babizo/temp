@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.9.5</title>
+    <title>AI数学講師 3.9.7</title>
     
     <script>
         window.MathJax = {
@@ -44,7 +44,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.9.5
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.9.7
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -183,8 +183,12 @@
             const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
             const ratio = Math.max(img.naturalWidth / img.clientWidth, img.naturalHeight / img.clientHeight);
             const sw = cropState.w * ratio; const sh = cropState.h * ratio;
-            const sx = (cropState.x - (pbox.clientWidth - img.naturalWidth / ratio) / 2) * ratio;
-            const sy = (cropState.y - (pbox.clientHeight - img.naturalHeight / ratio) / 2) * ratio;
+            const displayedImgW = img.naturalWidth / ratio;
+            const displayedImgH = img.naturalHeight / ratio;
+            const offsetX = (pbox.clientWidth - displayedImgW) / 2;
+            const offsetY = (pbox.clientHeight - displayedImgH) / 2;
+            const sx = (cropState.x - offsetX) * ratio;
+            const sy = (cropState.y - offsetY) * ratio;
             canvas.width = sw; canvas.height = sh;
             ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
             return canvas.toDataURL('image/jpeg', 0.8);
@@ -205,13 +209,7 @@
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `あなたは数学採点官。
-【厳禁】画像が「手書きの数学答案」でない場合（白紙、QRコード、風景等）、模範解答をユーザーの回答とすり替えて採点することを絶対に禁じる。その場合は「答案を確認できません」とし Score: 0 に固定せよ。
-【手順】
-1. 画像内の「 Akiさんの筆跡」を探せ。
-2. 筆跡がない、または無関係なら 0点。
-3. 筆跡がある場合のみ、論理を評価し Score: X/10 を出せ。
-問題：${appState.prob.text}` }, 
+                        { text: `あなたは数学採点官。 Akiさんの筆跡が画像内にない場合は0点。 Score: X/10 形式。 問題：${appState.prob.text}` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
@@ -219,6 +217,8 @@
                 const fb = responseData.candidates[0].content.parts[0].text;
                 document.getElementById('res-box').innerHTML = cleanMathText(fb);
                 document.getElementById('res-box').style.display = 'block';
+                document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる";
+                appState.seen = true; 
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 if (window.MathJax) MathJax.typesetPromise();
                 hideUI();
@@ -226,7 +226,7 @@
         }
 
         function applyProb(p, lv) {
-            appState.prob = p; appState.currentLv = lv;
+            appState.prob = p; appState.seen = false; appState.ans = null; appState.currentLv = lv;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('prob-lv').innerText = `Lv.${lv.toFixed(1)}`;
             document.getElementById('p-text').innerText = cleanMathText(p.text);
@@ -234,6 +234,7 @@
             document.getElementById('q-list').innerHTML = subs.map((q, i) => `<li>(${i+1}) ${cleanMathText(q)}</li>`).join('');
             document.getElementById('h-box').innerText = cleanMathText(p.hint || "ヒントなし");
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
+            document.getElementById('ans-toggle-btn').innerText = "🔍 解答を確認";
             if (window.MathJax) MathJax.typesetPromise();
             setTimeout(prefetchAnswer, 2000);
             hideUI();
@@ -245,7 +246,7 @@
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。偏差値${d}。JSON(text, sub:[], hint)。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。高校入試数学範囲限定。微積分禁止。単元「${appState.unit}」、偏差値${d}。JSON形式(text, sub:[], hint)。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 applyProb(JSON.parse(data.candidates[0].content.parts[0].text), d);
@@ -260,10 +261,18 @@
             } catch (e) {} 
         }
 
-        function peekAnswer() {
-            const box = document.getElementById('res-box');
-            box.innerHTML = appState.ans || "解答取得中...";
-            box.style.display = (box.style.display==='block')?'none':'block';
+        async function peekAnswer() {
+            const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn');
+            if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
+            
+            // 警告文の強化
+            if (!appState.seen) { 
+                if (!confirm("未採点のため偏差値が加算されませんが、解答を表示しますか？")) return; 
+                appState.seen = true; saveLog(0); 
+            }
+            
+            if (!appState.ans) { btn.innerText = "⏳ 取得中..."; await prefetchAnswer(); }
+            box.innerHTML = appState.ans || "解答取得エラー"; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
             if (window.MathJax) MathJax.typesetPromise();
         }
 
