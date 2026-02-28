@@ -257,4 +257,30 @@
         function toggleHint() { if(!appState.prob.hint) return; const v = hBox.style.display==='block'; hBox.innerHTML = appState.prob.hint; hBox.style.display = v ? 'none' : 'block'; if(window.MathJax) MathJax.typesetPromise([hBox]); }
         function forceHideUI(manual=false) { ui.style.display='none'; clearInterval(appState.t); xOff=0; yOff=0; ui.style.transform=`translateX(-50%)`; }
         function showUI(m) { ui.style.display='block'; statusMsg.innerText=m; statusMsg.style.color="#fff"; document.getElementById('status-debug').innerHTML=""; document.getElementById('timer').innerText="0.0s"; let s=Date.now(); clearInterval(appState.t); appState.t=setInterval(()=>{document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s";},100); }
-        function updateTargetLabel(val) { let s="[標準]"; if(val>=76) s="[筑駒]"; else if(val>=72) s="[開成]"; else if(val>=70) s="[渋幕]"; else if(val>=68) s="[志木]"; else if(val>=66) s="[学院]";
+        function updateTargetLabel(val) { let s="[標準]"; if(val>=76) s="[筑駒]"; else if(val>=72) s="[開成]"; else if(val>=70) s="[渋幕]"; else if(val>=68) s="[志木]"; else if(val>=66) s="[学院]"; else if(val>=64) s="[学芸]"; else if(val>=60) s="[日比谷]"; else if(val>=56) s="[西]"; document.getElementById('target-school').innerText=s; document.getElementById('dev-val').innerText=val.toFixed(1); }
+        
+        /* 履歴（時刻・リンク完全復旧） */
+        window.generateFromHist = (u) => { appState.unit = u; generateNext(false); };
+        function saveLog(s) {
+            let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
+            const now = new Date();
+            const dateStr = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+            h.unshift({u:appState.unit, s:s, dt:dateStr, lv:appState.currentLv.toFixed(1)});
+            localStorage.setItem('m_hist', JSON.stringify(h.slice(0,20)));
+            refreshStats();
+        }
+        function refreshStats() {
+            const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
+            document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt}</span><span class="hist-title" onclick="window.generateFromHist('${x.u}')">${x.u}</span></div><span class="score-badge">${x.s}/10</span></div>`).join('');
+        }
+
+        function resetCanvas() { svgLayer.style.transform = "scale(1)"; }
+
+        document.addEventListener('DOMContentLoaded', () => { 
+            refreshStats(); 
+            // 修正：1問目の描画フローを安定化
+            applyProb({ text: "次の方程式を解け。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xの値を求めよ。"], hint: "整理せよ。" }, 60.0, true); 
+        });
+    </script>
+</body>
+</html>
