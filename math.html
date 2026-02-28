@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.6.3</title>
+    <title>AI数学講師 4.6.5</title>
     
     <script>
         window.MathJax = {
@@ -33,9 +33,9 @@
         .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); box-sizing: border-box; cursor: move; z-index: 20; }
         .crop-handle { position: absolute; width: 22px; height: 22px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; z-index: 30; }
         .disclaimer-text { font-size: 0.65rem; color: #888; text-align: center; margin-top: 6px; line-height: 1.2; display: block; }
-        .debug-overlay-log { font-family: monospace; font-size: 0.7rem; color: #10ac84; margin-top: 15px; text-align: left; padding: 12px; background: #000; border: 2px solid #333; height: 200px; overflow-y: scroll; display: none; width: 95%; margin: auto; line-height: 1.5; border-left: 3px solid var(--primary); }
+        .debug-overlay-log { font-family: monospace; font-size: 0.7rem; color: #10ac84; margin-top: 15px; text-align: left; padding: 12px; background: #000; border: 2px solid #333; height: 200px; overflow-y: scroll; display: none; width: 92%; margin: auto; line-height: 1.5; border-left: 3px solid var(--primary); }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
-        .loading-overlay { display: none; text-align: center; padding: 20px; background: rgba(0,0,0,0.98); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 5%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 92%; max-height: 90vh; overflow-y: auto; }
+        .loading-overlay { display: none; text-align: center; padding: 20px; background: rgba(0,0,0,0.98); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 5%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 92%; max-height: 90vh; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; overflow: hidden; }
         .hist-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
@@ -47,7 +47,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.6.3
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.6.5
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -152,19 +152,13 @@
             clearInterval(appState.t);
         }
 
-        // タイムスタンプ付きDEBUGログ（ver 4.6.3）
         async function debugLog(msg, isRaw = false) {
             if (!document.getElementById('debug-mode').checked) return;
             const logEl = document.getElementById('status-debug');
             const now = new Date();
-            const timeStr = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}]`;
-            
+            const ts = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}]`;
             logEl.style.display = 'block';
-            if(isRaw) {
-                logEl.innerHTML += `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0;">${timeStr} [RAW DATA]<br>${msg}</div>`;
-            } else {
-                logEl.innerHTML += `<span style="color:#555;">${timeStr}</span> <span style="color:var(--primary);">></span> ${msg}<br>`;
-            }
+            logEl.innerHTML += isRaw ? `<div style="color:#fbc531; background:#1e1e1e; padding:5px; border-radius:3px; margin:5px 0;">${ts} [RAW]<br>${msg}</div>` : `<span style="color:#555;">${ts}</span> <span style="color:var(--primary);">></span> ${msg}<br>`;
             logEl.scrollTop = logEl.scrollHeight;
             await new Promise(r => setTimeout(r, 1000));
         }
@@ -174,24 +168,17 @@
             const isDebug = document.getElementById('debug-mode').checked;
             const retryBtn = document.getElementById('retry-btn');
             const abortBtn = document.getElementById('abort-btn');
-            
             if (isError) {
-                document.getElementById('msg').innerText = errorMsg || "データ不完全のため再作問を推奨します";
+                document.getElementById('msg').innerText = errorMsg;
                 document.getElementById('msg').style.color = "var(--error)";
                 retryBtn.style.display = "block";
                 retryBtn.onclick = () => { retryBtn.style.display = "none"; generateNext(false); };
-                abortBtn.innerText = "中断";
                 return;
             }
-
             if (isDebug) {
-                abortBtn.innerText = "閉じる（確定）";
-                abortBtn.style.background = "var(--success)";
-                abortBtn.style.color = "#fff";
+                abortBtn.innerText = "閉じる（確定）"; abortBtn.style.background = "var(--success)";
                 abortBtn.onclick = () => forceHideUI(true);
-            } else {
-                forceHideUI();
-            }
+            } else { forceHideUI(); }
         }
 
         async function controlledRender(contentId, contentHtml) {
@@ -199,10 +186,9 @@
             content.style.visibility = 'hidden';
             content.innerHTML = contentHtml;
             if(contentId === 'res-box') { content.style.display = 'block'; document.getElementById('res-disclaimer').style.display = 'block'; }
-            await debugLog("MathJax 変換エンジン適用中...");
-            try { await MathJax.typesetPromise([content]); } catch(e) { await debugLog("描画中に軽微な遅延が発生。"); }
+            await debugLog("MathJax レンダリング...");
+            try { await MathJax.typesetPromise([content]); } catch(e) {}
             content.style.visibility = 'visible';
-            await debugLog("表示を確定しました。");
             finalizeDisplay();
         }
 
@@ -213,63 +199,44 @@
                 sub: ['sub', 'questions', 'items', 'question', 'sub_problems'],
                 hint: ['hint', 'solution', 'explanation', 'solution_steps', 'answer', 'ans']
             };
-            
-            await debugLog("深層再帰サーチによる類義語翻訳を開始...");
+            await debugLog("深層サーチ開始...");
             function search(current) {
                 if (!current || typeof current !== 'object') return;
                 for (let k in synonyms) {
-                    for (let w of synonyms[k]) { 
-                        if (w in current && !found[k]) {
-                            found[k] = current[w];
-                        }
-                    }
+                    for (let w of synonyms[k]) { if (w in current && !found[k]) found[k] = current[w]; }
                 }
-                for (let key in current) { search(current[key]); }
+                for (let key in current) search(current[key]);
             }
             search(obj);
-
-            if (found.text) await debugLog(`キー特定成功: text = "${found.text.substring(0, 15)}..."`);
-            if (found.sub && !Array.isArray(found.sub)) {
-                await debugLog("設問（sub）の型を配列へ自動補正中...");
-                found.sub = [found.sub];
-            }
+            if (found.text) await debugLog("問題文救出成功。");
+            if (found.sub && !Array.isArray(found.sub)) found.sub = [found.sub];
             if (found.text && (!found.sub || found.sub.length === 0)) {
-                await debugLog("設問データ欠落を検出。構造を再スキャン中...");
-                // 自動補填はせず、不完全データとして扱うためにここでは何もしない
+                await debugLog("設問欠落。問題文を設問化...");
+                found.sub = [found.text];
             }
-            if (Array.isArray(found.hint)) {
-                await debugLog("ヒント配列をテキストへ結合中...");
-                found.hint = found.hint.join('\n');
-            }
-            
+            if (Array.isArray(found.hint)) found.hint = found.hint.join('\n');
             return found.text ? found : null;
         }
 
         async function executeGrading() {
             showUI("詳細解析・採点中...");
-            await debugLog("AI採点官へ答案データを送信...");
-            const data = getCroppedData();
-            const prompt = `数学採点官。筆跡なし=0点。中学生向けに日常語で解説せよ。必ず例え話を1つ入れること。要点は最大3つ。Score: X/10出力。問題：${appState.prob.text}`;
-            
+            await debugLog("AI採点官への接続...");
+            const prompt = `数学採点官。筆跡なし=0点。中学生向け日常語解説。必ず例え話を1つ入れる。要点は最大3つ。Score: X/10出力。問題：${appState.prob.text}`;
             appState.controller = new AbortController();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, signal: appState.controller.signal,
-                    body: JSON.stringify({ contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } } ] }] })
+                    body: JSON.stringify({ contents: [{ parts: [ { text: prompt }, { inlineData: { mimeType: "image/jpeg", data: getCroppedData().split(',')[1] } } ] }] })
                 });
                 const rData = await res.json();
                 const fb = rData.candidates[0].content.parts[0].text;
                 await debugLog(fb, true);
                 await controlledRender('res-box', fb.trim());
                 appState.seen = true; saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
-            } catch(e) { if(e.name !== 'AbortError') finalizeDisplay(true, "採点エラー。通信環境を確認してください。"); }
+            } catch(e) { if(e.name !== 'AbortError') finalizeDisplay(true, "採点エラー。"); }
         }
 
         async function applyProb(p, lv, isFirstLoad = false) {
-            if (!p) { 
-                await debugLog("ERR: 必要なキー（text等）がパケット内に見つかりません。");
-                finalizeDisplay(true, "データ不完全のため再作問が必要です");
-                return;
-            }
+            if (!p) { await debugLog("ERR: 解析失敗。"); finalizeDisplay(true, "データ不完全のため再作問します"); return; }
             appState.prob = p; appState.seen = false; appState.ans = null; appState.currentLv = lv;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('prob-lv').innerText = `Lv.${lv.toFixed(1)}`;
@@ -280,10 +247,9 @@
             document.getElementById('ans-grade-btn').style.display = 'none';
             document.getElementById('correct-me-btn').style.display = 'none';
 
-            const keywordsForDiagram = /図形|関数|立体|相似|グラフ|座標|三角形|円|面積/;
-            const keywordsForCalc = /方程式|計算|解け|展開|因数分解/;
-            const showDiagram = keywordsForDiagram.test(appState.unit) || (keywordsForDiagram.test(p.text) && !keywordsForCalc.test(appState.unit));
-            
+            const keywordsDiagram = /図形|関数|立体|相似|グラフ|座標|三角形|円|面積/;
+            const keywordsCalc = /方程式|計算|解け|展開|因数分解/;
+            const showDiagram = keywordsDiagram.test(appState.unit) || (keywordsDiagram.test(p.text) && !keywordsCalc.test(appState.unit));
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
 
             if (isFirstLoad) {
@@ -291,9 +257,8 @@
                 content.innerHTML = html; if(window.MathJax) MathJax.typesetPromise([content]);
                 forceHideUI(true);
             } else {
-                await debugLog(`キャンバス判定: ${showDiagram ? '図解あり（SVG生成）' : '計算のみ'}`);
                 await controlledRender('math-content-area', html);
-                if (showDiagram) { await debugLog("図解SVG生成パケット受信待ち..."); startDrawing(p.text); }
+                if (showDiagram) { await debugLog("図解生成..."); startDrawing(p.text); }
             }
             setTimeout(prefetchAnswer, 2000);
         }
@@ -304,9 +269,12 @@
             else if (isOther) { const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random() * 5)]; }
             
             showUI(`${appState.unit} 作問中...`);
-            const prompt = `高校数学入試問題作成。単元:「${appState.unit}」、偏差値:${d}。{"text": "問題文", "sub": ["設問"], "hint": "解説"} のJSON形式。中学生向け言い換え、例え話を意識せよ。`;
+            // 修正：口調の厳格化プロンプト
+            const prompt = `高校数学入試問題作成。単元:「${appState.unit}」、偏差値:${d}。
+            語尾は必ず「～を求めよ」「～なさい」等の厳格な入試問題口調を守れ。
+            {"text": "問題文", "sub": ["具体的な設問1"], "hint": "解説"} のJSON形式のみ出力せよ。`;
             
-            await debugLog(`偏差値 ${d} 単元「${appState.unit}」でAIへ発注...`);
+            await debugLog(`偏差値 ${d} 指定・厳格口調で作問リクエスト送信...`);
             appState.controller = new AbortController();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, signal: appState.controller.signal,
@@ -315,14 +283,11 @@
                 const data = await res.json();
                 const raw = data.candidates[0].content.parts[0].text;
                 await debugLog(raw, true);
-                
                 const start = raw.indexOf('{'); const end = raw.lastIndexOf('}');
-                if (start === -1) { await debugLog("ERR: JSON構造がRAWデータに含まれません。"); finalizeDisplay(true, "解析不能"); return; }
-                
-                await debugLog("パケット受信完了。デコードと翻訳を開始...");
+                if (start === -1) { finalizeDisplay(true, "解析不能"); return; }
                 const parsed = await robustTranslation(JSON.parse(raw.substring(start, end + 1)));
                 await applyProb(parsed, d);
-            } catch (e) { if(e.name !== 'AbortError') finalizeDisplay(true, "AI通信失敗。リトライしてください。"); }
+            } catch (e) { if(e.name !== 'AbortError') finalizeDisplay(true, "通信失敗"); }
         }
 
         function updateTargetLabel(val) {
@@ -335,14 +300,7 @@
 
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            document.getElementById('hist-list').innerHTML = h.slice(0,12).map(x => `
-                <div class="history-item">
-                    <div class="hist-info">
-                        <span class="hist-date">${x.dt} (Lv.${x.lv})</span>
-                        <span class="hist-title" onclick="generateNext(false, false, '${x.u}')">${x.u}を再履修</span>
-                    </div>
-                    <span class="score-badge">${x.s}/10</span>
-                </div>`).join('');
+            document.getElementById('hist-list').innerHTML = h.slice(0,12).map(x => `<div class="history-item"><div class="hist-info"><span class="hist-date">${x.dt} (Lv.${x.lv})</span><span class="hist-title" onclick="generateNext(false, false, '${x.u}')">${x.u}を再履修</span></div><span class="score-badge">${x.s}/10</span></div>`).join('');
             if(h.length > 0) { const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length; updateTargetLabel(Math.max(45, Math.min(80, 40 + (avg * 3.5)))); }
         }
 
@@ -357,7 +315,7 @@
             element.addEventListener('touchmove', (e) => { if(e.target === ov || e.target.classList.contains('crop-handle')) return; e.preventDefault(); if (e.touches.length === 1 && viewStates[type].isDragging) { viewStates[type].x = e.touches[0].clientX - viewStates[type].startX; viewStates[type].y = e.touches[0].clientY - viewStates[type].startY; } else if (e.touches.length === 2) { const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); const delta = dist / viewStates[type].lastDist; viewStates[type].scale = Math.min(Math.max(viewStates[type].scale * delta, 0.5), 8); viewStates[type].lastDist = dist; } applyTransform(container, type); }, { passive: false });
         }
         function startDrawing(text) { const layer = document.getElementById('svg-layer'); let start = Date.now(); clearInterval(appState.svgT); appState.svgT = setInterval(() => { layer.innerHTML = `<div style="color:var(--ai); font-size:0.8rem;">図解生成中... (${((Date.now()-start)/1000).toFixed(1)}s)</div>`; }, 100); resetViewer('svg'); autoDraw(text); }
-        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `補足SVGタグのみ。点名、数値、長さ角度入れよ。cinematic品質。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { await debugLog("図解描画完了。MathJaxを適用..."); svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学補足SVGタグのみ。点名、数値、長さ角度入れよ。cinematic品質。` }] }] }) }); const data = await res.json(); const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); clearInterval(appState.svgT); if (svg) { await debugLog("図解描画完了。"); svgLayer.innerHTML = svg[0]; if(window.MathJax) MathJax.typesetPromise([svgLayer]); } } catch (e) { clearInterval(appState.svgT); } }
         async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。問題：${appState.prob.text}` }] }] }) }); const data = await res.json(); appState.ans = data.candidates[0].content.parts[0].text.trim(); } catch (e) {} }
         async function peekAnswer() { 
             const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn'); 
