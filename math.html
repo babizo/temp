@@ -30,20 +30,16 @@
         .debug-bar { display: flex; align-items: center; gap: 8px; font-size: 0.7rem; color: #888; }
         .theme-toggle { background: #444; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.7rem; cursor: pointer; width: auto; margin: 0; }
         
-        /* スライダー & スケール */
-        .dev-display-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 5px; }
         #dev-slider { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 15px 0 5px 0; }
         #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid #fff; }
         .scale-labels { display: flex; justify-content: space-between; padding: 0; margin-top: 8px; position: relative; width: 100%; height: 35px; }
         .scale-labels span { font-size: 0.52rem; color: #888; text-align: center; line-height: 1.1; position: absolute; transform: translateX(-50%); white-space: nowrap; }
 
-        /* キャンバス */
-        .canvas-container { background: #ffffff; border-radius: 6px; height: 240px; margin-bottom: 5px; overflow: hidden; position: relative; border: 2px solid #333; display: flex; align-items: center; justify-content: center; }
+        .canvas-container { background: #ffffff; border-radius: 6px; height: 260px; margin-bottom: 5px; overflow: hidden; position: relative; border: 2px solid #333; display: flex; align-items: center; justify-content: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; cursor: grab; flex-direction: column; color: #444; font-size: 0.8rem; text-align: center; }
         
-        /* プレビュー・編集ツール */
-        .preview-box { width: 100%; height: 300px; background: #000; border-radius: 8px; overflow: hidden; position: relative; display: none; border: 2px solid var(--primary); }
-        #ans-preview { width: 100%; height: 100%; object-fit: contain; transform-origin: center; transition: transform 0.2s; }
+        .preview-box { width: 100%; height: 300px; background: #000; border-radius: 8px; overflow: hidden; position: relative; display: none; border: 2px solid var(--primary); cursor: move; }
+        #ans-preview { width: 100%; height: 100%; object-fit: contain; transform-origin: center; transition: transform 0.1s ease-out; pointer-events: none; }
         .preview-tools { display: flex; justify-content: center; gap: 10px; margin: 10px 0; }
         .tool-btn { background: #444; color: #fff; border: 1px solid #666; padding: 5px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
 
@@ -57,24 +53,22 @@
         .btn-grade-confirm { background: #f39c12; color: white; display: none; }
         
         .canvas-footer { font-weight: bold; font-size: 0.75rem; text-align: center; line-height: 1.4; margin-bottom: 10px; }
-        .text-alert { color: #ffadad; }
-        .text-dim { color: #888; font-weight: normal; font-size: 0.65rem; }
         .score-badge { background: #444; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
-        <div class="debug-bar"><label><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.6.0</div>
+        <div class="debug-bar"><label><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.6.1 FIX</div>
         <button class="theme-toggle" onclick="toggleTheme()">🌓 モード切替</button>
     </div>
 
     <div class="card">
         <div class="header-flex"><h1>実力相応校・推定レベル設定</h1></div>
         <div class="dev-control-box">
-            <div class="dev-display-row">
-                <span id="dev-val" class="stat-val" style="font-size: 1.8rem; font-weight: bold; color: var(--primary);">60.0</span>
-                <span id="target-school" class="target-label" style="font-size: 0.8rem; color: var(--hint); font-weight: bold;">[日比谷・学芸]</span>
+            <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-bottom:5px;">
+                <span id="dev-val" class="stat-val" style="font-size:1.8rem; font-weight:bold; color:var(--primary); font-family:monospace;">60.0</span>
+                <span id="target-school" style="font-size:0.8rem; color:var(--hint); font-weight:bold;">[日比谷・学芸]</span>
             </div>
             <input type="range" id="dev-slider" min="30" max="80" step="0.5" value="60">
             <div class="scale-labels">
@@ -88,17 +82,14 @@
             <h1>試験問題 [<span id="u-title"></span>]</h1>
             <button onclick="doSkip()" style="background:var(--skip); color:white; border:none; border-radius:4px; padding:6px 12px; font-size:0.85rem; width:auto;">他単元へ ≫</button>
         </div>
-        <button class="theme-toggle" onclick="safeRender()" style="position:absolute; right:10px; top:50px;">↻ 再描画</button>
         <div class="canvas-container" id="zoom-box"><div id="svg-layer"></div></div>
-        
         <div id="canvas-footer" class="canvas-footer" style="display:none;">
-            <div class="text-alert">※高品質な構成のため最大1分程かかる場合があります</div>
-            <div class="text-dim">※図は必ずしも正確ではありません（移動・拡大可）</div>
+            <div style="color:#ffadad;">※高品質な構成のため最大1分程かかる場合があります</div>
+            <div style="color:#888; font-weight:normal; font-size:0.65rem;">※図は必ずしも正確ではありません（移動・拡大可）</div>
         </div>
-
         <div id="math-content-area">
-            <p id="p-text" style="font-weight:bold; margin: 8px 0; color: #ccc; border-bottom: 1px dashed #444; padding-bottom: 8px;"></p>
-            <ul id="q-list" style="padding-left: 20px; margin: 12px 0; list-style:none;"></ul>
+            <p id="p-text" style="font-weight:bold; margin: 8px 0; color:#ccc; border-bottom:1px dashed #444; padding-bottom:8px;"></p>
+            <ul id="q-list" style="padding-left:20px; margin:12px 0; list-style:none;"></ul>
             <div id="h-box" style="display:none; color:var(--hint); font-size:0.85rem; padding:10px; background:#332b1e; border-radius:5px; margin:10px 0; border-left:4px solid var(--hint);"></div>
         </div>
         <div style="display:flex; gap:10px;">
@@ -111,17 +102,11 @@
     <div class="card">
         <div style="display:flex; gap:10px; flex-direction: column;">
             <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 答案を撮影・選択</button>
-            
-            <div id="preview-area" class="preview-box">
-                <img id="ans-preview" src="" alt="答案プレビュー">
-            </div>
-            
+            <div id="preview-area" class="preview-box"><img id="ans-preview" src=""></div>
             <div id="edit-tools" class="preview-tools" style="display:none;">
                 <button class="tool-btn" onclick="rotateImage()">↻ 回転</button>
                 <button class="tool-btn" onclick="resetPreview()">リセット</button>
-                <div class="text-dim" style="font-size:0.6rem; align-self:center;">※ピンチ・ドラッグ可</div>
             </div>
-
             <button id="ans-grade-btn" class="btn-grade-confirm" onclick="executeGrading()">✅ この内容で採点する</button>
             <button id="ans-toggle-btn" class="btn-answer-only" onclick="peekAnswer()" style="background:#555; color:white;">🔍 解答を確認</button>
         </div>
@@ -132,13 +117,12 @@
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
-        <button onclick="abortGeneration()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; border:none; margin-top:15px; width:60%;">中断</button>
+        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; border:none; margin-top:15px; width:60%;">中断・再読込</button>
     </div>
 
     <script>
-        let currentAbortController = null, drawingAbortController = null;
         let isRendering = false, drawInterval = null, currentRotation = 0, currentScale = 1, posX = 0, posY = 0;
-        let state = { prob: {}, scale: 1, x: 0, y: 0, t: null, startTime: 0, seen_answer: false, prefetched_answer: null, isFetching: false, last_units: [], current_target_unit: "数と式" };
+        let state = { prob: {}, x: 0, y: 0, scale: 1, t: null, startTime: 0, seen_answer: false, prefetched_answer: null, isFetching: false, current_target_unit: "数と式" };
 
         function toggleTheme() { document.body.classList.toggle('light-mode'); }
         
@@ -163,68 +147,48 @@
 
         window.onload = () => {
             initZoom(); initPreviewZoom(); refreshStats();
-            document.getElementById('dev-slider').addEventListener('input', (e) => {
+            document.getElementById('dev-slider').oninput = (e) => {
                 const val = parseFloat(e.target.value);
                 document.getElementById('dev-val').innerText = val.toFixed(1);
                 updateTargetSchool(val);
-            });
-            document.getElementById('c-input').addEventListener('change', previewImage);
-            applyProb({ unit: "数と式", text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を解け。"], hint: "最低50文字以上の具体的解説：分母の2を払うため両辺に2を掛けて $4(x-3) = x + 2$ とし、分配法則で括弧を外して整理せよ。符号ミスに注意。" });
+            };
+            document.getElementById('c-input').onchange = (e) => {
+                const file = e.target.files[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = document.getElementById('ans-preview');
+                    img.src = ev.target.result;
+                    document.getElementById('preview-area').style.display = 'block';
+                    document.getElementById('edit-tools').style.display = 'flex';
+                    document.getElementById('ans-grade-btn').style.display = 'block';
+                    resetPreview();
+                };
+                reader.readAsDataURL(file);
+            };
+            applyProb({ unit: "数と式", text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を解け。"], hint: "分母の2を払うため両辺に2を掛けて $4(x-3) = x + 2$ とし、分配法則で括弧を外して整理せよ。符号ミスに注意。" });
         };
 
-        function rotateImage() {
-            currentRotation = (currentRotation + 90) % 360;
-            updatePreviewTransform();
-        }
-
-        function resetPreview() {
-            currentRotation = 0; currentScale = 1; posX = 0; posY = 0;
-            updatePreviewTransform();
-        }
-
-        function updatePreviewTransform() {
-            const img = document.getElementById('ans-preview');
-            img.style.transform = `translate(${posX}px, ${posY}px) rotate(${currentRotation}deg) scale(${currentScale})`;
-        }
-
-        function previewImage(e) {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const img = document.getElementById('ans-preview');
-                img.src = ev.target.result;
-                document.getElementById('preview-area').style.display = 'block';
-                document.getElementById('edit-tools').style.display = 'flex';
-                document.getElementById('ans-grade-btn').style.display = 'block';
-                resetPreview();
-            };
-            reader.readAsDataURL(file);
-        }
+        function rotateImage() { currentRotation = (currentRotation + 90) % 360; updatePreviewTransform(); }
+        function resetPreview() { currentRotation = 0; currentScale = 1; posX = 0; posY = 0; updatePreviewTransform(); }
+        function updatePreviewTransform() { document.getElementById('ans-preview').style.transform = `translate(${posX}px, ${posY}px) rotate(${currentRotation}deg) scale(${currentScale})`; }
 
         async function executeGrading() {
             const img = document.getElementById('ans-preview');
-            if (!img.src || state.seen_answer) return;
+            if (!img.src) return;
             showUI("答案を採点中...");
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `入試採点官。画像内の文字が回転していても自動正立補正して読み取れ。
-【診断ルール】
-1. 画像がぼやけている、暗すぎる、または文字が切れていて読めない場合は、具体的に「画像から読み取れません。～を改善して撮り直してください」と一言目に記述せよ。
-2. 読める場合は、論理を評価し Score: X/10 を出せ。
-問題：${state.prob.text}` }, 
+                        { text: `入試採点官。画像内の文字が回転していても補正せよ。読めない場合は具体的に「画像から読み取れません。～を改善してください」と記述。読める場合は論理評価し Score: X/10 を出せ。問題：${state.prob.text}` }, 
                         { inlineData: { mimeType: "image/jpeg", data: img.src.split(',')[1] } }
                     ] }] })
                 });
                 const fb = (await res.json()).candidates[0].content.parts[0].text;
-                document.getElementById('res-box').innerHTML = fb; 
-                document.getElementById('res-box').style.display = 'block';
+                document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
                 document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる";
-                document.getElementById('edit-tools').style.display = 'none';
-                document.getElementById('ans-grade-btn').style.display = 'none';
-                const score = parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]);
-                saveLog(score >= 8 ? "○" : "×", score);
-            } catch(err) { alert("採点中にエラーが発生しました。"); } finally { hideUI(); }
+                document.getElementById('edit-tools').style.display = 'none'; document.getElementById('ans-grade-btn').style.display = 'none';
+                saveLog("○", parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
+            } catch(e) { alert("採点エラー。通信を確認してください。"); } finally { hideUI(); }
         }
 
         function updateTargetSchool(dev) {
@@ -253,15 +217,15 @@
 
         function initPreviewZoom() {
             const box = document.getElementById('preview-area');
-            box.addEventListener('wheel', e => { e.preventDefault(); currentScale *= (e.deltaY > 0 ? 0.9 : 1.1); updatePreviewTransform(); }, {passive:false});
-            let isDrag = false, startX, startY;
-            box.onmousedown = e => { isDrag = true; startX = e.clientX - posX; startY = e.clientY - posY; };
-            window.onmousemove = e => { if (isDrag) { posX = e.clientX - startX; posY = e.clientY - startY; updatePreviewTransform(); } };
-            window.onmouseup = () => isDrag = false;
+            box.onwheel = e => { e.preventDefault(); currentScale *= (e.deltaY > 0 ? 0.9 : 1.1); updatePreviewTransform(); };
+            let isD = false, sx, sy;
+            box.onmousedown = e => { isD = true; sx = e.clientX - posX; sy = e.clientY - posY; };
+            window.onmousemove = e => { if (isD) { posX = e.clientX - sx; posY = e.clientY - sy; updatePreviewTransform(); } };
+            window.onmouseup = () => isD = false;
         }
 
         function startDrawing(text) {
-            document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div><div id="draw-timer" class="draw-timer-text">0.0s</div>`;
+            document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div><div id="draw-timer" style="font-family:monospace; font-size:1.2rem; color:var(--ai);">0.0s</div>`;
             const s = Date.now();
             drawInterval = setInterval(() => { const el = document.getElementById('draw-timer'); if (el) el.innerText = ((Date.now() - s) / 1000).toFixed(1) + "s"; }, 100);
             autoDraw(0, text);
@@ -269,9 +233,7 @@
 
         async function autoDraw(retry = 0, sourceText) {
             try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `入試問題「${sourceText}」の可視化SVG。` }] }] })
-                });
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試問題「${sourceText}」の可視化SVG。` }] }] }) });
                 let svg = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 if (svg) { clearInterval(drawInterval); document.getElementById('svg-layer').innerHTML = svg[0]; }
             } catch (e) { if (retry < 2) autoDraw(retry + 1, sourceText); }
@@ -295,18 +257,16 @@
         async function prefetchAnswer() { 
             if (!state.prob.text || state.isFetching) return; state.isFetching = true;
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。補足が必要なら[詳しい説明](URL)を張れ。問題：${state.prob.text}` }] }] }) 
-                }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。補足が必要なら[詳しい説明](URL)を張れ。問題：${state.prob.text}` }] }] }) }); 
                 state.prefetched_answer = (await res.json()).candidates[0].content.parts[0].text; 
-            } catch (e) {} finally { state.isFetching = false; }
+            } finally { state.isFetching = false; }
         }
 
         async function peekAnswer() { 
             const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn');
             if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
             if (!state.seen_answer) { if (!confirm("偏差値加算は行われません。")) return; state.seen_answer = true; saveLog("×", 0); }
-            if (!state.prefetched_answer) { btn.innerText = "⏳ 取得中..."; while(!state.prefetched_answer) { if(!state.isFetching) await prefetchAnswer(); await new Promise(r => setTimeout(r, 1000)); } }
+            if (!state.prefetched_answer) { btn.innerText = "⏳ 取得中..."; while(!state.prefetched_answer) { await prefetchAnswer(); await new Promise(r => setTimeout(r, 1000)); } }
             box.innerHTML = state.prefetched_answer; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる"; safeRender();
         }
 
@@ -319,15 +279,12 @@
 
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; state.startTime = Date.now(); clearInterval(state.t); state.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-state.startTime)/1000).toFixed(1)+"s"; },100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
-        function abortGeneration() { location.reload(); }
         function doSkip() { generateNext(true); }
-        function resetData() { if(confirm("リセット？")) { localStorage.clear(); location.reload(); } }
-        
         function refreshStats() { 
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]"); document.getElementById('count-val').innerText = h.length; 
             if(h.length > 0) {
                 const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length;
-                const dev = Math.min(80, 40 + (avg * 3.5) + (h.length * 0.1));
+                const dev = Math.min(80, 40 + (avg * 3.5));
                 document.getElementById('dev-slider').value = dev; document.getElementById('dev-val').innerText = dev.toFixed(1); updateTargetSchool(dev);
             }
         }
