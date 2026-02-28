@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 4.0.0</title>
+    <title>AI数学講師 4.0.1</title>
     
     <script>
         window.MathJax = {
@@ -27,15 +27,12 @@
         .scale-labels { display: flex; justify-content: space-between; padding: 0; margin-top: 8px; position: relative; width: 100%; height: 45px; }
         .scale-labels span { font-size: 0.5rem; color: #888; text-align: center; position: absolute; transform: translateX(-50%); white-space: nowrap; line-height: 1.1; }
         
-        /* キャンバス関連 */
         #canvas-box { display: none; margin-bottom: 10px; }
         .canvas-outer { position: relative; background: #ffffff; border-radius: 6px; height: 260px; border: 2px solid #333; overflow: hidden; touch-action: none; cursor: grab; }
-        .canvas-outer:active { cursor: grabbing; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: center; transition: transform 0.1s ease-out; }
-        #svg-layer svg { width: 90%; height: 90%; pointer-events: none; }
         .canvas-tools { position: absolute; top: 5px; right: 5px; z-index: 10; display: flex; flex-direction: column; gap: 5px; }
         .canvas-btn { background: rgba(0,0,0,0.6); color: white; border: none; width: 28px; height: 28px; border-radius: 4px; font-size: 14px; cursor: pointer; }
-        .canvas-disclaimer { font-size: 0.65rem; color: #888; margin-top: 4px; line-height: 1.2; text-align: center; }
+        .canvas-disclaimer { font-size: 0.65rem; color: #888; margin-top: 4px; text-align: center; }
 
         .preview-box { width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; position: relative; display: none; border: 2px solid var(--primary); touch-action: none; }
         #ans-preview { width: 100%; height: 100%; object-fit: contain; transform-origin: center; pointer-events: none; }
@@ -52,15 +49,13 @@
         .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; }
         .prob-lv-badge { font-size: 0.7rem; background: #444; color: #fff; padding: 1px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
         .typing-loader { color: var(--ai); font-size: 0.9rem; font-weight: bold; text-align: center; padding: 20px; display: none; }
-        .typing-loader::after { content: '...'; animation: dots 1.5s steps(5, end) infinite; }
-        @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
     </style>
 </head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.0.0
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 4.0.1
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -89,17 +84,16 @@
             <h1>問題 [<span id="u-title">数と式</span>]<span id="prob-lv" class="prob-lv-badge">Lv.60.0</span></h1>
             <button onclick="doSkip()" style="background:var(--skip); color:white; padding:6px 12px; width:auto; border-radius:4px;">他単元へ ≫</button>
         </div>
+        
         <div id="canvas-box">
             <div class="canvas-outer" id="canvas-outer">
-                <div class="canvas-tools">
-                    <button class="canvas-btn" onclick="resetCanvas()">🏠</button>
-                </div>
+                <div class="canvas-tools"><button class="canvas-btn" onclick="resetCanvas()">🏠</button></div>
                 <div id="svg-layer"></div>
             </div>
-            <div class="canvas-disclaimer">※図はイメージであり、長さや角度が数学的に正確でない場合があります。</div>
+            <div class="canvas-disclaimer">※図は問題文の補足イメージです。長さ等は数学的に正確でない場合があります。</div>
         </div>
         
-        <div id="typing-msg" class="typing-loader">数式をきれいに変換中</div>
+        <div id="typing-msg" class="typing-loader">数式をきれいに変換中...</div>
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; color:#ccc; border-bottom:1px dashed #444; padding-bottom:8px;"></p>
             <ul id="q-list" style="padding-left:20px; list-style:none;"></ul>
@@ -189,11 +183,9 @@
             }
         }
 
-        /* --- キャンバス操作ロジック --- */
         function updateCanvasTransform() {
             svgLayer.style.transform = `translate(${canvasState.x}px, ${canvasState.y}px) scale(${canvasState.scale})`;
         }
-
         function resetCanvas() {
             canvasState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0, lastDist: 0 };
             updateCanvasTransform();
@@ -221,7 +213,6 @@
 
         window.addEventListener('mouseup', () => canvasState.isDragging = false);
 
-        // タッチ操作（パン＆ピンチ）
         canvasOuter.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
                 canvasState.isDragging = true;
@@ -248,68 +239,13 @@
 
         canvasOuter.addEventListener('touchend', () => { canvasState.isDragging = false; canvasState.lastDist = 0; });
 
-        /* --- 作問・採点ロジック --- */
-        function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = pbox.clientWidth-100; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
-        function updateCropUI() { ov.style.left = cropState.x + 'px'; ov.style.top = cropState.y + 'px'; ov.style.width = cropState.w + 'px'; ov.style.height = cropState.h + 'px'; }
-        
-        pbox.addEventListener('mousedown', startDrag);
-        pbox.addEventListener('touchstart', startDrag, {passive: false});
-        window.addEventListener('mousemove', drag);
-        window.addEventListener('touchmove', drag, {passive: false});
-        window.addEventListener('mouseup', () => cropState.dragging = false);
-        window.addEventListener('touchend', () => cropState.dragging = false);
-
-        function startDrag(e) {
-            const pos = getPos(e);
-            if (e.target.classList.contains('crop-handle')) { cropState.handling = e.target.dataset.handle; cropState.dragging = true; }
-            else if (e.target === ov) { cropState.handling = 'move'; cropState.dragging = true; }
-            else return;
-            e.preventDefault(); cropState.sX = pos.x; cropState.sY = pos.y;
-        }
-
-        function drag(e) {
-            if (!cropState.dragging) return;
-            e.preventDefault();
-            const pos = getPos(e); const dX = pos.x - cropState.sX; const dY = pos.y - cropState.sY;
-            if (cropState.handling === 'move') { cropState.x += dX; cropState.y += dY; }
-            else {
-                if (cropState.handling.includes('r')) cropState.w += dX;
-                if (cropState.handling.includes('l')) { cropState.x += dX; cropState.w -= dX; }
-                if (cropState.handling.includes('b')) cropState.h += dY;
-                if (cropState.handling.includes('t')) { cropState.y += dY; cropState.h -= dY; }
-            }
-            cropState.sX = pos.x; cropState.sY = pos.y; updateCropUI();
-        }
-
-        function getPos(e) { const rect = pbox.getBoundingClientRect(); return { x: (e.touches ? e.touches[0].clientX : e.clientX) - rect.left, y: (e.touches ? e.touches[0].clientY : e.clientY) - rect.top }; }
-
-        function getCroppedData() {
-            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-            const ratio = Math.max(img.naturalWidth / img.clientWidth, img.naturalHeight / img.clientHeight);
-            const sw = cropState.w * ratio; const sh = cropState.h * ratio;
-            const sx = (cropState.x - (pbox.clientWidth - img.naturalWidth / ratio) / 2) * ratio;
-            const sy = (cropState.y - (pbox.clientHeight - img.naturalHeight / ratio) / 2) * ratio;
-            canvas.width = sw; canvas.height = sh;
-            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-            return canvas.toDataURL('image/jpeg', 0.8);
-        }
-
-        document.getElementById('c-input').onchange = (e) => {
-            const file = e.target.files[0]; if (!file) return;
-            img.src = URL.createObjectURL(file);
-            img.onload = () => { pbox.style.display = 'block'; document.getElementById('edit-tools').style.display = 'flex'; document.getElementById('ans-grade-btn').style.display = 'block'; resetImg(); initCrop(); };
-        };
-
-        function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; img.style.transform = `rotate(${imgState.rot}deg)`; initCrop(); }
-        function resetImg() { imgState.rot = 0; img.style.transform = ''; initCrop(); }
-
         async function executeGrading() {
             showUI("答案を詳細解析中...");
             const data = getCroppedData();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `あなたは厳格な数学採点官。個人名は呼ぶな。筆跡がない画像は Score: 0。正解・不正解を日本語で詳しく解説し Score: X/10 を出力。問題：${appState.prob.text}` }, 
+                        { text: `厳格な数学採点官。個人名は呼ぶな。筆跡がない画像は Score: 0。日本語で詳しく解説し Score: X/10 を出力。※AI採点誤差あり。問題：${appState.prob.text}` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
@@ -317,6 +253,7 @@
                 const fb = responseData.candidates[0].content.parts[0].text;
                 document.getElementById('res-box').innerHTML = cleanMathText(fb);
                 document.getElementById('res-box').style.display = 'block';
+                document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる";
                 appState.seen = true; 
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 safeMathRender();
@@ -349,7 +286,10 @@
             showUI(`${appState.unit} 作問中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。偏差値${d}。JSON形式。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学範囲限定。微積分禁止。
+【鉄則】問題文テキスト(text)と小問(sub)は必ず日本語で完結させよ。
+JSON形式: { "text": "日本語の問題文", "sub": ["小問1", "小問2"], "hint": "ヒント" }
+偏差値設定: ${d}` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 applyProb(JSON.parse(data.candidates[0].content.parts[0].text), d);
@@ -369,7 +309,13 @@
 
         async function autoDraw(t) { 
             try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」の数学的な可視化SVG。` }] }] }) }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, 
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `
+【図解生成命令】問題文「${t}」を補足するSVGを出力せよ。
+1. 図の中に問題文（英語・日本語問わず）を入れることを厳禁する。
+2. 問題文中の点(A, B, C等)や長さ・角度の数値を正確に図の中に配置せよ。
+3. 数学的な美しさを重視したSVGタグのみを出力せよ。` }] }] }) 
+                }); 
                 const data = await res.json(); 
                 const svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
                 clearInterval(appState.svgT);
@@ -382,7 +328,7 @@
 
         async function prefetchAnswer() { 
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解：${appState.prob.text}` }] }] }) }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解。数式は$囲み。問題：${appState.prob.text}` }] }] }) }); 
                 const data = await res.json();
                 appState.ans = cleanMathText(data.candidates[0].content.parts[0].text); 
             } catch (e) {} 
@@ -430,7 +376,7 @@
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
             refreshStats();
-            applyProb({ text: "次の方程式を解け。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xを求めよ。"], hint: "整理して解け。" }, 60.0);
+            applyProb({ text: "次の方程式を解け。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xの値を求めよ。"], hint: "分母を払って整理せよ。" }, 60.0);
         });
     </script>
 </body>
