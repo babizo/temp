@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.8.7</title>
+    <title>AI数学講師 3.8.8</title>
     
     <script>
         window.MathJax = {
@@ -45,13 +45,14 @@
         .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; }
         .error-msg { color: var(--error); font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
         #debug-output { width: 100%; height: 100px; background: #000; color: #0f0; font-family: monospace; font-size: 0.7rem; margin-top: 10px; padding: 5px; border: 1px solid #333; display: none; overflow: auto; }
+        .prob-lv-badge { font-size: 0.7rem; background: #444; color: #fff; padding: 1px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
     </style>
 </head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.8.7
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.8.8
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -70,7 +71,7 @@
 
     <div class="card">
         <div class="header-flex">
-            <h1>問題 [<span id="u-title">数と式</span>]</h1>
+            <h1>問題 [<span id="u-title">数と式</span>]<span id="prob-lv" class="prob-lv-badge">Lv.60.0</span></h1>
             <button onclick="doSkip()" style="background:var(--skip); color:white; padding:6px 12px; width:auto; border-radius:4px;">他単元へ ≫</button>
         </div>
         <div id="canvas-box">
@@ -127,7 +128,7 @@
     <script>
         let imgState = { rot: 0, scale: 1, px: 0, py: 0 };
         let cropState = { x: 50, y: 50, w: 200, h: 150, dragging: false, handling: null, sX: 0, sY: 0 };
-        let appState = { prob: {}, seen: false, ans: null, unit: "数と式", t: null };
+        let appState = { prob: {}, seen: false, ans: null, unit: "数と式", currentLv: 60.0, t: null };
 
         const ov = document.getElementById('crop-overlay');
         const pbox = document.getElementById('preview-area');
@@ -141,12 +142,9 @@
             document.getElementById('dev-val').innerText = val.toFixed(1);
         }
 
-        // 数式補正フィルター
         function cleanMathText(txt) {
             if (!txt) return "";
-            // 末尾が演算子で終わっている場合に除去
             let clean = txt.trim().replace(/[+\-*\/=]\s*\$$/, " $");
-            // 壊れた分数形式 \frac{...}{ などを補正
             if (clean.includes("\\frac{") && !clean.includes("}")) clean += "}";
             return clean;
         }
@@ -212,12 +210,11 @@
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `数学採点官。画像補正必須。
-【重要】数式は必ず $ ... $ で囲み、絶対に途中で出力を中断するな。文法ミスは0点。
-【対象】
+                        { text: `数学採点官。画像回転補正。数学答案でないならScore: 0。
+【対象問題】
 ${appState.prob.text}
 ${subQs ? '小問：\n' + subQs : ''}
-Score: X/10出力。` }, 
+【ルール】小問(1)～(n)すべてを一括採点。論理重視しScore: X/10出力。` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
@@ -230,13 +227,14 @@ Score: X/10出力。` },
                 if (window.MathJax) MathJax.typesetPromise();
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 hideUI();
-            } catch(e) { showError("採点エラー：再試行してください", e.message); }
+            } catch(e) { showError("採点タイムアウト：再試行してください", e.message); }
         }
 
-        function applyProb(p) {
+        function applyProb(p, lv) {
             if (!p || !p.text) { showError("データ形式エラー"); return; }
-            appState.prob = p; appState.seen = false; appState.ans = null;
+            appState.prob = p; appState.seen = false; appState.ans = null; appState.currentLv = lv;
             document.getElementById('u-title').innerText = appState.unit;
+            document.getElementById('prob-lv').innerText = `Lv.${lv.toFixed(1)}`; // レベル表示
             document.getElementById('p-text').innerText = cleanMathText(p.text);
             const subs = (Array.isArray(p.sub) ? p.sub : [p.sub]).filter(q => q);
             document.getElementById('q-list').innerHTML = subs.map((q, i) => `<li>(${i+1}) ${cleanMathText(q)}</li>`).join('');
@@ -259,15 +257,12 @@ Score: X/10出力。` },
             let rawText = "";
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `あなたは数学作問。
-高校入試数学限定。微積分禁止。
-【最重要】数式は必ず $ ... $ で囲め。絶対に途中で出力を中断せず、最後まで完結させろ。
-単元「${appState.unit}」、偏差値${d}。JSON形式(text, sub:[], hint)。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学限定。微積分禁止。数式は$で囲む。単元「${appState.unit}」、偏差値${d}。JSON形式(text, sub:[], hint)。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 rawText = data.candidates[0].content.parts[0].text;
                 let jsonText = rawText.replace(/```json|```/g, '').trim();
-                applyProb(JSON.parse(jsonText));
+                applyProb(JSON.parse(jsonText), d);
             } catch (e) { showError("生成エラー", rawText || e.message); }
         }
 
@@ -275,7 +270,7 @@ Score: X/10出力。` },
             if (!appState.prob.text) return;
             const subQs = Array.isArray(appState.prob.sub) ? appState.prob.sub.join('\n') : appState.prob.sub;
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。小問全解。数式は必ず $ ... $ で囲め。絶対に途切れさせるな。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。小問全解。数式は $ ... $ で囲む。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
                 const data = await res.json();
                 appState.ans = cleanMathText(data.candidates[0].content.parts[0].text).replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); 
             } catch (e) {} 
@@ -291,7 +286,7 @@ Score: X/10出力。` },
         }
 
         function startDrawing(text) { document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div>`; autoDraw(text); }
-        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」のSVG図解。` }] }] }) }); const data = await res.json(); let svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); if (svg) document.getElementById('svg-layer').innerHTML = svg[0]; } catch (e) {} }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」のSVG図。` }] }] }) }); const data = await res.json(); let svg = data.candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); if (svg) document.getElementById('svg-layer').innerHTML = svg[0]; } catch (e) {} }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(window.MathJax) MathJax.typesetPromise(); }
         
         function showUI(m) { 
@@ -299,7 +294,6 @@ Score: X/10出力。` },
             document.getElementById('msg').innerText=m; 
             document.getElementById('error-feedback').style.display='none';
             document.getElementById('debug-output').style.display='none';
-            document.getElementById('disclaimer').style.display='block';
             let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); 
         }
         function showError(em, debugInfo = "") {
@@ -309,12 +303,12 @@ Score: X/10出力。` },
             ef.innerText = em; ef.style.display = 'block';
             if (document.getElementById('debug-mode').checked && debugInfo) {
                 const dout = document.getElementById('debug-output');
-                dout.value = debugInfo;
-                dout.style.display = 'block';
+                dout.value = debugInfo; dout.style.display = 'block';
             }
         }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
-        function resetData() { if(confirm("初期化しますか？")) { localStorage.clear(); location.reload(); } }
+        function doSkip() { generateNext(true); }
+        function resetData() { if(confirm("リセットしますか？")) { localStorage.clear(); location.reload(); } }
 
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
@@ -336,7 +330,7 @@ Score: X/10出力。` },
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
             refreshStats();
-            applyProb({ text: "次の方程式を解き、$x$ の値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を満たすxを求めよ。"], hint: "分母を払うため両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直せ。" });
+            applyProb({ text: "次の方程式を解き、$x$ の値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を満たすxを求めよ。"], hint: "両辺に2を掛けて整理せよ。" }, 60.0);
         });
     </script>
 </body>
