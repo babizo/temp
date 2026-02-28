@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師：最難関対策 3.6.2</title>
+    <title>AI数学講師：最難関対策 3.6.3</title>
     
     <script>
         window.MathJax = {
             tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true },
-            options: { enableMenu: false },
-            startup: { ready: () => { MathJax.startup.defaultReady(); window.mathJaxReady = true; if(window.onMathJaxLoaded) window.onMathJaxLoaded(); } }
+            options: { enableMenu: false }
         };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -31,7 +30,7 @@
         .canvas-container { background: #ffffff; border-radius: 6px; height: 240px; margin-bottom: 5px; overflow: hidden; position: relative; border: 2px solid #333; display: flex; align-items: center; justify-content: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; cursor: grab; flex-direction: column; color: #444; font-size: 0.8rem; text-align: center; }
         .preview-box { width: 100%; height: 300px; background: #000; border-radius: 8px; overflow: hidden; position: relative; display: none; border: 2px solid var(--primary); cursor: move; }
-        #ans-preview { width: 100%; height: 100%; object-fit: contain; transform-origin: center; pointer-events: none; }
+        #ans-preview { width: 100%; height: 100%; object-fit: contain; transform-origin: center; transition: transform 0.1s ease-out; pointer-events: none; }
         .preview-tools { display: flex; justify-content: center; gap: 10px; margin: 10px 0; }
         .tool-btn { background: #444; color: #fff; border: 1px solid #666; padding: 5px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
@@ -47,7 +46,7 @@
 <body>
 
     <div class="top-bar">
-        <div style="font-size: 0.7rem; color: #888;">ver 3.6.2 FINAL</div>
+        <div style="font-size: 0.7rem; color: #888;">ver 3.6.3 RELIABLE</div>
         <button class="theme-toggle" onclick="toggleTheme()">🌓 モード切替</button>
     </div>
 
@@ -83,7 +82,7 @@
 
     <div class="card">
         <div style="display:flex; gap:10px; flex-direction: column;">
-            <button class="btn-camera" id="main-camera-btn" onclick="document.getElementById('c-input').click()">📸 答案を撮影・選択</button>
+            <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 答案を撮影・選択</button>
             <div id="preview-area" class="preview-box"><img id="ans-preview" src=""></div>
             <div id="edit-tools" class="preview-tools" style="display:none;">
                 <button class="tool-btn" onclick="rotateImage()">↻ 回転</button>
@@ -123,12 +122,12 @@
         }
 
         async function safeRender() {
-            if (isRendering || !window.MathJax) return;
+            if (isRendering || !window.MathJax || !MathJax.typesetPromise) return;
             isRendering = true; try { await MathJax.typesetPromise(); } catch (e) {} finally { isRendering = false; }
         }
 
-        // 初期化の要
-        function initApp() {
+        // 初期問題を即座に表示
+        function setup() {
             startMathObserver(); refreshStats();
             document.getElementById('dev-slider').oninput = (e) => {
                 const val = parseFloat(e.target.value);
@@ -136,25 +135,30 @@
                 let s = "[標準]"; if (val >= 76) s = "[筑駒]"; else if (val >= 72) s = "[開成]"; else if (val >= 68) s = "[渋幕]"; else if (val >= 60) s = "[日比谷]"; else if (val >= 56) s = "[西]";
                 document.getElementById('target-school').innerText = s;
             };
-            document.getElementById('c-input').onchange = previewImage;
-            applyProb({ unit: "数と式", text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を解け。"], hint: "ヒント（50字以上）：まずは分母の2を払うために両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直すのが定石だ。その後括弧を外し、未知数xを左辺に集めて整理せよ。" });
-        }
-
-        window.onload = () => { if(window.mathJaxReady) initApp(); else window.onMathJaxLoaded = initApp; };
-
-        function previewImage(e) {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const img = document.getElementById('ans-preview');
-                img.src = ev.target.result;
-                document.getElementById('preview-area').style.display = 'block';
-                document.getElementById('edit-tools').style.display = 'flex';
-                document.getElementById('ans-grade-btn').style.display = 'block';
-                resetPreview();
+            document.getElementById('c-input').onchange = (ev) => {
+                const file = ev.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.getElementById('ans-preview');
+                    img.src = e.target.result;
+                    document.getElementById('preview-area').style.display = 'block';
+                    document.getElementById('edit-tools').style.display = 'flex';
+                    document.getElementById('ans-grade-btn').style.display = 'block';
+                    resetPreview();
+                };
+                reader.readAsDataURL(file);
             };
-            reader.readAsDataURL(file);
+            applyProb({ unit: "数と式", text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を解け。"], hint: "分母の2を払うために、まず両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直すのが良い。その後分配法則で括弧を外して未知数xを左辺にまとめよ。" });
+            initZoom(); initPreviewZoom();
         }
+
+        // DOM構築が完了したら即座に実行
+        document.addEventListener('DOMContentLoaded', setup);
+
+        function rotateImage() { currentRotation = (currentRotation + 90) % 360; updatePreviewTransform(); }
+        function resetPreview() { currentRotation = 0; currentScale = 1; posX = 0; posY = 0; updatePreviewTransform(); }
+        function updatePreviewTransform() { document.getElementById('ans-preview').style.transform = `translate(${posX}px, ${posY}px) rotate(${currentRotation}deg) scale(${currentScale})`; }
 
         async function executeGrading() {
             const img = document.getElementById('ans-preview'); if (!img.src) return;
@@ -162,7 +166,7 @@
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `入試採点官。画像が回転していても補正せよ。読めない場合は具体的に「画像から読み取れません。～を改善してください」と記述。読める場合は論理評価し Score: X/10 を出せ。問題：${state.prob.text}` }, 
+                        { text: `入試採点官。画像回転も考慮せよ。読めないなら「画像から読み取れません。～を改善してください」と記述。読めるなら論理評価し Score: X/10 を出せ。問題：${state.prob.text}` }, 
                         { inlineData: { mimeType: "image/jpeg", data: img.src.split(',')[1] } }
                     ] }] })
                 });
@@ -188,10 +192,6 @@
             if (showDiagram) startDrawing(p.text);
             safeRender(); setTimeout(prefetchAnswer, 2000); return true;
         }
-
-        function rotateImage() { currentRotation = (currentRotation + 90) % 360; updatePreviewTransform(); }
-        function resetPreview() { currentRotation = 0; currentScale = 1; posX = 0; posY = 0; updatePreviewTransform(); }
-        function updatePreviewTransform() { document.getElementById('ans-preview').style.transform = `translate(${posX}px, ${posY}px) rotate(${currentRotation}deg) scale(${currentScale})`; }
 
         function initPreviewZoom() {
             const box = document.getElementById('preview-area');
@@ -227,7 +227,7 @@
             showUI(`${state.current_target_unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。hint50字以上。単元「${state.current_target_unit}」、SAPIX偏差値${dev}相当。JSON(text, sub:[], hint)形式。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。hint50字以上。単元「${state.current_target_unit}」、偏差値${dev}相当。JSON(text, sub:[], hint)形式。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 if (applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text))) hideUI();
             } catch (e) { hideUI(); }
