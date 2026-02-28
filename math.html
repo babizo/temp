@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.7.0</title>
+    <title>AI数学講師 3.7.3</title>
     
     <script>
         window.MathJax = {
@@ -22,41 +22,39 @@
         .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); margin-bottom: 10px; padding-bottom: 5px; }
         h1 { color: var(--primary); font-size: 1.1rem; margin: 0; }
         .theme-toggle { background: #444; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.7rem; cursor: pointer; }
+        
         #dev-slider { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; -webkit-appearance: none; margin: 15px 0; }
         #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid #fff; }
         .scale-labels { display: flex; justify-content: space-between; padding: 0; margin-top: 8px; position: relative; width: 100%; height: 35px; }
         .scale-labels span { font-size: 0.52rem; color: #888; text-align: center; position: absolute; transform: translateX(-50%); white-space: nowrap; }
         
-        /* キャンバス */
         #canvas-box { display: none; }
         .canvas-container { background: #ffffff; border-radius: 6px; height: 240px; margin-bottom: 5px; overflow: hidden; position: relative; border: 2px solid #333; display: flex; align-items: center; justify-content: center; }
         #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; flex-direction: column; color: #444; font-size: 0.8rem; text-align: center; }
         
-        /* プレビュー・トリミングエリア */
         .preview-box { width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; position: relative; display: none; border: 2px solid var(--primary); touch-action: none; }
         #ans-preview { width: 100%; height: 100%; object-fit: contain; transform-origin: center; pointer-events: none; }
         
-        /* トリミング枠 */
         .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); box-sizing: border-box; cursor: move; display: none; }
         .crop-handle { position: absolute; width: 18px; height: 18px; background: var(--primary); border: 2px solid #fff; border-radius: 50%; }
-        /* ハンドル位置 */
-        .tl { top: -9px; left: -9px; cursor: nwse-resize; }
-        .tr { top: -9px; right: -9px; cursor: nesw-resize; }
-        .bl { bottom: -9px; left: -9px; cursor: nesw-resize; }
-        .br { bottom: -9px; right: -9px; cursor: nwse-resize; }
+        .tl { top: -9px; left: -9px; cursor: nwse-resize; } .tr { top: -9px; right: -9px; cursor: nesw-resize; }
+        .bl { bottom: -9px; left: -9px; cursor: nesw-resize; } .br { bottom: -9px; right: -9px; cursor: nwse-resize; }
 
         #p-text, #q-list li, #h-box, #res-box { white-space: pre-wrap; word-break: break-word; }
         a { color: #3498db; text-decoration: underline; font-weight: bold; }
         .loading-overlay { display: none; text-align: center; padding: 25px; background: rgba(0,0,0,0.98); border-radius: 10px; border: 1px solid var(--ai); position: fixed; top: 15%; left: 50%; transform: translateX(-50%); z-index: 1000; width: 85%; }
         button { border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-bottom: 8px; }
-        .btn-camera { background: var(--success); color: white; }
-        .btn-grade-confirm { background: #f39c12; color: white; display: none; }
+        
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; font-size: 0.75rem; }
+        .hist-info { display: flex; flex-direction: column; gap: 2px; }
+        .hist-date { font-size: 0.6rem; color: #888; }
+        .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; }
     </style>
 </head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.7.0 CROP_ORIENT</div>
+        <div style="font-size:0.7rem; color:#888;">ver 3.7.3 OPTIMIZED</div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
@@ -75,14 +73,11 @@
     <div class="card">
         <div class="header-flex">
             <h1>問題 [<span id="u-title">数と式</span>]</h1>
-            <button onclick="doSkip()" style="background:var(--skip); color:white; padding:6px 12px; width:auto;">他単元 ≫</button>
+            <button onclick="doSkip()" style="background:var(--skip); color:white; padding:6px 12px; width:auto; border-radius:4px;">他単元へ ≫</button>
         </div>
-        
         <div id="canvas-box">
             <div class="canvas-container"><div id="svg-layer"></div></div>
-            <div style="text-align:center; font-size:0.65rem; color:#888; margin-bottom:10px;">※図は正確ではありません（移動・拡大可）</div>
         </div>
-
         <div id="math-content-area">
             <p id="p-text" style="font-weight:bold; color:#ccc; border-bottom:1px dashed #444; padding-bottom:8px;"></p>
             <ul id="q-list" style="padding-left:20px; list-style:none;"></ul>
@@ -96,8 +91,7 @@
     </div>
 
     <div class="card">
-        <button class="btn-camera" onclick="document.getElementById('c-input').click()">📸 答案を撮影・選択</button>
-        
+        <button onclick="document.getElementById('c-input').click()" style="background:var(--success); color:white;">📸 答案を撮影・選択</button>
         <div id="preview-area" class="preview-box">
             <img id="ans-preview" src="">
             <div id="crop-overlay" class="crop-overlay">
@@ -107,287 +101,174 @@
                 <div class="crop-handle br" data-handle="br"></div>
             </div>
         </div>
-        
-        <div class="text-dim" style="text-align:center; margin-top:5px;">※枠を動かして数式を囲んでください</div>
+        <div id="crop-guide" class="text-dim" style="text-align:center; margin-top:5px; display:none;">※枠を動かして数式を囲んでください</div>
 
         <div id="edit-tools" style="display:none; justify-content:center; gap:10px; margin:10px 0;">
             <button onclick="rotateImg()" style="background:#444; color:#fff; padding:5px 12px; border-radius:4px;">↻ 回転</button>
             <button onclick="resetImg()" style="background:#444; color:#fff; padding:5px 12px; border-radius:4px;">リセット</button>
         </div>
-        <button id="ans-grade-btn" class="btn-grade-confirm" onclick="executeGrading()">✅ 枠内を採点する</button>
+        <button id="ans-grade-btn" style="background:#f39c12; color:white; display:none;" onclick="executeGrading()">✅ 枠内を採点する</button>
         <button id="ans-toggle-btn" style="background:#555; color:white;" onclick="peekAnswer()">🔍 解答を確認</button>
         <input type="file" id="c-input" accept="image/*" capture="environment" style="display:none">
         <div id="res-box" style="background:#111; padding:15px; border-radius:8px; display:none; border-left:4px solid var(--primary); margin-top:10px;"></div>
     </div>
 
+    <div class="card">
+        <div class="header-flex"><h1>演習履歴</h1><button onclick="resetData()" style="background:none; border:none; color:#888; font-size:0.7rem; width:auto;">リセット</button></div>
+        <div id="hist-list"></div>
+    </div>
+
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff;"></p>
-        <div style="font-size:0.7rem; color:#ffadad; margin-top:10px;">※最大1分程かかる場合があります</div>
-        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断・再読込</button>
+        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断</button>
     </div>
 
     <script>
-        // 画像編集・トリミング状態
-        let imgState = { rot: 0, scale: 1, px: 0, py: 0, imgW: 0, imgH: 0 };
-        let cropState = { x: 50, y: 50, w: 200, h: 150, active: false, dragging: false, handling: null, sX: 0, sY: 0 };
-        
+        let imgState = { rot: 0, scale: 1, px: 0, py: 0 };
+        let cropState = { x: 50, y: 50, w: 200, h: 150, dragging: false, handling: null, sX: 0, sY: 0 };
         let appState = { prob: {}, seen: false, ans: null, unit: "数と式" };
 
-        // --- トリミングロジック (Crop) ---
         const ov = document.getElementById('crop-overlay');
         const pbox = document.getElementById('preview-area');
         const img = document.getElementById('ans-preview');
+        const guide = document.getElementById('crop-guide');
 
-        function initCrop() {
-            cropState.x = pbox.clientWidth * 0.2;
-            cropState.y = pbox.clientHeight * 0.2;
-            cropState.w = pbox.clientWidth * 0.6;
-            cropState.h = pbox.clientHeight * 0.4;
-            ov.style.display = 'block';
-            updateCropUI();
-        }
-
-        function updateCropUI() {
-            ov.style.left = cropState.x + 'px';
-            ov.style.top = cropState.y + 'px';
-            ov.style.width = cropState.w + 'px';
-            ov.style.height = cropState.h + 'px';
-        }
-
-        // マウス/タッチイベント統合
-        function getPos(e) {
-            const rect = pbox.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return { x: clientX - rect.left, y: clientY - rect.top };
-        }
-
+        function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = pbox.clientWidth-100; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
+        function updateCropUI() { ov.style.left = cropState.x + 'px'; ov.style.top = cropState.y + 'px'; ov.style.width = cropState.w + 'px'; ov.style.height = cropState.h + 'px'; }
+        
         pbox.addEventListener('mousedown', startDrag);
         pbox.addEventListener('touchstart', startDrag, {passive: false});
         window.addEventListener('mousemove', drag);
         window.addEventListener('touchmove', drag, {passive: false});
-        window.addEventListener('mouseup', endDrag);
-        window.addEventListener('touchend', endDrag);
+        window.addEventListener('mouseup', () => cropState.dragging = false);
+        window.addEventListener('touchend', () => cropState.dragging = false);
 
         function startDrag(e) {
-            if (e.target.classList.contains('crop-handle')) {
-                cropState.handling = e.target.dataset.handle;
-                cropState.dragging = true;
-            } else if (e.target === ov) {
-                cropState.handling = 'move';
-                cropState.dragging = true;
-            } else {
-                return; // 画像の移動・拡大は削る(トリミング優先)
-            }
-            e.preventDefault();
             const pos = getPos(e);
-            cropState.sX = pos.x;
-            cropState.sY = pos.y;
+            if (e.target.classList.contains('crop-handle')) { cropState.handling = e.target.dataset.handle; cropState.dragging = true; }
+            else if (e.target === ov) { cropState.handling = 'move'; cropState.dragging = true; }
+            else return;
+            e.preventDefault(); cropState.sX = pos.x; cropState.sY = pos.y;
         }
 
         function drag(e) {
             if (!cropState.dragging) return;
             e.preventDefault();
-            const pos = getPos(e);
-            const dX = pos.x - cropState.sX;
-            const dY = pos.y - cropState.sY;
-            const minS = 30; // 最小サイズ
-
-            if (cropState.handling === 'move') {
-                cropState.x = Math.max(0, Math.min(pbox.clientWidth - cropState.w, cropState.x + dX));
-                cropState.y = Math.max(0, Math.min(pbox.clientHeight - cropState.h, cropState.y + dY));
-            } else {
-                // ハンドルによるリサイズ
-                if (cropState.handling.includes('r')) {
-                    cropState.w = Math.max(minS, Math.min(pbox.clientWidth - cropState.x, cropState.w + dX));
-                }
-                if (cropState.handling.includes('l')) {
-                    const newW = Math.max(minS, cropState.w - dX);
-                    if (newW !== minS) { cropState.x += dX; cropState.w = newW; }
-                }
-                if (cropState.handling.includes('b')) {
-                    cropState.h = Math.max(minS, Math.min(pbox.clientHeight - cropState.y, cropState.h + dY));
-                }
-                if (cropState.handling.includes('t')) {
-                    const newH = Math.max(minS, cropState.h - dY);
-                    if (newH !== minS) { cropState.y += dY; cropState.h = newH; }
-                }
+            const pos = getPos(e); const dX = pos.x - cropState.sX; const dY = pos.y - cropState.sY;
+            if (cropState.handling === 'move') { cropState.x += dX; cropState.y += dY; }
+            else {
+                if (cropState.handling.includes('r')) cropState.w += dX;
+                if (cropState.handling.includes('l')) { cropState.x += dX; cropState.w -= dX; }
+                if (cropState.handling.includes('b')) cropState.h += dY;
+                if (cropState.handling.includes('t')) { cropState.y += dY; cropState.h -= dY; }
             }
-            cropState.sX = pos.x;
-            cropState.sY = pos.y;
-            updateCropUI();
+            cropState.sX = pos.x; cropState.sY = pos.y; updateCropUI();
         }
 
-        function endDrag() { cropState.dragging = false; cropState.handling = null; }
+        function getPos(e) { const rect = pbox.getBoundingClientRect(); return { x: (e.touches ? e.touches[0].clientX : e.clientX) - rect.left, y: (e.touches ? e.touches[0].clientY : e.clientY) - rect.top }; }
 
-        // トリミング実行 (Canvasに描画してDataURLを取得)
         function getCroppedData() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // 画像の本来のサイズとプレビュー表示サイズの比率
-            const hRatio = img.naturalWidth / img.clientWidth;
-            const vRatio = img.naturalHeight / img.clientHeight;
-            const ratio = Math.max(hRatio, vRatio); // object-fit: containの場合
-
-            // 表示上の画像位置・サイズ
-            const displayedW = img.naturalWidth / ratio;
-            const displayedH = img.naturalHeight / ratio;
-            const offsetX = (pbox.clientWidth - displayedW) / 2;
-            const offsetY = (pbox.clientHeight - displayedH) / 2;
-
-            // プレビュー上のトリミング枠座標を、画像本来の座標に変換
-            // 回転は削る指示がなかったので、回転角に合わせて座標計算(0, 90, 180, 270)
-            let sx, sy, sw, sh;
-            
-            // 簡易のため、回転0度の場合の計算
-            sw = cropState.w * ratio;
-            sh = cropState.h * ratio;
-            sx = (cropState.x - offsetX) * ratio;
-            sy = (cropState.y - offsetY) * ratio;
-
-            // 回転に対応した描画 (0, 90, 180, 270)
-            if (imgState.rot === 0) {
-                canvas.width = sw; canvas.height = sh;
-                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-            } else if (imgState.rot === 90) {
-                canvas.width = sh; canvas.height = sw;
-                ctx.rotate(90 * Math.PI / 180);
-                ctx.drawImage(img, sx, sy, sw, sh, 0, -sh, sw, sh);
-            } else if (imgState.rot === 180) {
-                canvas.width = sw; canvas.height = sh;
-                ctx.rotate(180 * Math.PI / 180);
-                ctx.drawImage(img, sx, sy, sw, sh, -sw, -sh, sw, sh);
-            } else if (imgState.rot === 270) {
-                canvas.width = sh; canvas.height = sw;
-                ctx.rotate(270 * Math.PI / 180);
-                ctx.drawImage(img, sx, sy, sw, sh, -sw, 0, sw, sh);
-            }
-
+            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+            const ratio = Math.max(img.naturalWidth / img.clientWidth, img.naturalHeight / img.clientHeight);
+            const sw = cropState.w * ratio; const sh = cropState.h * ratio;
+            const sx = (cropState.x - (pbox.clientWidth - img.naturalWidth / ratio) / 2) * ratio;
+            const sy = (cropState.y - (pbox.clientHeight - img.naturalHeight / ratio) / 2) * ratio;
+            canvas.width = (imgState.rot % 180 === 0) ? sw : sh; canvas.height = (imgState.rot % 180 === 0) ? sh : sw;
+            ctx.translate(canvas.width/2, canvas.height/2); ctx.rotate(imgState.rot * Math.PI / 180);
+            ctx.drawImage(img, sx, sy, sw, sh, -sw/2, -sh/2, sw, sh);
             return canvas.toDataURL('image/jpeg', 0.8);
         }
 
-        // --- 既存ロジック (削りなし) ---
-
-        // 画像選択・プレビュー
-        document.getElementById('c-input').addEventListener('change', function(e) {
+        document.getElementById('c-input').onchange = (e) => {
             const file = e.target.files[0]; if (!file) return;
-            const url = URL.createObjectURL(file);
-            img.src = url;
-            img.onload = () => {
-                document.getElementById('preview-area').style.display = 'block';
-                document.getElementById('edit-tools').style.display = 'flex';
-                document.getElementById('ans-grade-btn').style.display = 'block';
-                resetImg();
-                initCrop(); // トリミング枠初期化
+            img.src = URL.createObjectURL(file);
+            img.onload = () => { 
+                pbox.style.display = 'block'; 
+                guide.style.display = 'block'; // ガイドを表示
+                document.getElementById('edit-tools').style.display = 'flex'; 
+                document.getElementById('ans-grade-btn').style.display = 'block'; 
+                resetImg(); initCrop(); 
             };
-        });
+        };
 
-        function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; updateImg(); }
-        function resetImg() { imgState.rot = 0; imgState.scale = 1; imgState.px = 0; imgState.py = 0; updateImg(); initCrop(); }
-        function updateImg() { img.style.transform = `rotate(${imgState.rot}deg)`; } // 拡大移動はトリミングと競合するため回転のみ維持
+        function rotateImg() { imgState.rot = (imgState.rot + 90) % 360; img.style.transform = `rotate(${imgState.rot}deg)`; initCrop(); }
+        function resetImg() { imgState.rot = 0; img.style.transform = ''; initCrop(); }
 
-        // 採点実行 (トリミングデータを送信)
         async function executeGrading() {
-            if (!img.src) return;
             showUI("答案を採点中...");
-            const croppedData = getCroppedData(); // トリミング実行
-            
-            // DEBUGモード用：トリミング結果を確認
-            if (document.getElementById('debug-mode')?.checked) {
-                const debugImg = document.createElement('img'); debugImg.src = croppedData; style={width:'100px'};
-                document.getElementById('res-box').appendChild(debugImg);
-            }
-
+            const data = getCroppedData();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [
-                        { text: `入試採点官。
-【最重要指示】
-添付された画像は生徒の答案です。トリミングや撮影により向きが横や逆さになっている場合がありますが、文字の方向を自動検知し、正立補正して解読してください。
-画像内の数式と書き込みを優先評価し、Score: X/10 を出せ。具体的誤答指摘と補足リンク[解説](URL)も活用せよ。
-問題：${appState.prob.text}` }, 
-                        { inlineData: { mimeType: "image/jpeg", data: croppedData.split(',')[1] } }
-                    ] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `入試採点官。画像向きを自動補正せよ。Score: X/10 を出せ。問題：${appState.prob.text}` }, { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }] }] })
                 });
                 const fb = (await res.json()).candidates[0].content.parts[0].text;
                 const box = document.getElementById('res-box');
                 box.innerHTML = fb.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-                box.style.display = 'block';
-                document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる";
-                document.getElementById('ans-grade-btn').style.display = 'none';
+                box.style.display = 'block'; document.getElementById('ans-grade-btn').style.display = 'none';
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
-            } catch(e) { alert("採点エラー。"); } finally { hideUI(); }
-        }
-
-        // 解答確認・生成・他 (削りなし)
-        async function peekAnswer() {
-            const box = document.getElementById('res-box');
-            if (box.style.display === 'block') { box.style.display = 'none'; document.getElementById('ans-toggle-btn').innerText = "🔍 解答を確認"; return; }
-            if (!appState.seen) { if (!confirm("偏差値加算は行われません。")) return; appState.seen = true; saveLog(0); }
-            if (!appState.ans) { document.getElementById('ans-toggle-btn').innerText = "⏳ 取得中..."; await prefetchAnswer(); }
-            box.innerHTML = appState.ans || "取得失敗"; box.style.display = 'block';
-            document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる";
-            if (window.MathJax) MathJax.typeset();
-        }
-
-        async function prefetchAnswer() {
-            try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。補足が必要なら[詳しい説明](URL)を張れ。問題：${appState.prob.text}` }] }] }) });
-                appState.ans = (await res.json()).candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-            } catch (e) {}
+            } catch(e) { alert("エラー"); } finally { hideUI(); }
         }
 
         function applyProb(p) {
             appState.prob = p; appState.seen = false; appState.ans = null;
             document.getElementById('u-title').innerText = appState.unit;
             document.getElementById('p-text').innerText = p.text;
-            const subs = (Array.isArray(p.sub) ? p.sub : [p.sub]).filter(q => q);
-            document.getElementById('q-list').innerHTML = subs.map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
+            document.getElementById('q-list').innerHTML = (Array.isArray(p.sub) ? p.sub : [p.sub]).map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
             document.getElementById('h-box').innerText = p.hint;
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
-            img.src = ""; document.getElementById('preview-area').style.display = 'none'; ov.style.display = 'none';
-            document.getElementById('ans-grade-btn').style.display = 'none'; document.getElementById('edit-tools').style.display = 'none';
-            const drawKeywords = /三角形|円|関数|グラフ|座標|立体/;
-            const showDiagram = /平面図形|関数|立体/.test(appState.unit) || drawKeywords.test(p.text);
+            pbox.style.display = 'none'; 
+            guide.style.display = 'none'; // ガイドを隠す
+            document.getElementById('ans-grade-btn').style.display = 'none';
+            const showDiagram = /平面図形|関数|立体/.test(appState.unit) || /三角形|円|グラフ/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) startDrawing(p.text);
             if (window.MathJax) MathJax.typeset();
             setTimeout(prefetchAnswer, 2000);
         }
 
-        async function generateNext(isOther = false, isHard = false) {
-            let d = isHard ? 76 : parseFloat(document.getElementById('dev-slider').value);
+        async function generateNext(isOther = false, isHardMode = false) {
+            let d = isHardMode ? 76 : parseFloat(document.getElementById('dev-slider').value);
             if (isOther) { const units = ["数と式", "方程式", "関数", "平面図形", "空間図形", "確率"]; appState.unit = units.filter(u => u !== appState.unit)[Math.floor(Math.random() * 5)]; }
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。hint50字以上。単元「${appState.unit}」、偏差値${d}相当。JSON(text, sub:[], hint)形式。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。hint50字相当。JSON(text, sub:[], hint)形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
             } finally { hideUI(); }
         }
 
-        function startDrawing(text) {
-            document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div>`;
-            autoDraw(text);
+        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。補足リンクも。問題：${appState.prob.text}` }] }] }) }); appState.ans = (await res.json()).candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); } catch (e) {} }
+
+        async function peekAnswer() {
+            const box = document.getElementById('res-box'); if (box.style.display === 'block') { box.style.display = 'none'; return; }
+            if (!appState.seen) { 
+                if (!confirm("未採点なので偏差値加算は行われません。")) return; 
+                appState.seen = true; saveLog(0); 
+            }
+            if (!appState.ans) await prefetchAnswer();
+            box.innerHTML = appState.ans || "失敗"; box.style.display = 'block'; if (window.MathJax) MathJax.typeset();
         }
 
-        async function autoDraw(sourceText) {
-            try {
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `入試問題「${sourceText}」の可視化SVG。` }] }] }) });
-                let svg = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i);
-                if (svg) document.getElementById('svg-layer').innerHTML = svg[0];
-            } catch (e) {}
-        }
-
+        function startDrawing(text) { document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div>`; autoDraw(text); }
+        async function autoDraw(t) { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `問題「${t}」のSVG図解。` }] }] }) }); let svg = (await res.json()).candidates[0].content.parts[0].text.match(/<svg[\s\S]*?<\/svg>/i); if (svg) document.getElementById('svg-layer').innerHTML = svg[0]; } catch (e) {} }
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(window.MathJax) MathJax.typeset(); }
-        function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; state.startTime = Date.now(); clearInterval(state.t); state.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-state.startTime)/1000).toFixed(1)+"s"; },100); }
-        function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(state.t); }
+        function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
+        function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
         function doSkip() { generateNext(true); }
+        function resetData() { if(confirm("履歴と偏差値を初期化しますか？")) { localStorage.clear(); location.reload(); } }
+
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
+            document.getElementById('hist-list').innerHTML = h.slice(0,10).map(x => `
+                <div class="history-item">
+                    <div class="hist-info">
+                        <span class="hist-date">${x.dt || "--/-- --:--"}</span>
+                        <span>${x.u || "演習"}</span>
+                    </div>
+                    <span class="score-badge">${x.s}/10</span>
+                </div>`).join('');
             if(h.length > 0) {
                 const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length;
                 const d = Math.min(80, 40 + (avg * 3.5));
@@ -396,11 +277,16 @@
         }
         function saveLog(s) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            h.unshift({ s: s }); localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats();
+            const now = new Date();
+            const dt = (now.getMonth()+1) + "/" + now.getDate() + " " + now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
+            h.unshift({ u: appState.unit, s: s, dt: dt });
+            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50)));
+            refreshStats();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を満たすxを求めよ。"], hint: "ヒント：まずは分母の2を払うため両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直す。括弧を外しxを左辺にまとめよ。" });
+            refreshStats();
+            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xを求めよ。"], hint: "両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直す。括弧を外してxをまとめよう。" });
         });
     </script>
 </body>
