@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.9.3</title>
+    <title>AI数学講師 3.9.5</title>
     
     <script>
         window.MathJax = {
@@ -26,9 +26,6 @@
         #dev-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid #fff; }
         .scale-labels { display: flex; justify-content: space-between; padding: 0; margin-top: 8px; position: relative; width: 100%; height: 45px; }
         .scale-labels span { font-size: 0.5rem; color: #888; text-align: center; position: absolute; transform: translateX(-50%); white-space: nowrap; line-height: 1.1; }
-        #canvas-box { display: none; }
-        .canvas-container { background: #ffffff; border-radius: 6px; height: 240px; margin-bottom: 5px; overflow: hidden; position: relative; border: 2px solid #333; display: flex; align-items: center; justify-content: center; }
-        #svg-layer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: 0 0; flex-direction: column; color: #444; font-size: 0.8rem; text-align: center; }
         .preview-box { width: 100%; height: 350px; background: #000; border-radius: 8px; overflow: hidden; position: relative; display: none; border: 2px solid var(--primary); touch-action: none; }
         #ans-preview { width: 100%; height: 100%; object-fit: contain; transform-origin: center; pointer-events: none; }
         .crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); box-sizing: border-box; cursor: move; display: none; }
@@ -47,7 +44,7 @@
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items: center;">
         <div style="font-size:0.7rem; color:#888;">
-            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.9.3
+            <label style="cursor:pointer;"><input type="checkbox" id="debug-mode"> DEBUG</label> ver 3.9.5
         </div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
@@ -117,7 +114,7 @@
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
-        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断・再読込</button>
+        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断</button>
     </div>
 
     <script>
@@ -203,11 +200,20 @@
         function resetImg() { imgState.rot = 0; img.style.transform = ''; initCrop(); }
 
         async function executeGrading() {
-            showUI("答案を採点中...");
+            showUI("厳格に採点中...");
             const data = getCroppedData();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学採点。Score: X/10出力。問題：${appState.prob.text}` }, { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [
+                        { text: `あなたは数学採点官。
+【厳禁】画像が「手書きの数学答案」でない場合（白紙、QRコード、風景等）、模範解答をユーザーの回答とすり替えて採点することを絶対に禁じる。その場合は「答案を確認できません」とし Score: 0 に固定せよ。
+【手順】
+1. 画像内の「 Akiさんの筆跡」を探せ。
+2. 筆跡がない、または無関係なら 0点。
+3. 筆跡がある場合のみ、論理を評価し Score: X/10 を出せ。
+問題：${appState.prob.text}` }, 
+                        { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
+                    ] }] })
                 });
                 const responseData = await res.json();
                 const fb = responseData.candidates[0].content.parts[0].text;
@@ -216,7 +222,7 @@
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 if (window.MathJax) MathJax.typesetPromise();
                 hideUI();
-            } catch(e) { showError("採点エラー"); }
+            } catch(e) { alert("採点エラー"); }
         }
 
         function applyProb(p, lv) {
@@ -239,16 +245,16 @@
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。単元「${appState.unit}」、偏差値${d}。JSON(text, sub:[], hint)。数式$囲み。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。偏差値${d}。JSON(text, sub:[], hint)。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
                 applyProb(JSON.parse(data.candidates[0].content.parts[0].text), d);
-            } catch (e) { showError("生成エラー"); }
+            } catch (e) { alert("生成エラー"); }
         }
 
         async function prefetchAnswer() { 
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答：${appState.prob.text}` }] }] }) }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `解答全解：${appState.prob.text}` }] }] }) }); 
                 const data = await res.json();
                 appState.ans = cleanMathText(data.candidates[0].content.parts[0].text); 
             } catch (e) {} 
@@ -263,10 +269,9 @@
 
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(window.MathJax) MathJax.typesetPromise(); }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
-        function showError(em) { clearInterval(appState.t); document.getElementById('msg').innerText=em; }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
         function doSkip() { generateNext(true); }
-        function resetData() { if(confirm("リセット？")) { localStorage.clear(); location.reload(); } }
+        function resetData() { if(confirm("初期化しますか？")) { localStorage.clear(); location.reload(); } }
 
         function refreshStats() {
             const h = JSON.parse(localStorage.getItem('m_hist') || "[]");
@@ -284,7 +289,7 @@
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
             refreshStats();
-            applyProb({ text: "次の方程式を解け。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xの値を求めよ。"], hint: "整理して解け。" }, 60.0);
+            applyProb({ text: "次の方程式を解け。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xを求めよ。"], hint: "整理して解け。" }, 60.0);
         });
     </script>
 </body>
