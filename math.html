@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.7.8</title>
+    <title>AI数学講師 3.8.0</title>
     
     <script>
         window.MathJax = {
@@ -48,7 +48,7 @@
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.7.8 RIGID_GRADER</div>
+        <div style="font-size:0.7rem; color:#888;">ver 3.8.0 TOGGLE_BUTTON</div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
@@ -196,16 +196,15 @@
         async function executeGrading() {
             showUI("答案を採点中...");
             const data = getCroppedData();
+            const subQs = Array.isArray(appState.prob.sub) ? appState.prob.sub.join('\n') : appState.prob.sub;
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `あなたは数学採点官です。
-【最重要：拒絶ルール】
-添付画像が「数学の答案（手書きの数式や論理プロセス）」でない場合、またはQRコード、無関係な図形、風景、白紙などの場合は、内容を評価せず、即座に「数学の答案として認識できません。撮り直してください。」と出力し Score: 0 とせよ。
-
-【採点ルール】
-答案である場合は、画像内の文字方向を補正し、数式と論理を評価せよ。Score: X/10 を必須出力。
-問題：${appState.prob.text}` }, 
+                        { text: `数学採点官。画像回転補正必須。数学答案でないならScore: 0。
+【対象問題】
+${appState.prob.text}
+${subQs ? '小問：\n' + subQs : ''}
+【ルール】小問(1)～(n)すべてを一括採点。論理重視しScore: X/10出力。` }, 
                         { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }
                     ] }] })
                 });
@@ -213,9 +212,10 @@
                 const box = document.getElementById('res-box');
                 box.innerHTML = fb.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
                 box.style.display = 'block'; document.getElementById('ans-grade-btn').style.display = 'none';
+                document.getElementById('ans-toggle-btn').innerText = "🔍 解答を閉じる"; // ラベル更新
                 if (window.MathJax) MathJax.typesetPromise();
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
-            } catch(e) { alert("採点中にエラーが発生しました。"); } finally { hideUI(); }
+            } catch(e) { alert("採点エラー。"); } finally { hideUI(); }
         }
 
         function applyProb(p) {
@@ -225,6 +225,7 @@
             document.getElementById('q-list').innerHTML = (Array.isArray(p.sub) ? p.sub : [p.sub]).map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
             document.getElementById('h-box').innerText = p.hint;
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
+            document.getElementById('ans-toggle-btn').innerText = "🔍 解答を確認"; // リセット
             pbox.style.display = 'none'; guide.style.display = 'none'; document.getElementById('ans-grade-btn').style.display = 'none';
             const showDiagram = /平面図形|関数|立体/.test(appState.unit) || /三角形|円|グラフ|相似/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
@@ -239,19 +240,27 @@
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `あなたは数学作問委員。高校入試数学の範囲に限定。微積分禁止。単元「${appState.unit}」、偏差値${d}。JSON(text, sub:[], hint)形式。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学範囲限定。微積分禁止。JSON形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
             } finally { hideUI(); }
         }
 
-        async function prefetchAnswer() { try { const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答。補足リンク。問題：${appState.prob.text}` }] }] }) }); appState.ans = (await res.json()).candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); } catch (e) {} }
+        async function prefetchAnswer() { 
+            const subQs = Array.isArray(appState.prob.sub) ? appState.prob.sub.join('\n') : appState.prob.sub;
+            try { 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答作成。小問(1)～(n)を全て解け。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
+                appState.ans = (await res.json()).candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); 
+            } catch (e) {} 
+        }
 
         async function peekAnswer() {
-            const box = document.getElementById('res-box'); if (box.style.display === 'block') { box.style.display = 'none'; return; }
+            const box = document.getElementById('res-box'); const btn = document.getElementById('ans-toggle-btn');
+            if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
             if (!appState.seen) { if (!confirm("未採点なので偏差値加算は行われません。")) return; appState.seen = true; saveLog(0); }
             if (!appState.ans) await prefetchAnswer();
-            box.innerHTML = appState.ans; box.style.display = 'block'; if (window.MathJax) MathJax.typesetPromise();
+            box.innerHTML = appState.ans; box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
+            if (window.MathJax) MathJax.typesetPromise();
         }
 
         function startDrawing(text) { document.getElementById('svg-layer').innerHTML = `<div><b style="color:var(--ai);">作図中...</b></div>`; autoDraw(text); }
@@ -259,6 +268,7 @@
         function toggleHint() { const b = document.getElementById('h-box'); b.style.display = (b.style.display==='block')?'none':'block'; if(window.MathJax) MathJax.typesetPromise(); }
         function showUI(m) { document.getElementById('status-ui').style.display='block'; document.getElementById('msg').innerText=m; let s = Date.now(); clearInterval(appState.t); appState.t = setInterval(()=>{ document.getElementById('timer').innerText=((Date.now()-s)/1000).toFixed(1)+"s"; },100); }
         function hideUI() { document.getElementById('status-ui').style.display='none'; clearInterval(appState.t); }
+        function doSkip() { generateNext(true); }
         function resetData() { if(confirm("初期化しますか？")) { localStorage.clear(); location.reload(); } }
 
         function refreshStats() {
