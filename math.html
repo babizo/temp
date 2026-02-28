@@ -62,7 +62,7 @@
 
     <div class="debug-bar">
         <label><input type="checkbox" id="debug-mode"> DEBUG</label>
-        <span class="version-tag">ver 3.4.8 Bug-Fix</span>
+        <span class="version-tag">ver 3.4.9 Ans-Reliable</span>
     </div>
 
     <div class="card">
@@ -149,20 +149,26 @@
             finally { setTimeout(() => { isRendering = false; }, 100); }
         }
 
-        window.onload = () => {
+        window.onload = async () => {
             initZoom(); refreshStats();
             document.getElementById('dev-slider').addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value);
                 document.getElementById('dev-val').innerText = val.toFixed(1);
                 updateTargetSchool(val);
             });
-            // 初期問題を完全な文章形式へ修正
-            applyProb({ 
+            
+            // 同期処理として問題をセット
+            const initialProblem = { 
                 unit: "数と式", 
                 text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", 
-                sub: ["$2(x-3) = \\frac{x}{2} + 1$ を満たす$x$を求めよ。"], 
-                hint: "分母の2を払うために、両辺に2を掛けて整数の方程式に直せ。" 
-            });
+                sub: ["方程式 $2(x-3) = \\frac{x}{2} + 1$ を満たす $x$ を求めよ。"], 
+                hint: "分母の2を払うために、両辺に2を掛けて整理せよ。" 
+            };
+            
+            applyProb(initialProblem);
+            
+            // 反映を待ってから解答を事前取得
+            setTimeout(() => { prefetchAnswer(); }, 1500);
         };
 
         function updateTargetSchool(dev) {
@@ -201,7 +207,7 @@
             document.getElementById('zoom-box').style.display = showDiagram ? 'flex' : 'none';
             document.getElementById('canvas-footer').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) startDrawing(mainText);
-            safeRender(); prefetchAnswer();
+            safeRender();
             return true;
         }
 
@@ -243,16 +249,18 @@
             state.current_target_unit = target;
             showUI(`${target} (Lv.${devValue.toFixed(1)}) を構成中...`);
             currentAbortController = new AbortController();
-            const prompt = `あなたは最難関入試の数学作問委員。受験生の思考力を試す厳格な問題を構成せよ。口調は「～を求めよ」。
-公式補足が必要なら[詳しい説明](URL)を張れ。単元「${target}」、SAPIX偏差値${devValue}相当。JSON(text, sub:[], hint)形式。`;
+            const prompt = `あなたは数学作問委員。受験生の思考力を試す厳格な問題を構成せよ。口調は「～を求めよ」。
+補足が必要なら[詳しい説明](URL)を張れ。単元「${target}」、SAPIX偏差値${devValue}相当。JSON(text, sub:[], hint)形式。`;
             try {
                 const res = await fetch(`/api/chat`, {
                     method: "POST", headers: {"Content-Type": "application/json"}, signal: currentAbortController.signal,
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const parsed = JSON.parse((await res.json()).candidates[0].content.parts[0].text);
-                if (applyProb(parsed)) hideUI();
-                else throw new Error("Invalid");
+                if (applyProb(parsed)) {
+                    hideUI();
+                    setTimeout(() => { prefetchAnswer(); }, 500); // 問題確定後に解答事前取得
+                } else throw new Error("Invalid");
             } catch (e) {
                 if (retryCount < 3 && e.name !== 'AbortError') generateNext(isOther, isHardMode, retryCount + 1);
                 else hideUI();
@@ -280,24 +288,33 @@
         function abortGeneration() { if (currentAbortController) currentAbortController.abort(); hideUI(); }
         
         async function prefetchAnswer() { 
+            if (!state.prob.text) return;
             try { 
                 const res = await fetch(`/api/chat`, { 
                     method: "POST", headers: {"Content-Type": "application/json"}, 
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `入試解答作成委員。問題の解を導出せよ。補足が必要なら[解説](URL)を張れ。問題：${state.prob.text}` }] }] }) 
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答作成。問題の解と手順を導出せよ。補足が必要なら[解説](URL)を張れ。問題：${state.prob.text}` }] }] }) 
                 }); 
                 state.prefetched_answer = (await res.json()).candidates[0].content.parts[0].text; 
-            } catch (e) {} 
+            } catch (e) { console.error("Prefetch Failed"); } 
         }
 
-        function peekAnswer() { 
+        async function peekAnswer() { 
             const box = document.getElementById('res-box');
             const btn = document.getElementById('ans-toggle-btn');
-            if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を確認"; return; }
+            if (box.style.display === 'block') { box.style.display = 'none'; btn.innerText = "🔍 解答を表示"; return; }
+            
             if (!state.seen_answer) {
                 if (!confirm("解答を確認すると本問の偏差値加算は行われません。よろしいですか？")) return; 
                 state.seen_answer = true; saveLog("×", 0); 
             }
-            box.innerHTML = state.prefetched_answer || "解答を取得できませんでした。再度生成をお試しください。"; 
+
+            // 解答がまだ取得できていない場合の緊急取得
+            if (!state.prefetched_answer) {
+                btn.innerText = "⏳ 取得中...";
+                await prefetchAnswer();
+            }
+
+            box.innerHTML = state.prefetched_answer || "解答の取得に失敗しました。もう一度お試しください。"; 
             box.style.display = 'block'; btn.innerText = "🔍 解答を閉じる";
             safeRender();
         }
@@ -320,7 +337,8 @@
         }
         function saveLog(mark, score) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
-            h.unshift({ u: state.current_target_unit, s: score, p: state.prob });
+            const probToSave = JSON.parse(JSON.stringify(state.prob));
+            h.unshift({ u: state.current_target_unit, s: score, p: probToSave });
             localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats();
         }
 
@@ -330,7 +348,7 @@
             reader.onload = async (ev) => {
                 try {
                     const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `入試採点官。Score: X/10。背景知識が必要なら外部リンクを張れ。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `入試採点。Score: X/10。背景知識が必要なら外部リンクを張れ。問題：${state.prob.text}` }, { inlineData: { mimeType: e.target.files[0].type, data: ev.target.result.split(',')[1] } }] }] })
                     });
                     const fb = (await res.json()).candidates[0].content.parts[0].text;
                     document.getElementById('res-box').innerHTML = fb; document.getElementById('res-box').style.display = 'block';
