@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.8.2</title>
+    <title>AI数学講師 3.8.3</title>
     
     <script>
         window.MathJax = {
@@ -43,13 +43,13 @@
         .hist-info { display: flex; flex-direction: column; gap: 2px; }
         .hist-date { font-size: 0.6rem; color: #888; }
         .score-badge { background: #444; padding: 2px 8px; border-radius: 4px; font-weight: bold; min-width: 35px; text-align: center; }
-        .error-msg { color: var(--error); font-weight: bold; margin-top: 10px; }
+        .error-msg { color: var(--error); font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
     </style>
- head>
+</head>
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.8.2 UNDEF_GUARD</div>
+        <div style="font-size:0.7rem; color:#888;">ver 3.8.3 FLOW_FIXED</div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
@@ -117,7 +117,7 @@
         <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
         <div id="error-feedback" class="error-msg" style="display:none;"></div>
         <div id="disclaimer" style="font-size:0.75rem; color:#ffadad; margin-top:10px;">※高品質な解析のため最大1分程かかる場合があります</div>
-        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断・再試行</button>
+        <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断・再読込</button>
     </div>
 
     <script>
@@ -175,12 +175,8 @@
             const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
             const ratio = Math.max(img.naturalWidth / img.clientWidth, img.naturalHeight / img.clientHeight);
             const sw = cropState.w * ratio; const sh = cropState.h * ratio;
-            const displayedImgW = img.naturalWidth / ratio;
-            const displayedImgH = img.naturalHeight / ratio;
-            const offsetX = (pbox.clientWidth - displayedImgW) / 2;
-            const offsetY = (pbox.clientHeight - displayedImgH) / 2;
-            const sx = (cropState.x - offsetX) * ratio;
-            const sy = (cropState.y - offsetY) * ratio;
+            const sx = (cropState.x - (pbox.clientWidth - img.naturalWidth / ratio) / 2) * ratio;
+            const sy = (cropState.y - (pbox.clientHeight - img.naturalHeight / ratio) / 2) * ratio;
             canvas.width = sw; canvas.height = sh;
             ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
             return canvas.toDataURL('image/jpeg', 0.8);
@@ -202,7 +198,7 @@
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({ contents: [{ parts: [
-                        { text: `数学採点官。画像回転補正必須。数学答案でないならScore: 0。
+                        { text: `数学採点官。画像回転補正。数学答案でないならScore: 0。
 【対象問題】
 ${appState.prob.text}
 ${subQs ? '小問：\n' + subQs : ''}
@@ -211,7 +207,7 @@ ${subQs ? '小問：\n' + subQs : ''}
                     ] }] })
                 });
                 const responseData = await res.json();
-                if (!responseData.candidates) throw new Error("Grading Failed");
+                if (!responseData.candidates) throw new Error("採点データを受信できませんでした");
                 const fb = responseData.candidates[0].content.parts[0].text;
                 const box = document.getElementById('res-box');
                 box.innerHTML = fb.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
@@ -220,16 +216,16 @@ ${subQs ? '小問：\n' + subQs : ''}
                 if (window.MathJax) MathJax.typesetPromise();
                 saveLog(parseInt((fb.match(/Score:\s*(\d+)/i)||[0,0])[1]));
                 hideUI();
-            } catch(e) { showError("採点タイムアウト：再試行してください"); }
+            } catch(e) { showError(e.message || "採点タイムアウト：再試行してください"); }
         }
 
         function applyProb(p) {
-            // undefinedガード
-            if (!p || typeof p.text === 'undefined') { showError("不完全なデータを受信しました。再度試してください"); return; }
+            // バリデーション緩和：textさえあれば通す
+            if (!p || !p.text) { showError("無効な問題データです。もう一度作成してください"); return; }
             appState.prob = p; appState.seen = false; appState.ans = null;
             document.getElementById('u-title').innerText = appState.unit;
-            document.getElementById('p-text').innerText = p.text || "問題文の取得に失敗しました";
-            const subs = (Array.isArray(p.sub) ? p.sub : [p.sub]).filter(q => q && typeof q !== 'undefined');
+            document.getElementById('p-text').innerText = p.text;
+            const subs = (Array.isArray(p.sub) ? p.sub : [p.sub]).filter(q => q);
             document.getElementById('q-list').innerHTML = subs.map((q, i) => `<li>(${i+1}) ${q}</li>`).join('');
             document.getElementById('h-box').innerText = p.hint || "ヒントはありません";
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
@@ -240,6 +236,7 @@ ${subQs ? '小問：\n' + subQs : ''}
             if (showDiagram) startDrawing(p.text);
             if (window.MathJax) MathJax.typesetPromise();
             setTimeout(prefetchAnswer, 2000);
+            hideUI(); // ここでローディングを消す
         }
 
         async function generateNext(isOther = false, isHardMode = false) {
@@ -251,21 +248,18 @@ ${subQs ? '小問：\n' + subQs : ''}
                     body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問。高校入試数学限定。微積分禁止。JSON形式。単元「${appState.unit}」、偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 const data = await res.json();
-                if (!data.candidates) throw new Error("Generation Failed");
+                if (!data.candidates || !data.candidates[0].content.parts[0].text) throw new Error("データを受信できませんでした");
                 const jsonText = data.candidates[0].content.parts[0].text;
-                try {
-                    const parsed = JSON.parse(jsonText);
-                    applyProb(parsed);
-                    hideUI();
-                } catch(pe) { throw new Error("JSON Parse Error"); }
-            } catch (e) { showError("生成タイムアウト：再度ボタンを押してください"); }
+                const parsed = JSON.parse(jsonText.replace(/```json|```/g, '').trim());
+                applyProb(parsed);
+            } catch (e) { showError("生成エラー：もう一度ボタンを押してください"); }
         }
 
         async function prefetchAnswer() { 
             if (!appState.prob.text) return;
             const subQs = Array.isArray(appState.prob.sub) ? appState.prob.sub.join('\n') : appState.prob.sub;
             try { 
-                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答作成。小問(1)～(n)を全て解け。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
+                const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ contents: [{ parts: [{ text: `数学解答作成。小問を全て解け。問題：${appState.prob.text} ${subQs ? '\n小問：' + subQs : ''}` }] }] }) }); 
                 const data = await res.json();
                 if (data.candidates) {
                     appState.ans = data.candidates[0].content.parts[0].text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank">$1</a>'); 
@@ -324,7 +318,7 @@ ${subQs ? '小問：\n' + subQs : ''}
             const slider = document.getElementById('dev-slider');
             slider.oninput = (e) => updateTargetLabel(parseFloat(e.target.value));
             refreshStats();
-            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["方程式を満たすxを求めよ。"], hint: "両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直し、整理せよ。" });
+            applyProb({ text: "次の方程式を解き、xの値を求めよ。$2(x-3) = \\frac{x}{2} + 1$", sub: ["xを求めよ。"], hint: "両辺に2を掛けて整数の方程式 $4(x-3) = x + 2$ に直し、整理せよ。" });
         });
     </script>
 </body>
