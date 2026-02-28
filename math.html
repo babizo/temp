@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI数学講師 3.7.5</title>
+    <title>AI数学講師 3.7.6</title>
     
     <script>
         window.MathJax = {
@@ -54,12 +54,12 @@
 <body>
 
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div style="font-size:0.7rem; color:#888;">ver 3.7.5 SLIDER_FIX</div>
+        <div style="font-size:0.7rem; color:#888;">ver 3.7.6 NO_CALC_FIX</div>
         <button class="theme-toggle" onclick="document.body.classList.toggle('light-mode')">🌓 モード切替</button>
     </div>
 
     <div class="card">
-        <div class="header-flex"><h1>偏差値・レベル設定</h1></div>
+        <div class="header-flex"><h1>推定レベル</h1></div>
         <div style="text-align:center;">
             <span id="dev-val" style="font-size:1.8rem; font-weight:bold; color:var(--primary); font-family:monospace;">60.0</span>
             <span id="target-school" style="color:var(--hint); font-weight:bold; margin-left:10px;">[日比谷]</span>
@@ -120,7 +120,8 @@
 
     <div id="status-ui" class="loading-overlay">
         <div id="timer" style="font-size:2.2rem; color:var(--ai); font-family:monospace; margin-bottom:10px;">0.0s</div>
-        <p id="msg" style="font-weight:bold; color:#fff;"></p>
+        <p id="msg" style="font-weight:bold; color:#fff; font-size:1.1rem;"></p>
+        <div style="font-size:0.75rem; color:#ffadad; margin-top:10px;">※高品質な解析のため最大1分程かかる場合があります</div>
         <button onclick="location.reload()" style="background:#444; color:#ccc; padding:10px; border-radius:8px; margin-top:15px; width:60%;">中断</button>
     </div>
 
@@ -134,7 +135,6 @@
         const img = document.getElementById('ans-preview');
         const guide = document.getElementById('crop-guide');
 
-        // --- 偏差値表示・更新ロジック (FIX) ---
         function updateTargetLabel(val) {
             let s = "[標準]";
             if (val >= 76) s = "[筑駒]"; else if (val >= 72) s = "[開成]"; else if (val >= 68) s = "[渋幕]"; else if (val >= 60) s = "[日比谷]"; else if (val >= 56) s = "[西]";
@@ -142,7 +142,6 @@
             document.getElementById('dev-val').innerText = val.toFixed(1);
         }
 
-        // --- トリミング・画像処理 ---
         function initCrop() { cropState.x = 50; cropState.y = 50; cropState.w = pbox.clientWidth-100; cropState.h = 150; ov.style.display = 'block'; updateCropUI(); }
         function updateCropUI() { ov.style.left = cropState.x + 'px'; ov.style.top = cropState.y + 'px'; ov.style.width = cropState.w + 'px'; ov.style.height = cropState.h + 'px'; }
         
@@ -203,7 +202,7 @@
             const data = getCroppedData();
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学採点。画像向き自動補正。Score: X/10。問題：${appState.prob.text}` }, { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `入試採点官。画像向き自動補正。Score: X/10。問題：${appState.prob.text}` }, { inlineData: { mimeType: "image/jpeg", data: data.split(',')[1] } }] }] })
                 });
                 const fb = (await res.json()).candidates[0].content.parts[0].text;
                 const box = document.getElementById('res-box');
@@ -221,7 +220,7 @@
             document.getElementById('h-box').innerText = p.hint;
             document.getElementById('h-box').style.display = 'none'; document.getElementById('res-box').style.display = 'none';
             pbox.style.display = 'none'; guide.style.display = 'none'; document.getElementById('ans-grade-btn').style.display = 'none';
-            const showDiagram = /平面図形|関数|立体/.test(appState.unit) || /三角形|円|グラフ/.test(p.text);
+            const showDiagram = /平面図形|関数|立体/.test(appState.unit) || /三角形|円|グラフ|相似/.test(p.text);
             document.getElementById('canvas-box').style.display = showDiagram ? 'block' : 'none';
             if (showDiagram) startDrawing(p.text);
             if (window.MathJax) MathJax.typeset();
@@ -234,7 +233,10 @@
             showUI(`${appState.unit} 構成中...`);
             try {
                 const res = await fetch(`/api/chat`, { method: "POST", headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `数学作問委員。hint50字相当。JSON(text, sub:[], hint)形式。偏差値${d}。` }] }], generationConfig: { responseMimeType: "application/json" } })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `あなたは数学作問委員。
+【重要】高校入試数学の範囲に限定せよ。微積分（微分・積分）はいかなる難易度でも絶対に出題を禁止する。
+筑駒・開成レベルの問題は、中学数学の範囲内で極めて高度な思考力を問う幾何や代数で構成せよ。
+hint50字相当。単元「${appState.unit}」、偏差値${d}。JSON(text, sub:[], hint)形式。` }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 applyProb(JSON.parse((await res.json()).candidates[0].content.parts[0].text));
             } finally { hideUI(); }
@@ -263,16 +265,14 @@
             if(h.length > 0) {
                 const avg = h.map(x => x.s).reduce((a,b)=>a+b,0) / h.length;
                 const d = Math.min(80, 40 + (avg * 3.5));
-                document.getElementById('dev-slider').value = d;
-                updateTargetLabel(d);
+                document.getElementById('dev-slider').value = d; updateTargetLabel(d);
             }
         }
         function saveLog(s) {
             let h = JSON.parse(localStorage.getItem('m_hist') || "[]");
             const now = new Date(); const dt = (now.getMonth()+1) + "/" + now.getDate() + " " + now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
             h.unshift({ u: appState.unit, s: s, dt: dt });
-            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50)));
-            refreshStats();
+            localStorage.setItem('m_hist', JSON.stringify(h.slice(0, 50))); refreshStats();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
